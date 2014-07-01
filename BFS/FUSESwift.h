@@ -9,6 +9,9 @@
 #define FUSESWIFT_H_
 
 #include <fuse.h>
+#include "log.h"
+#include "model/filesystem.h"
+#include <string.h>
 
 namespace FUSESwift {
 	/** Get file attributes.
@@ -17,7 +20,7 @@ namespace FUSESwift {
 	 * ignored.	 The 'st_ino' field is ignored except if the 'use_ino'
 	 * mount option is given.
 	 */
-	int swift_getattr (const char *path, struct stat *stbuff);
+	extern int swift_getattr (const char *path, struct stat *stbuff);
 
 	/** Read the target of a symbolic link
 	 *
@@ -254,7 +257,7 @@ namespace FUSESwift {
 	 * Introduced in version 2.3
 	 * Changed in version 2.6
 	 */
-	void *swift_init (struct fuse_conn_info *conn);
+	extern void *swift_init (struct fuse_conn_info *conn);
 
 	/**
 	 * Clean up filesystem

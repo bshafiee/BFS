@@ -14,11 +14,25 @@
 namespace FUSESwift {
 
 class FileSystem: public Tree {
+  const size_t blockSize = 1;
+  const std::string delimiter = "/";
   FileNode *root;
-public:
+  //Singleton instance
+  static FileSystem *mInstance;
   FileSystem(FileNode* _root);
+  FileNode* searchNode(FileNode* _parent, std::string _name, bool _isDir);
+public:
+  void initialize(FileNode* _root);
+  static FileSystem* getInstance();
   virtual ~FileSystem();
-  void destroy();
+  FileNode* mkFile(FileNode* _parent, std::string _name);
+  FileNode* mkDirectory(FileNode* _parent, std::string _name);
+  size_t rmNode(FileNode* _node);
+  FileNode* searchFile(FileNode* _parent, std::string _name);
+  FileNode* searchDir(FileNode* _parent, std::string _name);
+  size_t getBlockSize();
+  std::string getDelimiter();
+  FileNode* getNode(std::string _path);
 };
 
 } /* namespace FUSESwift */

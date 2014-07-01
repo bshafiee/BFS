@@ -9,7 +9,8 @@
 #include <cstring>
 
 using namespace std;
-using namespace FUSESwift;
+
+namespace FUSESwift {
 
 FileNode::FileNode(string _name,bool _isDir):Node(_name),
     isDir(_isDir),data(nullptr),size(0) {
@@ -39,7 +40,7 @@ metadataDictionary::iterator FileNode::metadataEnd() {
 }
 
 bool FileNode::write(const void* _data, size_t _size) {
-  data = malloc(_size);
+  data = (char*)malloc(_size);
   if(data == nullptr)
     return false;
   size = _size;
@@ -100,7 +101,7 @@ bool FileNode::append(const void *_data, size_t _size) {
     return false;
 
 
-  data = newData;
+  data = (char*)newData;
   void *pointer = data + size;
   size = size+_size;
   memcpy(pointer,_data,_size);
@@ -109,4 +110,6 @@ bool FileNode::append(const void *_data, size_t _size) {
 
 bool FileNode::isDirectory() {
   return isDir;
+}
+
 }

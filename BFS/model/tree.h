@@ -21,7 +21,7 @@ public:
    * clears Tree from specified start node
    * returns number of removed nodes.
    */
-  int destroy(Node* start);
+  size_t destroy(Node* &start);
 };
 
 } /* namespace FUSESwift */

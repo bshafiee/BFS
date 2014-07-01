@@ -18,7 +18,7 @@ typedef std::map<std::string,std::string> metadataDictionary;
 class FileNode: public Node {
   metadataDictionary metadata;
   bool isDir;
-  void* data;
+  char* data;
   size_t size;
 public:
   FileNode(std::string _name,bool _isDir);

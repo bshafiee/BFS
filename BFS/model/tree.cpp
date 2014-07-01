@@ -6,14 +6,44 @@
  */
 
 #include "tree.h"
+#include <vector>
+
+using namespace std;
 
 namespace FUSESwift {
-
 
 Tree::Tree(Node *_root):root(_root) {
 }
 
 Tree::~Tree() {
+  if(root == nullptr)
+    return;
+  destroy(root);
 }
 
-} /* namespace FUSESwift */
+size_t Tree::destroy(Node*& start) {
+  //Recursive removing is dangerous, because we might run out of memory.
+  vector<Node*> childrenQueue;
+  size_t numOfRemovedNodes = 0;
+
+  while(start != nullptr) {
+    //add children to queue
+    childDictionary::iterator childIterator = start->childrendBegin();
+    for(;childIterator != start->childrenEnd();childIterator++)
+      childrenQueue.push_back(childIterator->second);
+    //Now we can release start node
+    delete start;
+    numOfRemovedNodes++;
+    if(childrenQueue.size() == 0)
+      start = nullptr;
+    else {
+      //Now assign start to a new node in queue
+      vector<Node*>::iterator frontIt = childrenQueue.begin();
+      start = *frontIt;
+      childrenQueue.erase(frontIt);
+    }
+  }
+  return numOfRemovedNodes;
+}
+
+}

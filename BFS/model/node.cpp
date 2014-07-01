@@ -7,8 +7,9 @@
 
 #include "node.h"
 
-using namespace FUSESwift;
 using namespace std;
+
+namespace FUSESwift {
 
 Node::Node(string _key):key(_key) {
 }
@@ -55,4 +56,6 @@ childDictionary::iterator Node::childrendBegin() {
 
 childDictionary::iterator Node::childrenEnd() {
   return children.end();
+}
+
 }
