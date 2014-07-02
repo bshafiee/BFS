@@ -15,31 +15,31 @@ using namespace std;
 namespace FUSESwift {
 
 int swift_getattr (const char *path, struct stat *stbuff) {
-  int res = 0;
   memset(stbuff, 0, sizeof(struct stat));
   //Get associated FileNode*
   string pathStr(path,strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  if(node == nullptr)
+    return ENOENT;
   //Fill Stat struct
   stbuff->st_dev = 0;
   stbuff->st_ino = 0;
   stbuff->st_mode = node->isDirectory()? S_IFDIR : S_IFREG;
   stbuff->st_nlink = 1;
-  stbuff->st_uid = 0;
-  stbuff->st_gid = 0;
+  stbuff->st_uid = node->getUID();
+  stbuff->st_gid = node->getGID();
   stbuff->st_rdev = 0;
-  stbuff->st_size = 0;
+  stbuff->st_size = node->getSize();
   stbuff->st_blksize = FileSystem::getInstance()->getBlockSize();
   stbuff->st_blocks = node->getSize() / FileSystem::getInstance()->getBlockSize();
   stbuff->st_atime = 0x00000000;
-  stbuff->st_mtime = 0x00000000;
-  stbuff->st_ctime = 0x00000000;
+  stbuff->st_mtime = node->getMTime();
+  stbuff->st_ctime = node->getCTime();
 
   log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n", path, stbuff);
   log_stat (stbuff);
 
-  //res = -ENOENT;
-  return res;
+  return 0;
 }
 
 void* swift_init(struct fuse_conn_info* conn) {

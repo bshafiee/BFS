@@ -7,6 +7,7 @@
 
 #include "filenode.h"
 #include <cstring>
+#include <sstream>      // std::istringstream
 
 using namespace std;
 
@@ -24,11 +25,20 @@ FileNode::~FileNode() {
 }
 
 void FileNode::metadataAdd(std::string _key, std::string _value) {
-  metadata.insert(make_pair(_key,_value));
+  metadataDictionary::iterator it = metadata.find(_key);
+  if(it == metadata.end())
+    metadata.insert(make_pair(_key,_value));
+  else //update value
+    it->second = _value;
 }
 
 void FileNode::metadataRemove(std::string _key) {
   metadata.erase(_key);
+}
+
+string FileNode::metadataGet(string _key) {
+  metadataDictionary::iterator it = metadata.find(_key);
+  return (it == metadata.end())? "": it->second;
 }
 
 metadataDictionary::iterator FileNode::metadataBegin() {
@@ -106,6 +116,62 @@ bool FileNode::append(const void *_data, size_t _size) {
   size = size+_size;
   memcpy(pointer,_data,_size);
   return true;
+}
+
+unsigned long FileNode::getUID() {
+  string uidStr = metadataGet(uidKey);
+  istringstream ss(uidStr);
+  unsigned long output = 0;
+  ss >> output;
+  return output;
+}
+
+unsigned long FileNode::getGID() {
+  string gidStr = metadataGet(gidKey);
+  istringstream ss(gidStr);
+  unsigned long output = 0;
+  ss >> output;
+  return output;
+}
+
+void FileNode::setUID(unsigned long _uid) {
+  stringstream ss;
+  ss << _uid;
+  metadataAdd(uidKey,ss.str());
+}
+
+void FileNode::setGID(unsigned long _gid) {
+  stringstream ss;
+  ss << _gid;
+  metadataAdd(gidKey,ss.str());
+}
+
+unsigned long FileNode::getMTime() {
+  string gidStr = metadataGet(mtimeKey);
+  istringstream ss(gidStr);
+  unsigned long output = 0;
+  ss >> output;
+  return output;
+}
+
+unsigned long FileNode::getCTime() {
+  string gidStr = metadataGet(ctimeKey);
+  istringstream ss(gidStr);
+  unsigned long output = 0;
+  ss >> output;
+  return output;
+}
+
+void FileNode::setMTime(unsigned long _mtime) {
+  stringstream ss;
+  ss << _mtime;
+  metadataAdd(mtimeKey,ss.str());
+}
+
+void FileNode::setCTime(unsigned long _ctime) {
+  stringstream ss;
+  ss << _ctime;
+  metadataAdd(ctimeKey,ss.str());
 }
 
 bool FileNode::isDirectory() {

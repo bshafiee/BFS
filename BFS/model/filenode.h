@@ -16,6 +16,12 @@ namespace FUSESwift {
 typedef std::map<std::string,std::string> metadataDictionary;
 
 class FileNode: public Node {
+  const std::string uidKey   = "uid";//User ID
+  const std::string gidKey   = "gid";//Group ID
+  const std::string mtimeKey = "mtime";//Last modified time
+  const std::string ctimeKey = "ctime";//Create Time
+
+  //Private Members
   metadataDictionary metadata;
   bool isDir;
   char* data;
@@ -23,8 +29,20 @@ class FileNode: public Node {
 public:
   FileNode(std::string _name,bool _isDir);
   virtual ~FileNode();
+  /**
+   * if an element with key '_key' exist this will override it
+   */
   void metadataAdd(std::string _key, std::string _value);
   void metadataRemove(std::string _key);
+  std::string metadataGet(std::string _key);
+  unsigned long getUID();
+  unsigned long getGID();
+  void setUID(unsigned long _uid);
+  void setGID(unsigned long _gid);
+  unsigned long getMTime();
+  unsigned long getCTime();
+  void setMTime(unsigned long _mtime);
+  void setCTime(unsigned long _ctime);
   metadataDictionary::iterator metadataBegin();
   metadataDictionary::iterator metadataEnd();
   std::string getName();
