@@ -9,10 +9,18 @@
 #include "log.h"
 #include "model/filesystem.h"
 #include <cstring>
+#include <ctime>
 
 using namespace std;
 
 namespace FUSESwift {
+
+FileNode* createRootNode() {
+  FileNode *node = new FileNode(FileSystem::getInstance()->getDelimiter(),true);
+  unsigned long = time(0);
+  node->setCTime(0);
+  node->setCTime(0);
+}
 
 int swift_getattr (const char *path, struct stat *stbuff) {
   memset(stbuff, 0, sizeof(struct stat));
@@ -43,10 +51,17 @@ int swift_getattr (const char *path, struct stat *stbuff) {
 }
 
 void* swift_init(struct fuse_conn_info* conn) {
+  //Initialize file system
+  FileNode* rootNode = createRootNode();
+  FileSystem::getInstance()->initialize(rootNode);
+  //Get Context
+  struct fuse_context *fuseContext = fuse_get_context();
+  rootNode->setGID(fuseContext->gid);
+  rootNode->setGID(fuseContext->uid);
+  //Log
   log_msg("\nbb_init()\n");
-
   log_conn(conn);
-  log_fuse_context(fuse_get_context());
+  log_fuse_context(fuseContext);
 
   return BB_DATA;
 }
