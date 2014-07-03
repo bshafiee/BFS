@@ -8,6 +8,7 @@
 #include "filenode.h"
 #include <cstring>
 #include <sstream>      // std::istringstream
+#include "../log.h"
 
 using namespace std;
 
@@ -78,7 +79,7 @@ size_t FileNode::getSize() {
   return size;
 }
 
-void FileNode::changeName(std::string _newName) {
+void FileNode::setName(std::string _newName) {
   key = _newName;
 }
 
@@ -186,6 +187,19 @@ void FileNode::setMode(mode_t _mode) {
   stringstream ss;
   ss << _mode;
   metadataAdd(modeKey,ss.str());
+}
+
+bool FileNode::renameChild(FileNode* _child,const string &_newName) {
+  //Not such a node
+  childDictionary::iterator it = children.find(_child->getName());
+  if(it == children.end())
+    return false;
+  //First remove node
+  children.erase(it);
+  //Now insert it again with the updated name
+  _child->setName(_newName);
+  log_msg("\n hahaha ha injaaaaa name: %s\n",_child->getName().c_str());
+  return childAdd(_child).second;
 }
 
 bool FileNode::isDirectory() {

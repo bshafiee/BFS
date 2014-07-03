@@ -11,362 +11,30 @@ bb_init()
     max_background = 0
     congestion_threshold = 0
     context:
-    fuse = 00cb4e30
+    fuse = 01b51e30
     uid = 0
     gid = 0
     pid = 0
-    private_data = 00cb2ce0
-    logfile = 00cb2d00
+    private_data = 01b4fce0
+    logfile = 01b4fd00
     rootdir = /home/behrooz/git/msthesis/BFS/rootdir
     umask = 00000
 
-bb_getattr(path="/.Trash", statbuf=0x7a466b90)
+bb_getattr(path="/.Trash", statbuf=0x9529eb90)
 Node not found: /.Trash
 
-bb_getattr(path="/autorun.inf", statbuf=0x79c65b90)
-Node not found: /autorun.inf
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79464b90)
-Node not found: /.Trash-1001
-
-bb_getattr(path="/.xdg-volume-info", statbuf=0x7a466b90)
+bb_getattr(path="/.xdg-volume-info", statbuf=0x94a9db90)
 Node not found: /.xdg-volume-info
 
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x79c65bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79464bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001090, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79c65bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79464bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001090, filler=0x7b490140, offset=0, fi=0x79c65bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x70000990, filler=0x7b490140, offset=0, fi=0x79c65bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79464bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001090, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x74001110, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x7a466bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x7a466bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79464bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_readdir(path="(null)", buf=0x6c000990, filler=0x7b490140, offset=0, fi=0x7a466bc0)
-readdir successful: 0 entry. Count:0
-
-bb_releasedir(path="(null)", fi=0x79464bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-
-bb_getattr(path="/autorun.inf", statbuf=0x79c65b90)
+bb_getattr(path="/autorun.inf", statbuf=0x8fffeb90)
 Node not found: /autorun.inf
-access
 
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/Untitled Folder", statbuf=0x79c65b90)
-Node not found: /Untitled Folder
-access
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.hidden", statbuf=0x79c65b90)
-Node not found: /.hidden
-access
-
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x74001090, filler=0x7b490140, offset=0, fi=0x79c65bc0)
+bb_readdir(path="(null)", buf=0x88000990, filler=0x962c8140, offset=0, fi=0x9529ebc0)
 readdir successful: 0 entry. Count:0
 
-bb_releasedir(path="(null)", fi=0x7a466bd0)
+bb_getattr(path="/.Trash-1001", statbuf=0x94a9db90)
+
+bb_releasedir(path="(null)", fi=0x8fffebd0)
     fi:
     flags = 0x00000000
     fh_old = 0x00000000
@@ -375,10 +43,274 @@ bb_releasedir(path="(null)", fi=0x7a466bd0)
     keep_cache = 0
     fh = 0x0000000000000000
     lock_owner = 0x0000000000000000
-statfs
-statfs
+Node not found: /.Trash-1001
 
-bb_getattr(path="/", statbuf=0x7a466b70)
+bb_readdir(path="(null)", buf=0x900011c0, filler=0x962c8140, offset=0, fi=0x8f7fdbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x900011c0, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8f7fdbd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x90001240, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c0009c0, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8fffebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x8fffebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x88000990, filler=0x962c8140, offset=0, fi=0x8f7fdbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8fffebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x88000a10, filler=0x962c8140, offset=0, fi=0x9529ebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8f7fdbd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x88000a10, filler=0x962c8140, offset=0, fi=0x8fffebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8fffebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x9529ebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x94a9dbd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x8fffebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8fffebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x9529ebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x94a9dbd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x8fffebc0)
+readdir successful: 0 entry. Count:0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x8fffebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x94a9dbd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x9529ebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8fffebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x8fffebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x94a9dbd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x9529ebc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x8fffebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_readdir(path="(null)", buf=0x7c000a40, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
+
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
+
+bb_getattr(path="/autorun.inf", statbuf=0x9529eb90)
+Node not found: /autorun.inf
+
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/", statbuf=0x8f7fdb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -392,239 +324,64 @@ bb_getattr(path="/", statbuf=0x7a466b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-statfs
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/Untitled Document", statbuf=0x79c65b90)
-Node not found: /Untitled Document
-
-bb_mknod(path="/Untitled Document", mode=0100644, dev=0)
-
-bb_getattr(path="/Untitled Document", statbuf=0x79464b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-open
-release
-
-bb_getattr(path="/", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
-
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
+bb_getattr(path="/.Trash", statbuf=0x94a9db90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
+bb_getattr(path="/.Trash-1001", statbuf=0x9529eb90)
 Node not found: /.Trash-1001
-access
 
-bb_getattr(path="/.hidden", statbuf=0x79464b90)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/hi", statbuf=0x8f7fdb90)
+Node not found: /hi
+
+bb_access(path="/", mask=00)
+
+bb_getattr(path="/", statbuf=0x9529eb70)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 040000
+    st_nlink = 1
+    st_uid = 0
+    st_gid = 0
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x00000000
+    st_ctime = 0x53b5b9ae
+
+bb_getattr(path="/.hidden", statbuf=0x8fffeb90)
 Node not found: /.hidden
-open
-read
-release
-access
-access
 
-bb_getattr(path="/Untitled Document", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-access
-access
-access
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
+bb_getattr(path="/.Trash", statbuf=0x9529eb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash", statbuf=0x7a466b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-access
+bb_getattr(path="/.Trash-1001", statbuf=0x8fffeb90)
 Node not found: /.Trash-1001
 
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
-Node not found: /.Trash-1001
-access
-access
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
-Node not found: /.Trash-1001
-access
-open
-open
-read
-release
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:0
 
-bb_getattr(path="/Untitled Document", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-read
-open
-release
-access
+bb_releasedir(path="(null)", fi=0x9529ebd0)
+    fi:
+    flags = 0x00000000
+    fh_old = 0x00000000
+    writepage = 0
+    direct_io = 0
+    keep_cache = 0
+    fh = 0x0000000000000000
+    lock_owner = 0x0000000000000000
 
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-
-bb_getattr(path="/Untitled Document", statbuf=0x7a466b70)
-
-bb_getattr(path="/Untitled Document", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-read
-access
-access
-Node not found: /.Trash-1001
-release
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-access
-access
-access
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-statfs
-open
-read
-
-bb_getattr(path="/Untitled Document", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-release
-access
-
-bb_getattr(path="/", statbuf=0x7a466b70)
+bb_getattr(path="/", statbuf=0x94a9db70)
     si:
     st_dev = 0
     st_ino = 0
@@ -638,779 +395,14 @@ bb_getattr(path="/", statbuf=0x7a466b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-open
-read
-
-bb_getattr(path="/Untitled Document", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-release
-statfs
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-statfs
-
-bb_getattr(path="/Untitled Document", statbuf=0x6affcb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6bffeb90)
-Node not found: /Untitled Document 2
-
-bb_mknod(path="/Untitled Document 2", mode=0100644, dev=0)
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-open
-release
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-access
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79464b90)
-Node not found: /.Trash-1001
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6bffeb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
-open
-Node not found: /.Trash-1001
-access
-open
-read
-release
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-read
-access
-release
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-access
-access
-access
-access
-statfs
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-open
-read
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-release
-access
-
-bb_getattr(path="/", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.Trash", statbuf=0x7a466b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-open
-read
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-release
-statfs
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-statfs
-
-bb_getattr(path="/Untitled Document", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6affcb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x78c63b90)
-Node not found: /Untitled Document 3
-
-bb_mknod(path="/Untitled Document 3", mode=0100644, dev=0)
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-open
-release
-
-bb_getattr(path="/", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/.hidden", statbuf=0x79c65b90)
-Node not found: /.hidden
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-access
-
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-Node not found: /.Trash-1001
-
-bb_getattr(path="/.Trash", statbuf=0x6bffeb90)
-Node not found: /.Trash
-access
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6affcb90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-Node not found: /.Trash-1001
-open
-read
-access
-release
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-open
-access
-open
-access
-read
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-release
-read
-release
-access
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x6affcb70)
-access
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x79464b70)
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-access
-statfs
-open
-read
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-release
-access
-
-bb_getattr(path="/", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-open
-read
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-release
-statfs
-
-bb_getattr(path="/", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-statfs
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6affcb90)
+bb_getattr(path="/Untitled Folder", statbuf=0x8fffeb90)
 Node not found: /Untitled Folder
 
 bb_mkdir(path="/Untitled Folder", mode=040755)
 
-bb_getattr(path="/Untitled Folder", statbuf=0x79464b90)
+bb_getattr(path="/Untitled Folder", statbuf=0x8f7fdb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -1423,10 +415,10 @@ bb_getattr(path="/Untitled Folder", statbuf=0x79464b90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/", statbuf=0x78c63b70)
+bb_getattr(path="/", statbuf=0x94a9db70)
     si:
     st_dev = 0
     st_ino = 0
@@ -1440,79 +432,98 @@ bb_getattr(path="/", statbuf=0x78c63b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/.Trash", statbuf=0x6b7fdb90)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8fffeb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
+bb_getattr(path="/.Trash-1001", statbuf=0x8f7fdb90)
 Node not found: /.Trash-1001
-access
-access
-access
-access
-access
 
-bb_getattr(path="/.Trash", statbuf=0x6b7fdb90)
-access
-access
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/.hidden", statbuf=0x9529eb90)
+Node not found: /.hidden
+
+bb_access(path="/Untitled Folder", mask=04)
+
+bb_access(path="/Untitled Folder", mask=02)
+
+bb_access(path="/Untitled Folder", mask=01)
+
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8fffeb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x8f7fdb90)
+Node not found: /.Trash-1001
+
+bb_access(path="/", mask=02)
+
+bb_access(path="/Untitled Folder", mask=04)
+
+bb_access(path="/Untitled Folder", mask=02)
+
+bb_access(path="/Untitled Folder", mask=01)
+
+bb_access(path="/", mask=02)
+
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8f7fdb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/.Trash-1001", statbuf=0x9529eb90)
+Node not found: /.Trash-1001
+
+bb_access(path="/", mask=02)
+
+bb_access(path="/Untitled Folder", mask=04)
+
+bb_getattr(path="/.Trash", statbuf=0x94a9db90)
+
+bb_access(path="/Untitled Folder", mask=02)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-Node not found: /.Trash-1001
+bb_access(path="/Untitled Folder", mask=01)
 
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-access
-Node not found: /.Trash-1001
-access
-access
-access
-access
-access
-access
-access
-access
-access
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
+bb_getattr(path="/.Trash", statbuf=0x8f7fdb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
+bb_getattr(path="/.Trash-1001", statbuf=0x8fffeb90)
 Node not found: /.Trash-1001
-access
-access
-access
-access
 
-bb_readdir(path="(null)", buf=0x5c0009e0, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:4
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/Untitled Folder/Untitled Folder", statbuf=0x6b7fdb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x94a9db90)
+Node not found: /.Trash-1001
+
+bb_access(path="/Untitled Folder", mask=04)
+
+bb_access(path="/", mask=02)
+
+bb_access(path="/Untitled Folder", mask=02)
+
+bb_access(path="/Untitled Folder", mask=01)
+
+bb_access(path="/Untitled Folder", mask=04)
+
+bb_access(path="/Untitled Folder", mask=02)
+
+bb_access(path="/Untitled Folder", mask=01)
+
+bb_readdir(path="(null)", buf=0x84000990, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:1
+
+bb_getattr(path="/Untitled Folder/Untitled Folder", statbuf=0x9529eb90)
 Node not found: /Untitled Folder/Untitled Folder
 
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x7a466b90)
-Node not found: /Untitled Folder/Untitled Document 3
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79c65b90)
-Node not found: /Untitled Folder/Untitled Document 2
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb90)
-Node not found: /Untitled Folder/Untitled Document
-
-bb_releasedir(path="(null)", fi=0x79464bd0)
+bb_releasedir(path="(null)", fi=0x94a9dbd0)
     fi:
     flags = 0x00000000
     fh_old = 0x00000000
@@ -1521,9 +532,11 @@ bb_releasedir(path="(null)", fi=0x79464bd0)
     keep_cache = 0
     fh = 0x0000000000000000
     lock_owner = 0x0000000000000000
-statfs
 
-bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb90)
+bb_getattr(path="/hi", statbuf=0x8f7fdb90)
+Node not found: /hi
+
+bb_getattr(path="/Untitled Folder", statbuf=0x9529eb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -1536,31 +549,20 @@ bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/Untitled Folder", statbuf=0x7a466b90)
-statfs
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
+bb_getattr(path="/hi", statbuf=0x8fffeb90)
+Node not found: /hi
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb90)
-Node not found: /Untitled Folder/Untitled Document
-access
+bb_rename(fpath="/Untitled Folder", newpath="/hi")
+parent path: /
 
-bb_getattr(path="/", statbuf=0x79464b70)
+ hahaha ha injaaaaa name: hi
+
+bb_rename successful.
+
+bb_getattr(path="/", statbuf=0x8f7fdb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -1574,35 +576,161 @@ bb_getattr(path="/", statbuf=0x79464b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/Untitled Folder/.hidden", statbuf=0x78c63b90)
-Node not found: /Untitled Folder/.hidden
-access
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/.Trash", statbuf=0x7a466b90)
+bb_getattr(path="/.Trash", statbuf=0x8fffeb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x94a9db90)
 Node not found: /.Trash-1001
-access
 
-bb_readdir(path="(null)", buf=0x580009e0, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:4
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/Untitled Folder/Untitled Folder", statbuf=0x6b7fdb90)
-Node not found: /Untitled Folder/Untitled Folder
+bb_getattr(path="/hi", statbuf=0x9529eb70)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 040000
+    st_nlink = 1
+    st_uid = 1001
+    st_gid = 1001
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x79c65b90)
-Node not found: /Untitled Folder/Untitled Document 3
+bb_access(path="/hi", mask=04)
 
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x7a466b90)
-Node not found: /Untitled Folder/Untitled Document 2
+bb_access(path="/hi", mask=02)
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb90)
-Node not found: /Untitled Folder/Untitled Document
+bb_access(path="/hi", mask=01)
 
-bb_releasedir(path="(null)", fi=0x79464bd0)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/", statbuf=0x8fffeb70)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 040000
+    st_nlink = 1
+    st_uid = 0
+    st_gid = 0
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x00000000
+    st_ctime = 0x53b5b9ae
+
+bb_getattr(path="/.Trash", statbuf=0x94a9db90)
+Node not found: /.Trash
+
+bb_getattr(path="/.Trash-1001", statbuf=0x9529eb90)
+Node not found: /.Trash-1001
+
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/hi", statbuf=0x8f7fdb90)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 040000
+    st_nlink = 1
+    st_uid = 1001
+    st_gid = 1001
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
+
+bb_access(path="/hi", mask=04)
+
+bb_access(path="/hi", mask=02)
+
+bb_access(path="/hi", mask=01)
+
+bb_getattr(path="/hi", statbuf=0x94a9db90)
+
+bb_getattr(path="/hi", statbuf=0x9529eb90)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 040000
+    st_nlink = 1
+    st_uid = 1001
+    st_gid = 1001
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 040000
+    st_nlink = 1
+    st_uid = 1001
+    st_gid = 1001
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
+
+bb_getattr(path="/hi/Untitled Folder", statbuf=0x8f7fdb90)
+Node not found: /hi/Untitled Folder
+
+bb_access(path="/hi", mask=00)
+
+bb_getattr(path="/", statbuf=0x8fffeb70)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 040000
+    st_nlink = 1
+    st_uid = 0
+    st_gid = 0
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x00000000
+    st_ctime = 0x53b5b9ae
+
+bb_getattr(path="/hi/.hidden", statbuf=0x9529eb90)
+Node not found: /hi/.hidden
+
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8fffeb90)
+Node not found: /.Trash
+
+bb_getattr(path="/.Trash-1001", statbuf=0x9529eb90)
+Node not found: /.Trash-1001
+
+bb_access(path="/", mask=02)
+
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x94a9dbc0)
+readdir successful: 0 entry. Count:1
+
+bb_getattr(path="/hi/hi", statbuf=0x9529eb90)
+Node not found: /hi/hi
+
+bb_releasedir(path="(null)", fi=0x94a9dbd0)
     fi:
     flags = 0x00000000
     fh_old = 0x00000000
@@ -1611,9 +739,8 @@ bb_releasedir(path="(null)", fi=0x79464bd0)
     keep_cache = 0
     fh = 0x0000000000000000
     lock_owner = 0x0000000000000000
-statfs
 
-bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb90)
+bb_getattr(path="/hi", statbuf=0x9529eb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -1626,17 +753,15 @@ bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-statfs
-statfs
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb90)
-Node not found: /Untitled Folder/Untitled Document
+bb_getattr(path="/hi/Untitled Document", statbuf=0x8fffeb90)
+Node not found: /hi/Untitled Document
 
-bb_mknod(path="/Untitled Folder/Untitled Document", mode=0100644, dev=0)
+bb_mknod(path="/hi/Untitled Document", mode=0100644, dev=0)
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6affcb90)
+bb_getattr(path="/hi/Untitled Document", statbuf=0x8f7fdb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -1649,12 +774,10 @@ bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6affcb90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-open
-release
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb70)
+bb_getattr(path="/hi", statbuf=0x8f7fdb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -1667,10 +790,10 @@ bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/", statbuf=0x79c65b70)
+bb_getattr(path="/", statbuf=0x94a9db70)
     si:
     st_dev = 0
     st_ino = 0
@@ -1684,61 +807,109 @@ bb_getattr(path="/", statbuf=0x79c65b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/.Trash", statbuf=0x6bffeb90)
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x9529eb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6affcb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x8f7fdb90)
 Node not found: /.Trash-1001
-access
 
-bb_getattr(path="/Untitled Folder/.hidden", statbuf=0x78c63b90)
-Node not found: /Untitled Folder/.hidden
-open
-access
-read
-access
-release
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/.Trash", statbuf=0x6bffeb90)
+bb_getattr(path="/hi/.hidden", statbuf=0x9529eb90)
+Node not found: /hi/.hidden
+
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8f7fdb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6affcb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x8fffeb90)
 Node not found: /.Trash-1001
-access
-access
-access
-access
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6b7fdb70)
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/.Trash", statbuf=0x7a466b90)
+bb_getattr(path="/hi/Untitled Document", statbuf=0x9529eb70)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 0100000
+    st_nlink = 1
+    st_uid = 1001
+    st_gid = 1001
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
+
+bb_access(path="/hi/Untitled Document", mask=04)
+
+bb_access(path="/hi/Untitled Document", mask=04)
+
+bb_access(path="/hi/Untitled Document", mask=02)
+
+bb_access(path="/hi/Untitled Document", mask=02)
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x94a9db70)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 0100000
+    st_nlink = 1
+    st_uid = 1001
+    st_gid = 1001
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x94a9db70)
+
+bb_access(path="/hi/Untitled Document", mask=01)
+    si:
+    st_dev = 0
+    st_ino = 0
+    st_mode = 0100000
+    st_nlink = 1
+    st_uid = 1001
+    st_gid = 1001
+    st_rdev = 0
+    st_size = 0
+    st_blksize = 1
+    st_blocks = 0
+    st_atime = 0x00000000
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
+
+bb_access(path="/hi/Untitled Document", mask=01)
+
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8f7fdb90)
 Node not found: /.Trash
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
 
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6b7fdb70)
+bb_getattr(path="/.Trash-1001", statbuf=0x94a9db90)
 Node not found: /.Trash-1001
+
+bb_access(path="/", mask=02)
+
+bb_access(path="/hi/Untitled Document", mask=04)
+
+bb_access(path="/hi/Untitled Document", mask=02)
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x8f7fdb70)
     si:
     st_dev = 0
     st_ino = 0
-access
     st_mode = 0100000
     st_nlink = 1
     st_uid = 1001
@@ -1748,68 +919,34 @@ access
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-open
-access
-Node not found: /.Trash
-open
-read
-access
-release
-access
+bb_access(path="/hi/Untitled Document", mask=01)
 
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-access
+bb_access(path="/hi", mask=02)
+
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8f7fdb90)
 Node not found: /.Trash
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x78c63b70)
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6affcb70)
-
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    si:
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
+bb_getattr(path="/.Trash-1001", statbuf=0x94a9db90)
 Node not found: /.Trash-1001
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-access
-access
+bb_getattr(path="/.Trash", statbuf=0x8fffeb90)
+
+bb_access(path="/", mask=02)
+Node not found: /.Trash
+
+bb_getattr(path="/.Trash-1001", statbuf=0x8f7fdb90)
 Node not found: /.Trash-1001
-read
-open
-access
-release
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x79464b70)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x8f7fdb70)
+
+bb_access(path="/hi/Untitled Document", mask=04)
     si:
     st_dev = 0
     st_ino = 0
@@ -1822,13 +959,18 @@ bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x79464b70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-open
-read
-release
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb70)
+bb_access(path="/hi/Untitled Document", mask=02)
+
+bb_access(path="/hi/Untitled Document", mask=01)
+
+bb_access(path="/hi/Untitled Document", mask=04)
+
+bb_access(path="/hi/Untitled Document", mask=02)
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x9529eb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -1841,73 +983,12 @@ bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-access
-read
-access
-access
-access
-release
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x78c63b70)
+bb_access(path="/hi/Untitled Document", mask=01)
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x79464b70)
-access
-    si:
-    st_dev = 0
-    st_ino = 0
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-access
-access
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-access
-access
-statfs
-open
-read
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-release
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6bffeb90)
+bb_getattr(path="/hi", statbuf=0x8fffeb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -1920,11 +1001,12 @@ bb_getattr(path="/Untitled Folder", statbuf=0x6bffeb90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-access
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/", statbuf=0x6b7fdb70)
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/", statbuf=0x8f7fdb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -1938,16 +1020,17 @@ bb_getattr(path="/", statbuf=0x6b7fdb70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
+bb_getattr(path="/.Trash", statbuf=0x94a9db90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6affcb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x8fffeb90)
 Node not found: /.Trash-1001
-access
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x78c63b90)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x8f7fdb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -1960,15 +1043,14 @@ bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x78c63b90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-open
-read
-release
-access
-access
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x7a466b70)
+bb_access(path="/hi/Untitled Document", mask=04)
+
+bb_access(path="/hi/Untitled Document", mask=02)
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x8fffeb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -1981,30 +1063,12 @@ bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x7a466b70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-access
-open
-read
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-release
+bb_access(path="/hi/Untitled Document", mask=01)
 
-bb_getattr(path="/Untitled Folder", statbuf=0x6affcb90)
+bb_getattr(path="/hi", statbuf=0x8f7fdb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -2017,12 +1081,13 @@ bb_getattr(path="/Untitled Folder", statbuf=0x6affcb90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-statfs
-statfs
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb90)
+bb_getattr(path="/hi/fuck", statbuf=0x94a9db90)
+Node not found: /hi/fuck
+
+bb_getattr(path="/hi/Untitled Document", statbuf=0x8fffeb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -2035,33 +1100,20 @@ bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79c65b90)
-Node not found: /Untitled Folder/Untitled Document 2
+bb_getattr(path="/hi/fuck", statbuf=0x9529eb90)
+Node not found: /hi/fuck
 
-bb_mknod(path="/Untitled Folder/Untitled Document 2", mode=0100644, dev=0)
+bb_rename(fpath="/hi/Untitled Document", newpath="/hi/fuck")
+parent path: /hi
 
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-open
-release
+ hahaha ha injaaaaa name: fuck
 
-bb_getattr(path="/Untitled Folder", statbuf=0x7a466b70)
+bb_rename successful.
+
+bb_getattr(path="/hi", statbuf=0x94a9db70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2074,10 +1126,10 @@ bb_getattr(path="/Untitled Folder", statbuf=0x7a466b70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/", statbuf=0x78c63b70)
+bb_getattr(path="/", statbuf=0x8fffeb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2091,30 +1143,19 @@ bb_getattr(path="/", statbuf=0x78c63b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x8f7fdb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x94a9db90)
 Node not found: /.Trash-1001
-access
-access
 
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-open
-Node not found: /.Trash
-read
-release
+bb_access(path="/", mask=02)
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79464b70)
+bb_getattr(path="/hi/fuck", statbuf=0x9529eb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2127,16 +1168,14 @@ bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79464b70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-open
-read
-release
-access
-access
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6b7fdb70)
+bb_access(path="/hi/fuck", mask=04)
+
+bb_access(path="/hi/fuck", mask=02)
+
+bb_getattr(path="/hi/fuck", statbuf=0x94a9db70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2149,153 +1188,12 @@ bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6b7fdb70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-access
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-access
-access
+bb_access(path="/hi/fuck", mask=01)
 
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6b7fdb90)
-Node not found: /.Trash
-open
-read
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-release
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-Node not found: /.Trash-1001
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6b7fdb70)
-access
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6affcb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-open
-access
-open
-read
-release
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x7a466b70)
-access
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-open
-read
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6affcb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-release
-statfs
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb90)
+bb_getattr(path="/hi", statbuf=0x8f7fdb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -2308,11 +1206,12 @@ bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-access
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/", statbuf=0x79c65b70)
+bb_access(path="/hi", mask=02)
+
+bb_getattr(path="/", statbuf=0x8fffeb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2326,16 +1225,17 @@ bb_getattr(path="/", statbuf=0x79c65b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/.Trash", statbuf=0x6bffeb90)
+bb_getattr(path="/.Trash", statbuf=0x9529eb90)
 Node not found: /.Trash
 
-bb_getattr(path="/.Trash-1001", statbuf=0x6affcb90)
+bb_getattr(path="/.Trash-1001", statbuf=0x8f7fdb90)
 Node not found: /.Trash-1001
-access
 
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79464b90)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/hi/fuck", statbuf=0x8fffeb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -2348,15 +1248,17 @@ bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79464b90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-open
-read
-release
-access
-access
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x78c63b70)
+bb_getattr(path="/hi/.hidden", statbuf=0x9529eb90)
+Node not found: /hi/.hidden
+
+bb_access(path="/hi/fuck", mask=04)
+
+bb_access(path="/hi/fuck", mask=02)
+
+bb_getattr(path="/hi/fuck", statbuf=0x94a9db70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2369,119 +1271,14 @@ bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x78c63b70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-open
-read
+    st_mtime = 0x53b5b9c0
+    st_ctime = 0x53b5b9c0
 
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-release
+bb_access(path="/hi/fuck", mask=01)
 
-bb_getattr(path="/Untitled Folder", statbuf=0x6affcb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-statfs
-statfs
+bb_access(path="/", mask=00)
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x79c65b90)
-Node not found: /Untitled Folder/Untitled Document 3
-
-bb_mknod(path="/Untitled Folder/Untitled Document 3", mode=0100644, dev=0)
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-open
-release
-
-bb_getattr(path="/Untitled Folder", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-
-bb_getattr(path="/", statbuf=0x6b7fdb70)
+bb_getattr(path="/", statbuf=0x8f7fdb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2495,383 +1292,12 @@ bb_getattr(path="/", statbuf=0x6b7fdb70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x6affcb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6b7fdb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x7a466b90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x7a466b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-access
-
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79464b90)
-Node not found: /.Trash-1001
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-open
-read
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-release
-statfs
-
-bb_getattr(path="/Untitled Folder", statbuf=0x79464b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-access
-
-bb_getattr(path="/", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x78c63b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-
-bb_getattr(path="/Untitled Folder/.hidden", statbuf=0x79464b90)
-Node not found: /Untitled Folder/.hidden
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-open
-read
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-release
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x6affcb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-statfs
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x79464b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-statfs
-
-bb_getattr(path="/Untitled Document", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-statfs
-access
-
-bb_getattr(path="/.hidden", statbuf=0x6affcb90)
+bb_getattr(path="/.hidden", statbuf=0x94a9db90)
 Node not found: /.hidden
-access
 
-bb_readdir(path="(null)", buf=0x70000e20, filler=0x7b490140, offset=0, fi=0x7a466bc0)
-
-bb_getattr(path="/.Trash", statbuf=0x79c65b90)
-Node not found: /.Trash
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Folder", statbuf=0x6affcb90)
-Node not found: /Untitled Folder/Untitled Folder
-
-bb_readdir(path="(null)", buf=0x64000cc0, filler=0x7b490140, offset=0, fi=0x78c63bc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79464b90)
-
-bb_getattr(path="/Untitled Folder", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
+bb_getattr(path="/hi", statbuf=0x9529eb90)
     si:
     st_dev = 0
     st_ino = 0
@@ -2884,14 +1310,27 @@ bb_getattr(path="/Untitled Folder", statbuf=0x79c65b70)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x7a466b90)
+bb_access(path="/", mask=02)
+
+bb_getattr(path="/.Trash", statbuf=0x94a9db90)
+Node not found: /.Trash
+
+bb_getattr(path="/.Trash-1001", statbuf=0x8fffeb90)
+Node not found: /.Trash-1001
+
+bb_access(path="/", mask=02)
+
+bb_readdir(path="(null)", buf=0x84000990, filler=0x962c8140, offset=0, fi=0x8f7fdbc0)
+readdir successful: 0 entry. Count:1
+
+bb_getattr(path="/hi", statbuf=0x8fffeb90)
     si:
     st_dev = 0
     st_ino = 0
-    st_mode = 0100000
+    st_mode = 040000
     st_nlink = 1
     st_uid = 1001
     st_gid = 1001
@@ -2900,16 +1339,19 @@ bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x7a466b90)
     st_blksize = 1
     st_blocks = 0
     st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
+    st_mtime = 0x53b5b9b1
+    st_ctime = 0x53b5b9b1
 
-bb_getattr(path="/.hidden", statbuf=0x6bffeb90)
+bb_getattr(path="/.hidden", statbuf=0x9529eb90)
 Node not found: /.hidden
-access
-access
-access
 
-bb_getattr(path="/", statbuf=0x79c65b70)
+bb_access(path="/hi", mask=04)
+
+bb_access(path="/hi", mask=02)
+
+bb_access(path="/hi", mask=01)
+
+bb_getattr(path="/", statbuf=0x8f7fdb70)
     si:
     st_dev = 0
     st_ino = 0
@@ -2923,75 +1365,15 @@ bb_getattr(path="/", statbuf=0x79c65b70)
     st_blocks = 0
     st_atime = 0x00000000
     st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-open
-read
-release
-access
-access
+    st_ctime = 0x53b5b9ae
 
-bb_getattr(path="/Untitled Document 3", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-open
-read
-release
-access
-access
+bb_readdir(path="(null)", buf=0x7c000990, filler=0x962c8140, offset=0, fi=0x8fffebc0)
+readdir successful: 0 entry. Count:1
 
-bb_getattr(path="/Untitled Document 2", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-open
-read
-release
-access
-access
+bb_getattr(path="/hi/hi", statbuf=0x8f7fdb90)
+Node not found: /hi/hi
 
-bb_getattr(path="/Untitled Document", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-
-bb_releasedir(path="(null)", fi=0x6bffebd0)
+bb_releasedir(path="(null)", fi=0x8fffebd0)
     fi:
     flags = 0x00000000
     fh_old = 0x00000000
@@ -3001,7 +1383,7 @@ bb_releasedir(path="(null)", fi=0x6bffebd0)
     fh = 0x0000000000000000
     lock_owner = 0x0000000000000000
 
-bb_releasedir(path="(null)", fi=0x6affcbd0)
+bb_releasedir(path="(null)", fi=0x9529ebd0)
     fi:
     flags = 0x00000000
     fh_old = 0x00000000
@@ -3010,1372 +1392,5 @@ bb_releasedir(path="(null)", fi=0x6affcbd0)
     keep_cache = 0
     fh = 0x0000000000000000
     lock_owner = 0x0000000000000000
-statfs
 
-bb_getattr(path="/Untitled Folder", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x79464b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-statfs
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-statfs
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6affcb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-statfs
-access
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/Untitled Folder/.hidden", statbuf=0x79c65b90)
-Node not found: /Untitled Folder/.hidden
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x74001090, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder/Untitled Folder", statbuf=0x7a466b90)
-Node not found: /Untitled Folder/Untitled Folder
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-access
-
-bb_releasedir(path="(null)", fi=0x78c63bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-statfs
-access
-
-bb_getattr(path="/.hidden", statbuf=0x79c65b90)
-Node not found: /.hidden
-access
-
-bb_getattr(path="/", statbuf=0x6affcb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x74001090, filler=0x7b490140, offset=0, fi=0x79c65bc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-access
-access
-access
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x79c65b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-
-bb_releasedir(path="(null)", fi=0x78c63bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-statfs
-access
-
-bb_getattr(path="/", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.hidden", statbuf=0x7a466b90)
-Node not found: /.hidden
-access
-
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x60000b00, filler=0x7b490140, offset=0, fi=0x79c65bc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-
-bb_getattr(path="/.hidden", statbuf=0x6affcb90)
-Node not found: /.hidden
-access
-access
-access
-
-bb_getattr(path="/", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x6affcb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-
-bb_releasedir(path="(null)", fi=0x6b7fdbd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-statfs
-
-bb_getattr(path="/Untitled Folder", statbuf=0x79c65b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-access
-
-bb_getattr(path="/", statbuf=0x6bffeb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/Untitled Folder/.hidden", statbuf=0x6affcb90)
-Node not found: /Untitled Folder/.hidden
-access
-
-bb_getattr(path="/.Trash", statbuf=0x79464b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x79c65b90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x64000cc0, filler=0x7b490140, offset=0, fi=0x6bffebc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder/Untitled Folder", statbuf=0x78c63b90)
-Node not found: /Untitled Folder/Untitled Folder
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-
-bb_getattr(path="/Untitled Folder/.hidden", statbuf=0x79464b90)
-Node not found: /Untitled Folder/.hidden
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-
-bb_getattr(path="/Untitled Folder", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-access
-
-bb_releasedir(path="(null)", fi=0x78c63bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-statfs
-access
-
-bb_getattr(path="/", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/.hidden", statbuf=0x7a466b90)
-Node not found: /.hidden
-access
-
-bb_getattr(path="/.Trash", statbuf=0x78c63b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6b7fdb90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x60000cc0, filler=0x7b490140, offset=0, fi=0x79c65bc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-access
-access
-access
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x79c65b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x7a466b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x79c65b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-
-bb_releasedir(path="(null)", fi=0x78c63bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-statfs
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
-access
-access
-
-bb_getattr(path="/", statbuf=0x6affcb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-access
-
-bb_getattr(path="/.hidden", statbuf=0x6b7fdb90)
-Node not found: /.hidden
-access
-
-bb_getattr(path="/.Trash", statbuf=0x7a466b90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x6bffeb90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x70000e20, filler=0x7b490140, offset=0, fi=0x78c63bc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder", statbuf=0x79464b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-
-bb_getattr(path="/.hidden", statbuf=0x79c65b90)
-Node not found: /.hidden
-access
-access
-access
-
-bb_getattr(path="/", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 3", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809b
-    st_ctime = 0x53b5809b
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x79464b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document 2", statbuf=0x6b7fdb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58098
-    st_ctime = 0x53b58098
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x79c65b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Document", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b58094
-    st_ctime = 0x53b58094
-access
-
-bb_releasedir(path="(null)", fi=0x6bffebd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-statfs
-
-bb_getattr(path="/Untitled Folder", statbuf=0x78c63b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-access
-
-bb_getattr(path="/", statbuf=0x79464b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 0
-    st_gid = 0
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x00000000
-    st_ctime = 0x53b5808e
-
-bb_getattr(path="/Untitled Folder/.hidden", statbuf=0x79c65b90)
-Node not found: /Untitled Folder/.hidden
-access
-
-bb_getattr(path="/.Trash", statbuf=0x6affcb90)
-Node not found: /.Trash
-
-bb_getattr(path="/.Trash-1001", statbuf=0x78c63b90)
-Node not found: /.Trash-1001
-access
-
-bb_readdir(path="(null)", buf=0x74001090, filler=0x7b490140, offset=0, fi=0x79464bc0)
-readdir successful: 0 entry. Count:4
-
-bb_getattr(path="/Untitled Folder/Untitled Folder", statbuf=0x7a466b90)
-Node not found: /Untitled Folder/Untitled Folder
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x6bffeb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 3", statbuf=0x7a466b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a7
-    st_ctime = 0x53b580a7
-access
-
-bb_getattr(path="/Untitled Folder", statbuf=0x6affcb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 040000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b5809d
-    st_ctime = 0x53b5809d
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x78c63b90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document 2", statbuf=0x6affcb70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a4
-    st_ctime = 0x53b580a4
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x6b7fdb90)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-open
-read
-release
-access
-access
-
-bb_getattr(path="/Untitled Folder/Untitled Document", statbuf=0x78c63b70)
-    si:
-    st_dev = 0
-    st_ino = 0
-    st_mode = 0100000
-    st_nlink = 1
-    st_uid = 1001
-    st_gid = 1001
-    st_rdev = 0
-    st_size = 0
-    st_blksize = 1
-    st_blocks = 0
-    st_atime = 0x00000000
-    st_mtime = 0x53b580a2
-    st_ctime = 0x53b580a2
-access
-
-bb_releasedir(path="(null)", fi=0x79c65bd0)
-    fi:
-    flags = 0x00000000
-    fh_old = 0x00000000
-    writepage = 0
-    direct_io = 0
-    keep_cache = 0
-    fh = 0x0000000000000000
-    lock_owner = 0x0000000000000000
-statfs
+bb_destroy(userdata=0x01b4fce0)

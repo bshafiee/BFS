@@ -50,7 +50,15 @@ public:
   metadataDictionary::iterator metadataEnd();
   std::string getName();
   size_t getSize();
-  void changeName(std::string _newName);
+  /**
+   * tries to rename input child
+   * @return
+   *  true if successful
+   *  false if fails
+   */
+  bool renameChild(FileNode* _child,const std::string &_newName);
+
+  void setName(std::string _newName);
 
   /**
    * writes input data to this file

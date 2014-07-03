@@ -112,7 +112,7 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
  * */
 int swift_mkdir(const char* path, mode_t mode) {
   int retstat = 0;
-  mode = mode|S_IFDIR;
+  mode = mode | S_IFDIR;
   log_msg("\nbb_mkdir(path=\"%s\", mode=0%3o)\n", path, mode);
 
   if (S_ISDIR(mode)) {
@@ -145,6 +145,18 @@ int swift_symlink(const char* from, const char* to) {
 }
 
 int swift_rename(const char* from, const char* to) {
+  log_msg("\nbb_rename(fpath=\"%s\", newpath=\"%s\")\n", from, to);
+
+  string oldPath(from, strlen(from));
+  string newPath(to, strlen(to));
+  if(!FileSystem::getInstance()->tryRename(oldPath,newPath)) {
+    log_msg("\nbb_rename failed.\n");
+    return -ENOENT;
+  }
+  else {
+    log_msg("\nbb_rename successful.\n");
+    return 0;
+  }
 }
 
 int swift_link(const char* from, const char* to) {
@@ -240,7 +252,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
       break;
     }
   }
-  log_msg("readdir successful: %d entry. Count:%d\n", it,node->childrenSize());
+  log_msg("readdir successful: %d entry. Count:%d\n", it, node->childrenSize());
 
   return retstat;
 }
@@ -274,9 +286,20 @@ void* swift_init(struct fuse_conn_info* conn) {
 }
 
 void swift_destroy(void* userdata) {
+  log_msg("\nbb_destroy(userdata=0x%08x)\n", userdata);
+  FileSystem::getInstance()->destroy();
 }
-
+/**
+ * we just give all the permissions
+ * TODO: we should not just give all the permissions
+ */
 int swift_access(const char* path, int mask) {
+  log_msg("\nbb_access(path=\"%s\", mask=0%o)\n", path, mask);
+
+  //int retstat = R_OK | W_OK | X_OK | F_OK;
+  int retstat = 0;
+
+  return retstat;
 }
 
 int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
