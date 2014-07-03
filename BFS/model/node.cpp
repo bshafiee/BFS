@@ -6,6 +6,7 @@
  */
 
 #include "node.h"
+#include "../log.h"
 
 using namespace std;
 
@@ -32,6 +33,7 @@ int Node::childRemove(const string& _key) {
 
 Node* Node::childFind(const string& _key) {
   childDictionary::iterator it = children.find(_key);
+
   if(it != children.end())
     return it->second;
   else

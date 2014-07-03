@@ -174,6 +174,20 @@ void FileNode::setCTime(unsigned long _ctime) {
   metadataAdd(ctimeKey,ss.str());
 }
 
+mode_t FileNode::getMode() {
+  string modeStr = metadataGet(modeKey);
+  istringstream ss(modeStr);
+  mode_t output = 0;
+  ss >> output;
+  return output;
+}
+
+void FileNode::setMode(mode_t _mode) {
+  stringstream ss;
+  ss << _mode;
+  metadataAdd(modeKey,ss.str());
+}
+
 bool FileNode::isDirectory() {
   return isDir;
 }

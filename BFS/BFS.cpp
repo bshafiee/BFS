@@ -54,6 +54,8 @@ using namespace std;
 using namespace Poco;
 
 static int xmp_getattr(const char *path, struct stat *stbuf) {
+  log_msg("getattr\n");
+  return 0;
   int res;
 
   res = lstat(path, stbuf);
@@ -64,6 +66,8 @@ static int xmp_getattr(const char *path, struct stat *stbuf) {
 }
 
 static int xmp_access(const char *path, int mask) {
+  log_msg("access\n");
+    return 0;
   int res;
 
   res = access(path, mask);
@@ -74,6 +78,8 @@ static int xmp_access(const char *path, int mask) {
 }
 
 static int xmp_readlink(const char *path, char *buf, size_t size) {
+  log_msg("readlink\n");
+    return 0;
   int res;
 
   res = readlink(path, buf, size - 1);
@@ -86,6 +92,8 @@ static int xmp_readlink(const char *path, char *buf, size_t size) {
 
 static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     off_t offset, struct fuse_file_info *fi) {
+  log_msg("readdir\n");
+    return 0;
   DIR *dp;
   struct dirent *de;
 
@@ -110,6 +118,8 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 }
 
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev) {
+  log_msg("mknod\n");
+    return 0;
   int res;
 
   /* On Linux this could just be 'mknod(path, mode, rdev)' but this
@@ -129,6 +139,8 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev) {
 }
 
 static int xmp_mkdir(const char *path, mode_t mode) {
+  log_msg("mkdir\n");
+    return 0;
   int res;
 
   res = mkdir(path, mode);
@@ -139,6 +151,8 @@ static int xmp_mkdir(const char *path, mode_t mode) {
 }
 
 static int xmp_unlink(const char *path) {
+  log_msg("unlink\n");
+    return 0;
   int res;
 
   res = unlink(path);
@@ -149,6 +163,8 @@ static int xmp_unlink(const char *path) {
 }
 
 static int xmp_rmdir(const char *path) {
+  log_msg("rmdir\n");
+    return 0;
   int res;
 
   res = rmdir(path);
@@ -159,6 +175,8 @@ static int xmp_rmdir(const char *path) {
 }
 
 static int xmp_symlink(const char *from, const char *to) {
+  log_msg("symlink\n");
+    return 0;
   int res;
 
   res = symlink(from, to);
@@ -169,6 +187,8 @@ static int xmp_symlink(const char *from, const char *to) {
 }
 
 static int xmp_rename(const char *from, const char *to) {
+  log_msg("rename\n");
+    return 0;
   int res;
 
   res = rename(from, to);
@@ -179,6 +199,8 @@ static int xmp_rename(const char *from, const char *to) {
 }
 
 static int xmp_link(const char *from, const char *to) {
+  log_msg("link\n");
+    return 0;
   int res;
 
   res = link(from, to);
@@ -189,6 +211,8 @@ static int xmp_link(const char *from, const char *to) {
 }
 
 static int xmp_chmod(const char *path, mode_t mode) {
+  log_msg("chmod\n");
+    return 0;
   int res;
 
   res = chmod(path, mode);
@@ -199,6 +223,8 @@ static int xmp_chmod(const char *path, mode_t mode) {
 }
 
 static int xmp_chown(const char *path, uid_t uid, gid_t gid) {
+  log_msg("chown\n");
+    return 0;
   int res;
 
   res = lchown(path, uid, gid);
@@ -209,6 +235,8 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid) {
 }
 
 static int xmp_truncate(const char *path, off_t size) {
+  log_msg("truncate\n");
+    return 0;
   int res;
 
   res = truncate(path, size);
@@ -233,6 +261,8 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 #endif
 
 static int xmp_open(const char *path, struct fuse_file_info *fi) {
+  log_msg("open\n");
+    return 0;
   int res;
 
   res = open(path, fi->flags);
@@ -245,6 +275,8 @@ static int xmp_open(const char *path, struct fuse_file_info *fi) {
 
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
     struct fuse_file_info *fi) {
+  log_msg("read\n");
+    return 0;
   int fd;
   int res;
 
@@ -263,6 +295,8 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 
 static int xmp_write(const char *path, const char *buf, size_t size,
     off_t offset, struct fuse_file_info *fi) {
+  log_msg("write\n");
+    return 0;
   int fd;
   int res;
 
@@ -280,6 +314,8 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 }
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf) {
+  log_msg("statfs\n");
+    return 0;
   int res;
 
   res = statvfs(path, stbuf);
@@ -290,6 +326,8 @@ static int xmp_statfs(const char *path, struct statvfs *stbuf) {
 }
 
 static int xmp_release(const char *path, struct fuse_file_info *fi) {
+  log_msg("release\n");
+    return 0;
   /* Just a stub.  This method is optional and can safely be left
    unimplemented */
 
@@ -300,6 +338,8 @@ static int xmp_release(const char *path, struct fuse_file_info *fi) {
 
 static int xmp_fsync(const char *path, int isdatasync,
     struct fuse_file_info *fi) {
+  log_msg("fsync\n");
+    return 0;
   /* Just a stub.  This method is optional and can safely be left
    unimplemented */
 
@@ -371,10 +411,10 @@ static int xmp_removexattr(const char *path, const char *name)
 
 static struct fuse_operations xmp_oper = {
   .getattr = FUSESwift::swift_getattr ,
-  .readlink = xmp_readlink ,
+  .readlink = FUSESwift::swift_readlink ,
   .getdir = NULL ,
-  .mknod = xmp_mknod ,
-  .mkdir = xmp_mkdir ,
+  .mknod = FUSESwift::swift_mknod ,
+  .mkdir = FUSESwift::swift_mkdir ,
   .unlink = xmp_unlink ,
   .rmdir = xmp_rmdir ,
   .symlink = xmp_symlink ,
@@ -396,8 +436,8 @@ static struct fuse_operations xmp_oper = {
   .listxattr = NULL ,
   .removexattr = NULL ,
   .opendir = NULL ,
-  .readdir = xmp_readdir ,
-  .releasedir = NULL ,
+  .readdir = FUSESwift::swift_readdir ,
+  .releasedir = FUSESwift::swift_releasedir ,
   .fsyncdir = NULL ,
   .init = FUSESwift::swift_init ,
   .destroy = NULL ,

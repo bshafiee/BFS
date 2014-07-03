@@ -20,6 +20,7 @@ class FileNode: public Node {
   const std::string gidKey   = "gid";//Group ID
   const std::string mtimeKey = "mtime";//Last modified time
   const std::string ctimeKey = "ctime";//Create Time
+  const std::string modeKey = "mode";//File mode
 
   //Private Members
   metadataDictionary metadata;
@@ -43,6 +44,8 @@ public:
   unsigned long getCTime();
   void setMTime(unsigned long _mtime);
   void setCTime(unsigned long _ctime);
+  mode_t getMode();
+  void setMode(mode_t _mode);
   metadataDictionary::iterator metadataBegin();
   metadataDictionary::iterator metadataEnd();
   std::string getName();

@@ -27,6 +27,8 @@ public:
   virtual ~FileSystem();
   FileNode* mkFile(FileNode* _parent, std::string _name);
   FileNode* mkDirectory(FileNode* _parent, std::string _name);
+  FileNode* mkFile(std::string _path);
+  FileNode* mkDirectory(std::string _path);
   size_t rmNode(FileNode* _node);
   FileNode* searchFile(FileNode* _parent, std::string _name);
   FileNode* searchDir(FileNode* _parent, std::string _name);

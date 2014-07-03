@@ -8,6 +8,7 @@
 #include "filesystem.h"
 #include <vector>
 #include <Poco/StringTokenizer.h>
+#include "../log.h"
 
 using namespace std;
 using namespace Poco;
@@ -123,6 +124,36 @@ std::string FileSystem::getDelimiter() {
   return delimiter;
 }
 
+FileNode* FileSystem::mkFile(std::string _path) {
+  //Traverse FileSystem Hierarchies
+  StringTokenizer tokenizer(_path,"/");
+  string name = tokenizer[tokenizer.count()-1];
+  FileNode* start = root;
+  for(uint i = 0;i < tokenizer.count()-1;i++) {
+    if(tokenizer[i].length() == 0)
+      continue;
+    Node* node = start->childFind(tokenizer[i]);
+    start = (node == nullptr)? nullptr:(FileNode*)node;
+  }
+  //Now parent node is start
+  return mkFile(start,name);
+}
+
+FileNode* FileSystem::mkDirectory(std::string _path) {
+  //Traverse FileSystem Hierarchies
+  StringTokenizer tokenizer(_path,"/");
+  string name = tokenizer[tokenizer.count()-1];
+  FileNode* start = root;
+  for(uint i = 0;i < tokenizer.count()-1;i++) {
+    if(tokenizer[i].length() == 0)
+          continue;
+    Node* node = start->childFind(tokenizer[i]);
+    start = (node == nullptr)? nullptr:(FileNode*)node;
+  }
+  //Now parent node is start
+  return mkDirectory(start,name);
+}
+
 FileNode* FileSystem::getNode(std::string _path) {
   //Root
   if(_path == "/")
@@ -132,7 +163,13 @@ FileNode* FileSystem::getNode(std::string _path) {
   StringTokenizer::Iterator it = tokenizer.begin();
   FileNode* start = root;
   for(;it != tokenizer.end();it++)
-    start = (FileNode*)start->childFind(*it);
+  {
+    if(it->length() == 0)
+      continue;
+    //log_msg("inja: %s\tstart: %s\n",(*it).c_str(),start->getName().c_str());
+    Node* node = start->childFind(*it);
+    start = (node == nullptr)? nullptr:(FileNode*)node;
+  }
   return start;
 }
 

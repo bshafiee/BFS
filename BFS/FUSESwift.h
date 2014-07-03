@@ -13,14 +13,29 @@
 #include "model/filesystem.h"
 #include <string.h>
 
+
+/**
+ * Information:
+ *
+ * S_IFMT     0170000   bit mask for the file type bit fields
+
+           S_IFSOCK   0140000   socket
+           S_IFLNK    0120000   symbolic link
+           S_IFREG    0100000   regular file
+           S_IFBLK    0060000   block device
+           S_IFDIR    0040000   directory
+           S_IFCHR    0020000   character device
+           S_IFIFO    0010000   FIFO
+ *
+ */
 namespace FUSESwift {
-	/** Get file attributes.
+  /** Get file attributes.
 	 *
 	 * Similar to stat().  The 'st_dev' and 'st_blksize' fields are
 	 * ignored.	 The 'st_ino' field is ignored except if the 'use_ino'
 	 * mount option is given.
 	 */
-	extern int swift_getattr (const char *path, struct stat *stbuff);
+	int swift_getattr (const char *path, struct stat *stbuff);
 
 	/** Read the target of a symbolic link
 	 *
@@ -32,8 +47,8 @@ namespace FUSESwift {
 	 */
 	int swift_readlink (const char *path, char *buf, size_t size);
 
-	/* Deprecated, use readdir() instead */
-	int swift_getdir (const char *path, fuse_dirh_t arg2, fuse_dirfil_t arg3);
+	/* Deprecated, use readdir() instead
+	int swift_getdir (const char *path, fuse_dirh_t arg2, fuse_dirfil_t arg3); */
 
 	/** Create a file node
 	 *
@@ -41,7 +56,7 @@ namespace FUSESwift {
 	 * nodes.  If the filesystem defines a create() method, then for
 	 * regular files that will be called instead.
 	 */
-	int swift_mknod (const char *path, mode_t nide, dev_t rdev);
+	int swift_mknod (const char *path, mode_t mode, dev_t rdev);
 
 	/** Create a directory
 	 *
