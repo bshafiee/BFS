@@ -214,4 +214,27 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
   return parentNode->renameChild(node,newName);
 }
 
+std::string FileSystem::printFileSystem() {
+  string output = "";
+  //Recursive removing is dangerous, because we might run out of memory.
+  vector<FileNode*> childrenQueue;
+  FileNode* start = root;
+  while (start != nullptr) {
+    //add children to queue
+    childDictionary::iterator childIterator = start->childrendBegin();
+    for (; childIterator != start->childrenEnd(); childIterator++)
+      childrenQueue.push_back((FileNode*) childIterator->second);
+    //Now we can release start node
+    //print node
+    if (childrenQueue.size() == 0)
+      start = nullptr;
+    else {
+      //Now assign start to a new node in queue
+      vector<FileNode*>::iterator frontIt = childrenQueue.begin();
+      start = *frontIt;
+      childrenQueue.erase(frontIt);
+    }
+  }
+}
+
 }

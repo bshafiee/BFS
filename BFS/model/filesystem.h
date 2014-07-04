@@ -44,6 +44,7 @@ public:
    *  false if fails
    */
   bool tryRename(const std::string &_from,const std::string &_to);
+  std::string printFileSystem();
 };
 
 } /* namespace FUSESwift */
