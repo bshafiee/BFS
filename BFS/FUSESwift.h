@@ -47,8 +47,8 @@ namespace FUSESwift {
 	 */
 	int swift_readlink (const char *path, char *buf, size_t size);
 
-	/* Deprecated, use readdir() instead
-	int swift_getdir (const char *path, fuse_dirh_t arg2, fuse_dirfil_t arg3); */
+	//Deprecated, use readdir() instead
+	//int swift_getdir (const char *path, fuse_dirh_t arg2, fuse_dirfil_t arg3);
 
 	/** Create a file node
 	 *

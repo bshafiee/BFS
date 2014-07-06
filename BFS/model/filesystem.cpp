@@ -7,6 +7,7 @@
 
 #include "filesystem.h"
 #include <vector>
+#include <iostream>
 #include <Poco/StringTokenizer.h>
 #include "../log.h"
 
@@ -123,7 +124,9 @@ std::string FileSystem::getDelimiter() {
   return delimiter;
 }
 
-FileNode* FileSystem::mkFile(std::string _path) {
+
+
+FileNode* FileSystem::traversePathToParent(string _path) {
   //Traverse FileSystem Hierarchies
   StringTokenizer tokenizer(_path, "/");
   string name = tokenizer[tokenizer.count() - 1];
@@ -134,23 +137,31 @@ FileNode* FileSystem::mkFile(std::string _path) {
     Node* node = start->childFind(tokenizer[i]);
     start = (node == nullptr) ? nullptr : (FileNode*) node;
   }
+  return start;
+}
+
+string getNameFromPath(string _path) {
+  //Traverse FileSystem Hierarchies
+  StringTokenizer tokenizer(_path, "/");
+  return tokenizer[tokenizer.count() - 1];
+}
+
+FileNode* FileSystem::mkFile(string _path) {
+  FileNode* parent = traversePathToParent(_path);
+  string name = getNameFromPath(_path);
+  log_msg("Going to create File:%s under(Parent):%s\n\n",name.c_str(),parent->getName().c_str());
+  cout<<"Going to create File:"<<name<<" under(Parent):"<<parent->getName()<<endl;
   //Now parent node is start
-  return mkFile(start, name);
+  return mkFile(parent, name);
 }
 
 FileNode* FileSystem::mkDirectory(std::string _path) {
-  //Traverse FileSystem Hierarchies
-  StringTokenizer tokenizer(_path, "/");
-  string name = tokenizer[tokenizer.count() - 1];
-  FileNode* start = root;
-  for (uint i = 0; i < tokenizer.count() - 1; i++) {
-    if (tokenizer[i].length() == 0)
-      continue;
-    Node* node = start->childFind(tokenizer[i]);
-    start = (node == nullptr) ? nullptr : (FileNode*) node;
-  }
+  FileNode* parent = traversePathToParent(_path);
+  string name = getNameFromPath(_path);
+  log_msg("Going to create Dir:%s under(Parent):%s\n\n",name.c_str(),parent->getName().c_str());
+  cout<<"Going to create Dir:"<<name<<" under(Parent):"<<parent->getName()<<endl;
   //Now parent node is start
-  return mkDirectory(start, name);
+  return mkDirectory(parent, name);
 }
 
 FileNode* FileSystem::getNode(std::string _path) {
@@ -219,13 +230,22 @@ std::string FileSystem::printFileSystem() {
   //Recursive removing is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
   FileNode* start = root;
+  int newLineCounter = 1;
+  log_msg("FileSystem:\n\n");
   while (start != nullptr) {
     //add children to queue
     childDictionary::iterator childIterator = start->childrendBegin();
     for (; childIterator != start->childrenEnd(); childIterator++)
       childrenQueue.push_back((FileNode*) childIterator->second);
     //Now we can release start node
-    //print node
+    output += start->getName()+" ";
+    newLineCounter--;
+
+    if(!newLineCounter) {
+      output += "\n";
+      newLineCounter = start->childrenSize();
+    }
+
     if (childrenQueue.size() == 0)
       start = nullptr;
     else {
@@ -235,6 +255,22 @@ std::string FileSystem::printFileSystem() {
       childrenQueue.erase(frontIt);
     }
   }
+  log_msg("%s\n\n",output.c_str());
+  return output;
 }
 
+void FileSystem::setOpenDirPath(std::string _path) {
+  openDirPath = _path;
 }
+
+std::string FileSystem::getOpenDirPath() {
+  return openDirPath;
+}
+
+void FileSystem::clearOpenDirPath() {
+  openDirPath = "";
+}
+
+
+} // namespace
+

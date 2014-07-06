@@ -21,10 +21,15 @@ class FileSystem: public Tree {
   static FileSystem *mInstance;
   FileSystem(FileNode* _root);
   FileNode* searchNode(FileNode* _parent, std::string _name, bool _isDir);
+  FileNode* traversePathToParent(std::string _path);
+  std::string openDirPath = "";
 public:
   void initialize(FileNode* _root);
   static FileSystem* getInstance();
   virtual ~FileSystem();
+  void setOpenDirPath(std::string _path);
+  std::string getOpenDirPath();
+  void clearOpenDirPath();
   FileNode* mkFile(FileNode* _parent, std::string _name);
   FileNode* mkDirectory(FileNode* _parent, std::string _name);
   FileNode* mkFile(std::string _path);

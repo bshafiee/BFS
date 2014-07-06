@@ -130,7 +130,7 @@ int swift_mkdir(const char* path, mode_t mode) {
     newDir->setGID(fuseContext.gid);    //gid
     newDir->setUID(fuseContext.uid);    //uid
   } else
-    retstat = bb_error("bb_mknod error");
+    retstat = bb_error("bb_mkdir error");
 
   return retstat;
 }
@@ -212,33 +212,44 @@ int swift_removexattr(const char* path, const char* name) {
 }
 
 int swift_opendir(const char* path, struct fuse_file_info* fi) {
+  log_msg("\nbb_opendir(path=\"%s\", fi=0x%08x)\n", path, fi);
+  string pathStr(path, strlen(path));
+  FileSystem::getInstance()->setOpenDirPath(pathStr);
+  return 0;
 }
 
 int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     off_t offset, struct fuse_file_info* fi) {
+  //Handle path
+  string pathStr = "";
+  if(path == nullptr && FileSystem::getInstance()->getOpenDirPath().length() == 0)
+    return ENOENT;
+  if(path == nullptr) {
+    pathStr = FileSystem::getInstance()->getOpenDirPath();
+    //make it ready for next opendir call
+    FileSystem::getInstance()->clearOpenDirPath();
+  }
+  else
+  {
+    pathStr = string(path, strlen(path));
+    log_msg("HOLYSHIT INJAAA\n");
+  }
 
   int retstat = 0;
+
   log_msg(
       "\nbb_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x)\n",
       path, buf, filler, offset, fi);
-  /**
-   * -- malformed -- path but we assume (null) path is root folder
-   */
-  /*
-   if (path == nullptr) {
-   log_msg("No such directory: %s\n",path);
-   return ENOENT;
-   }*/
 
   //Get associated FileNode*
-  const char* modifiedPath = (path == nullptr) ? "/" : path;
-  string pathStr(modifiedPath, strlen(modifiedPath));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
     log_msg("Node not found: %s\n", path);
     return ENOENT;
   }
 
+  filler(buf, ".", NULL, 0);
+  filler(buf, "..", NULL, 0);
   childDictionary::iterator it = node->childrendBegin();
   for (; it != node->childrenEnd(); it++) {
     FileNode* entry = (FileNode*) it->second;
@@ -247,12 +258,15 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
      * void *buf, const char *name,
      const struct stat *stbuf, off_t off
      */
+    fillStat(&st,entry);
     if (filler(buf, entry->getName().c_str(), &st, 0)) {
       retstat = bb_error("swift_readdir filler error");
       break;
     }
   }
-  log_msg("readdir successful: %d entry. Count:%d\n", it, node->childrenSize());
+  log_msg("readdir successful: %d entry on Path:%s\n", node->childrenSize(),pathStr.c_str());
+  FileSystem::getInstance()->printFileSystem();
+  log_msg("\n");
 
   return retstat;
 }

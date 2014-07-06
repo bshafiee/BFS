@@ -198,7 +198,6 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
   children.erase(it);
   //Now insert it again with the updated name
   _child->setName(_newName);
-  log_msg("\n hahaha ha injaaaaa name: %s\n",_child->getName().c_str());
   return childAdd(_child).second;
 }
 

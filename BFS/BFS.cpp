@@ -48,6 +48,7 @@
 #include <Poco/StreamCopier.h>
 #include "FUSESwift.h"
 #include "log.h"
+#include "model/filesystem.h"
 
 using namespace Swift;
 using namespace std;
@@ -435,7 +436,7 @@ static struct fuse_operations xmp_oper = {
   .getxattr = NULL ,
   .listxattr = NULL ,
   .removexattr = NULL ,
-  .opendir = NULL ,
+  .opendir = FUSESwift::swift_opendir ,
   .readdir = FUSESwift::swift_readdir ,
   .releasedir = FUSESwift::swift_releasedir ,
   .fsyncdir = NULL ,
@@ -475,7 +476,7 @@ int main(int argc, char *argv[]) {
   info.method = AuthenticationMethod::KEYSTONE;
 
   //Authenticate
-  SwiftResult<Account*>* authenticateResult = Account::authenticate(info);
+  //SwiftResult<Account*>* authenticateResult = Account::authenticate(info);
 
   //Start fuse_main
   int fuse_stat;
@@ -518,6 +519,24 @@ int main(int argc, char *argv[]) {
   argc--;
 
   bb_data->logfile = log_open();
+
+/*
+  FUSESwift::swift_init(nullptr);
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1");
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir2");
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3");
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4");
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir5");
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir6");
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir7");
+  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir5/Dir8");
+
+  cout<<FUSESwift::FileSystem::getInstance()->printFileSystem()<<endl;
+  cout<<"\nRename:\n";
+  FUSESwift::FileSystem::getInstance()->tryRename("/Dir1/Dir3/Dir4","/Dir1/Dir3/Dir4(has3kids)");
+  FUSESwift::FileSystem::getInstance()->tryRename("/Dir1/Dir3/Dir4(has3kids)/Dir5","/Dir1/Dir3/Dir4(has3kids)/DirNew5");
+  FUSESwift::FileSystem::getInstance()->tryRename("/Dir1/Dir3/Dir4(has3kids)/DirNew5/Dir8","/Dir1/Dir3/Dir4(has3kids)/DirNew5/DirNew5/New8");
+  cout<<FUSESwift::FileSystem::getInstance()->printFileSystem()<<endl;*/
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
