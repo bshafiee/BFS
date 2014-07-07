@@ -291,6 +291,13 @@ int swift_statfs(const char* path, struct statvfs* stbuf) {
 }
 
 int swift_flush(const char* path, struct fuse_file_info* fi) {
+  int retstat = 0;
+
+  log_msg("\nbb_flush(path=\"%s\", fi=0x%08x)\n", path, fi);
+  // no need to get fpath on this one, since I work from fi->fh not the path
+  log_fi(fi);
+
+  return retstat;
 }
 
 int swift_release(const char* path, struct fuse_file_info* fi) {
