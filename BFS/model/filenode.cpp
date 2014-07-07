@@ -9,6 +9,7 @@
 #include <cstring>
 #include <sstream>      // std::istringstream
 #include "../log.h"
+#include "filesystem.h"
 
 using namespace std;
 
@@ -50,25 +51,12 @@ metadataDictionary::iterator FileNode::metadataEnd() {
   return metadata.end();
 }
 
-bool FileNode::write(const void* _data, size_t _size) {
-  data = (char*)malloc(_size);
-  if(data == nullptr)
-    return false;
-  size = _size;
-  memcpy(data,_data,_size);
-  return true;
+long FileNode::write(const char* _data, size_t _size) {
+  return this->write(_data,0,_size);
 }
 
-bool FileNode::read(void* &_data, size_t &_size) {
-  if(data == nullptr) {
-    data = nullptr;
-    _size = 0;
-    return false;
-  }
-
-  memcpy(_data,data,size);
-  _size = size;
-  return true;
+long FileNode::read(char* &_data, size_t _size) {
+  return this->read(_data,0,_size);
 }
 
 std::string FileNode::getName() {
@@ -83,40 +71,39 @@ void FileNode::setName(std::string _newName) {
   key = _newName;
 }
 
-bool FileNode::read(void* &_data, size_t _offset, size_t &_size) {
-  if(_offset+_size > size || data == nullptr) {
+long FileNode::read(char* &_data, size_t _offset, size_t _size) {
+  if(_offset >= size || data == nullptr) {
     _data = nullptr;
-    _size = 0;
-    return false;
+    return -1;
   }
 
   //Valid indices
   void *pointer = data + _offset;
-  memcpy(_data,pointer,_size);
-  return true;
+  size_t remained = size - _offset;
+  size_t howMany = (_size > remained) ? remained:_size;
+  memcpy(_data,pointer,howMany);
+  return howMany;
 }
 
-bool FileNode::write(const void* _data, size_t _offset, size_t _size) {
-  if(_offset+_size > size)
-    return false;
-  if(data == nullptr)
-    return false;
+long FileNode::write(const char* _data, size_t _offset, size_t _size) {
+  if(data == nullptr && size == 0) { //allocate first time
+    data = (char*)malloc(_size);
+    size = _size;
+  }
+  else {
+    void *newData = realloc(data,size+_size);
+    if(newData == nullptr)
+      return -1;
+    size = size+_size;
+    data = (char*)newData;
+  }
+
   //Valid indices
-  memcpy(data+_offset,_data,_size);
-  return true;
-}
-
-bool FileNode::append(const void *_data, size_t _size) {
-  void *newData = realloc(data,size+_size);
-  if(newData == nullptr)
-    return false;
-
-
-  data = (char*)newData;
-  void *pointer = data + size;
-  size = size+_size;
-  memcpy(pointer,_data,_size);
-  return true;
+  void *pointer = data + _offset;
+  size_t remained = size - _offset;
+  size_t howMany = (_size > remained) ? remained:_size;
+  memcpy(pointer,_data,howMany);
+  return howMany;
 }
 
 unsigned long FileNode::getUID() {
@@ -196,6 +183,15 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
     return false;
   //First remove node
   children.erase(it);
+  //Second remove all the existing nodes with _newName
+  it = children.find(_newName);
+  if(it != children.end()) {
+    FileNode* existingNodes = (FileNode*)(it->second);
+    FileNode* parent = this;
+    FileSystem::getInstance()->rmNode(parent, existingNodes);
+    //children.erase(it);
+  }
+
   //Now insert it again with the updated name
   _child->setName(_newName);
   return childAdd(_child).second;
@@ -203,6 +199,19 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
 
 bool FileNode::isDirectory() {
   return isDir;
+}
+
+bool FileNode::open() {
+  open_counter++;
+  return true;
+}
+
+void FileNode::close() {
+  open_counter--;
+}
+
+bool FileNode::isOpen() {
+  return open_counter;
 }
 
 }

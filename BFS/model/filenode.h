@@ -10,6 +10,7 @@
 
 #include "node.h"
 #include <map>
+#include <atomic>
 
 namespace FUSESwift {
 
@@ -27,6 +28,7 @@ class FileNode: public Node {
   bool isDir;
   char* data;
   size_t size;
+  std::atomic<unsigned int> open_counter;
 public:
   FileNode(std::string _name,bool _isDir);
   virtual ~FileNode();
@@ -64,30 +66,29 @@ public:
    * writes input data to this file
    * returns true if successful, false if fails.
    */
-  bool write(const void* _data,size_t _size);
+  long write(const char* _data,size_t _size);
   /**
    * reads file data to input arguments.
    * returns true if successful, false if fails.
    */
-  bool read(void* &_data,size_t &_size);
+  long read(char* &_data,size_t _size);
   /**
    * not inclusive get data by range
    * returns data store from index _offset to _offset+size-1
    * if specified _offset or _size returns false.
    */
-  bool read(void* &_data, size_t _offset, size_t &_size);
+  long read(char* &_data, size_t _offset, size_t _size);
   /**
    * not inclusive set data by range
    * sets data from index _offset to _offset+size-1 by the specified input _data
    * if specified _offset or _size are irrelevant false is returned
    */
-  bool write(const void *_data, size_t _offset, size_t _size);
-  /**
-   * appends input data to the end of current data
-   * returns true if successful, false if fails.
-   */
-  bool append(const void *_data, size_t _size);
+  long write(const char *_data, size_t _offset, size_t _size);
+
   bool isDirectory();
+  bool open();
+  void close();
+  bool isOpen();
 };
 
 } /* namespace FUSESwift */

@@ -18,7 +18,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
+//#define DEBUG 1
 
 FILE *log_open()
 {
@@ -40,15 +40,18 @@ FILE *log_open()
 
 void log_msg(const char *format, ...)
 {
+#ifdef DEBUG
     va_list ap;
     va_start(ap, format);
 
     vfprintf(BB_DATA->logfile, format, ap);
+#endif
 }
 
 // fuse context
 void log_fuse_context(struct fuse_context *context)
 {
+#ifdef DEBUG
     log_msg("    context:\n");
     
     /** Pointer to the fuse object */
@@ -76,6 +79,7 @@ void log_fuse_context(struct fuse_context *context)
     /** Umask of the calling process (introduced in version 2.8) */
     //	mode_t umask;
     log_struct(context, umask, %05o, );
+#endif
 }
 
 // struct fuse_conn_info contains information about the socket
@@ -83,6 +87,7 @@ void log_fuse_context(struct fuse_context *context)
 // information in bbfs
 void log_conn(struct fuse_conn_info *conn)
 {
+#ifdef DEBUG
     log_msg("    conn:\n");
     
     /** Major version of the protocol (read-only) */
@@ -123,6 +128,7 @@ void log_conn(struct fuse_conn_info *conn)
     
     /** For future use. */
     // unsigned reserved[23];
+#endif
 }
     
 // struct fuse_file_info keeps information about files (surprise!).
@@ -131,6 +137,7 @@ void log_conn(struct fuse_conn_info *conn)
 // Duplicated here for convenience.
 void log_fi (struct fuse_file_info *fi)
 {
+#ifdef DEBUG
     log_msg("    fi:\n");
     
     /** Open flags.  Available in open() and release() */
@@ -167,12 +174,14 @@ void log_fi (struct fuse_file_info *fi)
     /** Lock owner id.  Available in locking operations and flush */
     //  uint64_t lock_owner;
 	log_struct(fi, lock_owner, 0x%016llx, );
+#endif
 };
 
 // This dumps the info from a struct stat.  The struct is defined in
 // <bits/stat.h>; this is indirectly included from <fcntl.h>
 void log_stat(struct stat *si)
 {
+#ifdef DEBUG
     log_msg("    si:\n");
     
     //  dev_t     st_dev;     /* ID of device containing file */
@@ -213,11 +222,12 @@ void log_stat(struct stat *si)
 
     //  time_t    st_ctime;   /* time of last status change */
 	log_struct(si, st_ctime, 0x%08lx, );
-	
+#endif
 }
 
 void log_statvfs(struct statvfs *sv)
 {
+#ifdef DEBUG
     log_msg("    sv:\n");
     
     //  unsigned long  f_bsize;    /* file system block size */
@@ -252,11 +262,12 @@ void log_statvfs(struct statvfs *sv)
 	
     //  unsigned long  f_namemax;  /* maximum filename length */
 	log_struct(sv, f_namemax, %ld, );
-	
+#endif
 }
 
 void log_utime(struct utimbuf *buf)
 {
+#ifdef DEBUG
     log_msg("    buf:\n");
     
     //    time_t actime;
@@ -264,4 +275,5 @@ void log_utime(struct utimbuf *buf)
 	
     //    time_t modtime;
     log_struct(buf, modtime, 0x%08lx, );
+#endif
 }

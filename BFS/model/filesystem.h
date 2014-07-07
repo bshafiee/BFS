@@ -27,14 +27,11 @@ public:
   void initialize(FileNode* _root);
   static FileSystem* getInstance();
   virtual ~FileSystem();
-  void setOpenDirPath(std::string _path);
-  std::string getOpenDirPath();
-  void clearOpenDirPath();
   FileNode* mkFile(FileNode* _parent, std::string _name);
   FileNode* mkDirectory(FileNode* _parent, std::string _name);
   FileNode* mkFile(std::string _path);
   FileNode* mkDirectory(std::string _path);
-  size_t rmNode(FileNode* &_node);
+  size_t rmNode(FileNode* &_parent,FileNode* &_node);
   FileNode* searchFile(FileNode* _parent, std::string _name);
   FileNode* searchDir(FileNode* _parent, std::string _name);
   size_t getBlockSize();

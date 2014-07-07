@@ -87,8 +87,10 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
   if (S_ISREG(mode)) {
     string pathStr(path, strlen(path));
     FileNode *newFile = FileSystem::getInstance()->mkFile(pathStr);
-    if (newFile == nullptr)
-      retstat = bb_error("bb_mknod mkFile (newFile is nullptr)");
+    if (newFile == nullptr) {
+      retstat = ENOENT;
+      log_msg("bb_mknod mkFile (newFile is nullptr)\n");
+    }
     //File created successfully
     newFile->setMode(mode); //Mode
     unsigned long now = time(0);
@@ -98,8 +100,11 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
     struct fuse_context fuseContext = *fuse_get_context();
     newFile->setGID(fuseContext.gid);    //gid
     newFile->setUID(fuseContext.uid);    //uid
-  } else
-    retstat = bb_error("bb_mknod error");
+    log_msg("bb_mknod successful %s\n",path);
+  } else {
+    retstat = ENOENT;
+    log_msg("bb_mknod expects regular file\n");
+  }
 
   return retstat;
 }
@@ -118,8 +123,10 @@ int swift_mkdir(const char* path, mode_t mode) {
   if (S_ISDIR(mode)) {
     string pathStr(path, strlen(path));
     FileNode *newDir = FileSystem::getInstance()->mkDirectory(pathStr);
-    if (newDir == nullptr)
-      retstat = bb_error("bb_mkdir mkDir (newDir is nullptr)");
+    if (newDir == nullptr){
+      retstat = ENOENT;
+      log_msg("bb_mkdir mkFile (newFile is nullptr)\n");
+    }
     //Directory created successfully
     newDir->setMode(mode); //Mode
     unsigned long now = time(0);
@@ -129,16 +136,48 @@ int swift_mkdir(const char* path, mode_t mode) {
     struct fuse_context fuseContext = *fuse_get_context();
     newDir->setGID(fuseContext.gid);    //gid
     newDir->setUID(fuseContext.uid);    //uid
-  } else
-    retstat = bb_error("bb_mkdir error");
+  } else {
+    retstat = ENOENT;
+    log_msg("bb_mkdir expects dir\n");
+  }
 
   return retstat;
 }
 
 int swift_unlink(const char* path) {
+  log_msg("bb_unlink(path=\"%s\")\n", path);
+
+  //Get associated FileNode*
+  string pathStr(path, strlen(path));
+  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  if (node == nullptr) {
+    log_msg("Node not found: %s\n", path);
+    return -ENOENT;
+  }
+
+  FileNode* parent = FileSystem::getInstance()->findParent(path);
+  size_t remNodes = FileSystem::getInstance()->rmNode(parent, node);
+  log_msg("Removed %d nodes from %s file.\n", remNodes, path);
+
+  return 0;
 }
 
 int swift_rmdir(const char* path) {
+  log_msg("bb_rmdir(path=\"%s\")\n", path);
+
+  //Get associated FileNode*
+  string pathStr(path, strlen(path));
+  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  if (node == nullptr) {
+    log_msg("Node not found: %s\n", path);
+    return -ENOENT;
+  }
+
+  FileNode* parent = FileSystem::getInstance()->findParent(path);
+  size_t remNodes = FileSystem::getInstance()->rmNode(parent,node);
+  log_msg("Removed %d nodes from %s dir.\n", remNodes, path);
+
+  return 0;
 }
 
 int swift_symlink(const char* from, const char* to) {
@@ -175,14 +214,77 @@ int swift_utime(const char* path, struct utimbuf* ubuf) {
 }
 
 int swift_open(const char* path, struct fuse_file_info* fi) {
+  log_msg("\nbb_open(path=\"%s\", fi=0x%08x fh=0x%08x)\n", path, fi,fi->fh);
+  //Get associated FileNode*
+  string pathStr(path, strlen(path));
+  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  if (node == nullptr) {
+    log_msg("swift_open: Node not found: %s\n", path);
+    fi->fh = 0;
+    return -ENOENT;
+  }
+  node->open();
+  fi->fh = (intptr_t)node;
+  return 0;
 }
 
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
+  log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+    path, buf, size, offset, fi);
+  // no need to get fpath on this one, since I work from fi->fh not the path
+  log_fi(fi);
+
+  //Handle path
+  if(path == nullptr && fi->fh == 0)
+  {
+    log_msg("\nswift_read: fi->fh is null\n");
+    return -ENOENT;
+  }
+  //Get associated FileNode*
+  FileNode* node = (FileNode*)fi->fh;
+  //Empty file
+  if(node->getSize() == 0)
+  {
+    log_msg("bb_read successful from:%s size=%d, offset=%lld EOF\n",node->getName().c_str(),0,offset);
+    return 0;
+  }
+  long readBytes = node->read(buf,offset,size);
+  if(readBytes >= 0) {
+    log_msg("bb_read successful from:%s size=%d, offset=%lld\n",node->getName().c_str(),readBytes,offset);
+    return readBytes;
+  }
+  else {
+    log_msg("\nswift_read: error in reading: size:%d offset:%lld readBytes:%d\n",size,offset,readBytes);
+    return -EIO;
+  }
 }
 
 int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
+  log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+    path, buf, size, offset, fi);
+  // no need to get fpath on this one, since I work from fi->fh not the path
+  log_fi(fi);
+
+  //Handle path
+  if(path == nullptr && fi->fh == 0)
+  {
+    log_msg("\nswift_write: fi->fh is null\n");
+    return -ENOENT;
+  }
+  //Get associated FileNode*
+  FileNode* node = (FileNode*)fi->fh;
+  int written = node->write(buf,offset,size);
+  if(written == size )
+  {
+    log_msg("bb_write successful to:%s size=%d, offset=%lld\n",node->getName().c_str(),written,offset);
+    return written;
+  }
+  else {
+    log_msg("\nswift_write: error in writing to:%s\n",node->getName().c_str());
+    return -EIO;
+  }
 }
 
 int swift_statfs(const char* path, struct statvfs* stbuf) {
@@ -192,6 +294,21 @@ int swift_flush(const char* path, struct fuse_file_info* fi) {
 }
 
 int swift_release(const char* path, struct fuse_file_info* fi) {
+  int retstat = 0;
+
+  //Handle path
+  if(path == nullptr && fi->fh == 0)
+  {
+    log_msg("\nswift_release: fi->fh is null\n");
+    return ENOENT;
+  }
+  //Get associated FileNode*
+  FileNode* node = (FileNode*)fi->fh;
+  node->close();
+
+  log_msg("\nbb_release(name=\"%s\", fi=0x%08x) isStillOpen?%d \n", node->getName().c_str(), fi, node->isOpen());
+  log_fi(fi);
+  return retstat;
 }
 
 int swift_fsync(const char* path, int isdatasynch, struct fuse_file_info* fi) {
@@ -213,40 +330,44 @@ int swift_removexattr(const char* path, const char* name) {
 
 int swift_opendir(const char* path, struct fuse_file_info* fi) {
   log_msg("\nbb_opendir(path=\"%s\", fi=0x%08x)\n", path, fi);
+  //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileSystem::getInstance()->setOpenDirPath(pathStr);
+  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  if (node == nullptr) {
+    log_msg("swift_opendir: Node not found: %s\n", path);
+    fi->fh = 0;
+    return -ENOENT;
+  }
+  node->open();
+  fi->fh = (intptr_t)node;
   return 0;
 }
 
 int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     off_t offset, struct fuse_file_info* fi) {
+
+  //Get associated FileNode*
+  FileNode* node = nullptr;
   //Handle path
-  string pathStr = "";
-  if(path == nullptr && FileSystem::getInstance()->getOpenDirPath().length() == 0)
+  if(path == nullptr && fi->fh == 0)
+  {
+    log_msg("\nswift_readdir: fi->fh is null\n");
     return ENOENT;
-  if(path == nullptr) {
-    pathStr = FileSystem::getInstance()->getOpenDirPath();
-    //make it ready for next opendir call
-    FileSystem::getInstance()->clearOpenDirPath();
+  }
+  else if(path != nullptr) {
+    //Get associated FileNode*
+    string pathStr(path, strlen(path));
+    node = FileSystem::getInstance()->getNode(pathStr);
   }
   else
-  {
-    pathStr = string(path, strlen(path));
-    log_msg("HOLYSHIT INJAAA\n");
-  }
+    node = (FileNode*)fi->fh;
+
 
   int retstat = 0;
 
   log_msg(
-      "\nbb_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x)\n",
-      path, buf, filler, offset, fi);
-
-  //Get associated FileNode*
-  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
-  if (node == nullptr) {
-    log_msg("Node not found: %s\n", path);
-    return ENOENT;
-  }
+      "\nbb_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x, fh=0x%08x)\n",
+      path, buf, filler, offset, fi, fi->fh);
 
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
@@ -260,11 +381,11 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
      */
     fillStat(&st,entry);
     if (filler(buf, entry->getName().c_str(), &st, 0)) {
-      retstat = bb_error("swift_readdir filler error");
+      retstat = bb_error("swift_readdir filler error\n");
       break;
     }
   }
-  log_msg("readdir successful: %d entry on Path:%s\n", node->childrenSize(),pathStr.c_str());
+  log_msg("readdir successful: %d entry on Path:%s\n", node->childrenSize(),node->getName().c_str());
   FileSystem::getInstance()->printFileSystem();
   log_msg("\n");
 
@@ -274,9 +395,18 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 int swift_releasedir(const char* path, struct fuse_file_info* fi) {
   int retstat = 0;
 
-  log_msg("\nbb_releasedir(path=\"%s\", fi=0x%08x)\n", path, fi);
-  log_fi(fi);
+  //Handle path
+  if(path == nullptr && fi->fh == 0)
+  {
+    log_msg("\nswift_releasedir: fi->fh is null\n");
+    return ENOENT;
+  }
+  //Get associated FileNode*
+  FileNode* node = (FileNode*)fi->fh;
+  node->close();
 
+  log_msg("\nbb_releasedir(path=\"%s\", fi=0x%08x) isStillOpen?%d \n", path, fi, node->isOpen());
+  log_fi(fi);
   return retstat;
 }
 

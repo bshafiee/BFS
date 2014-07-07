@@ -25,7 +25,7 @@ FileSystem::FileSystem(FileNode* _root) :
 
 FileSystem::~FileSystem() {
   //recursively delete
-  rmNode(root);
+  destroy();
 }
 
 void FileSystem::initialize(FileNode* _root) {
@@ -83,10 +83,13 @@ FileNode* FileSystem::searchNode(FileNode* _parent, std::string _name,
   return nullptr;
 }
 
-size_t FileSystem::rmNode(FileNode* &_node) {
+size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   //Recursive removing is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
   size_t numOfRemovedNodes = 0;
+  //remove from parent
+  if(_parent != nullptr) //clearing root
+    _parent->childRemove(_node->getName());
 
   while (_node != nullptr) {
     //add children to queue
@@ -105,6 +108,7 @@ size_t FileSystem::rmNode(FileNode* &_node) {
       childrenQueue.erase(frontIt);
     }
   }
+
   return numOfRemovedNodes;
 }
 
@@ -149,8 +153,6 @@ string getNameFromPath(string _path) {
 FileNode* FileSystem::mkFile(string _path) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
-  log_msg("Going to create File:%s under(Parent):%s\n\n",name.c_str(),parent->getName().c_str());
-  cout<<"Going to create File:"<<name<<" under(Parent):"<<parent->getName()<<endl;
   //Now parent node is start
   return mkFile(parent, name);
 }
@@ -158,8 +160,6 @@ FileNode* FileSystem::mkFile(string _path) {
 FileNode* FileSystem::mkDirectory(std::string _path) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
-  log_msg("Going to create Dir:%s under(Parent):%s\n\n",name.c_str(),parent->getName().c_str());
-  cout<<"Going to create Dir:"<<name<<" under(Parent):"<<parent->getName()<<endl;
   //Now parent node is start
   return mkDirectory(parent, name);
 }
@@ -203,16 +203,22 @@ FileNode* FileSystem::findParent(const string &_path) {
 }
 
 void FileSystem::destroy() {
-  rmNode(root);
+  FileNode* nullNode = nullptr;
+  rmNode(nullNode, root);
 }
 
 bool FileSystem::tryRename(const string &_from,const string &_to) {
   FileNode* node = getNode(_from);
   if(node == nullptr)
+  {
+    log_msg("rename failed 1: from:%s to:%s\n",_from.c_str(),_to.c_str());
     return false;
+  }
 
-  if(_to.length() == 0)
-    return nullptr;
+  if(_to.length() == 0) {
+    log_msg("rename failed 2: from:%s to:%s\n",_from.c_str(),_to.c_str());
+    return false;
+  }
   //Get last token (name) from destination path
   StringTokenizer tokenizer(_to, "/");
   string newName = tokenizer[tokenizer.count()-1];
@@ -220,7 +226,14 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
   //First find parent node
   FileNode* parentNode = findParent(_from);
   if(parentNode == nullptr)
+  {
+    log_msg("rename failed 3: from:%s to:%s\n",_from.c_str(),_to.c_str());
     return false;
+  }
+
+  log_msg("rename 4: parent:%s node:%s\nPrintFS:",parentNode->getName().c_str(),node->getName().c_str());
+  log_msg("%s\n",printFileSystem().c_str());
+
   //Ask  parent to delete this node
   return parentNode->renameChild(node,newName);
 }
@@ -258,19 +271,6 @@ std::string FileSystem::printFileSystem() {
   log_msg("%s\n\n",output.c_str());
   return output;
 }
-
-void FileSystem::setOpenDirPath(std::string _path) {
-  openDirPath = _path;
-}
-
-std::string FileSystem::getOpenDirPath() {
-  return openDirPath;
-}
-
-void FileSystem::clearOpenDirPath() {
-  openDirPath = "";
-}
-
 
 } // namespace
 
