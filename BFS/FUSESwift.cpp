@@ -17,21 +17,11 @@ using namespace std;
 namespace FUSESwift {
 
 FileNode* createRootNode() {
-  FileNode *node = new FileNode(FileSystem::getInstance()->getDelimiter(),
-      true);
+  FileNode *node = new FileNode(FileSystem::getInstance()->getDelimiter(), true);
   unsigned long now = time(0);
   node->setCTime(now);
   node->setCTime(now);
   return node;
-}
-
-// Report errors to logfile and give -errno to caller
-static int bb_error(char *str) {
-  int ret = -errno;
-
-  log_msg("    ERROR %s: %s\n", str, strerror(errno));
-
-  return ret;
 }
 
 void fillStat(struct stat *stbuff, FileNode* node) {
@@ -276,7 +266,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   //Get associated FileNode*
   FileNode* node = (FileNode*)fi->fh;
   int written = node->write(buf,offset,size);
-  if(written == size )
+  if(written == (int)size )
   {
     log_msg("bb_write successful to:%s size=%d, offset=%lld\n",node->getName().c_str(),written,offset);
     return written;
@@ -388,8 +378,8 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
      */
     fillStat(&st,entry);
     if (filler(buf, entry->getName().c_str(), &st, 0)) {
-      retstat = bb_error("swift_readdir filler error\n");
-      break;
+      log_msg("swift_readdir filler error\n");
+      return EIO;
     }
   }
   log_msg("readdir successful: %d entry on Path:%s\n", node->childrenSize(),node->getName().c_str());

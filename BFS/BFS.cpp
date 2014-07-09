@@ -6,26 +6,14 @@
 // Description : Hello World in C, Ansi-style
 //============================================================================
 
-/*
- FUSE: Filesystem in Userspace
- Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
- Copyright (C) 2011       Sebastian Pipping <sebastian@pipping.org>
-
- This program can be distributed under the terms of the GNU GPL.
- See the file COPYING.
-
- gcc -Wall fusexmp.c `pkg-config fuse --cflags --libs` -o fusexmp
- */
-
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#ifdef linux
-/* For pread()/pwrite()/utimensat() */
-#define _XOPEN_SOURCE 700
-#endif
+// The FUSE API has been changed a number of times.  So, our code
+// needs to define the version of the API that we assume.  As of this
+// writing, the most current API version is 26
+#define FUSE_USE_VERSION 29
 
 #include "params.h"
 #include <stdio.h>
