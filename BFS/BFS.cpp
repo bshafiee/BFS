@@ -37,8 +37,12 @@
 #include "FUSESwift.h"
 #include "log.h"
 #include "model/filesystem.h"
+#include "model/filenode.h"
+#include "string.h"
+
 
 using namespace Swift;
+using namespace FUSESwift;
 using namespace std;
 using namespace Poco;
 
@@ -90,7 +94,7 @@ static struct fuse_operations xmp_oper = {
   .write_buf = NULL ,
   .read_buf = NULL ,
   .flock = NULL ,
-  //.fallocate = NULL
+  .fallocate = NULL
 };
 
 void bb_usage()
@@ -132,9 +136,9 @@ int main(int argc, char *argv[]) {
   // Perform some sanity checking on the command line:  make sure
   // there are enough arguments, and that neither of the last two
   // start with a hyphen (this will break if you actually have a
-  // rootpoint or mountpoint whose name starts with a hyphen, but so
+  // mountpoint whose name starts with a hyphen, but so
   // will a zillion other programs)
-  if ((argc < 3) || (argv[argc - 2][0] == '-') || (argv[argc - 1][0] == '-'))
+  if (argc < 1)
     bb_usage();
 
   bb_data = (bb_state*)malloc(sizeof(struct bb_state));
@@ -143,32 +147,21 @@ int main(int argc, char *argv[]) {
     abort();
   }
 
-  // Pull the rootdir out of the argument list and save it in my
-  // internal data
-  bb_data->rootdir = realpath(argv[argc - 2], NULL);
-  argv[argc - 2] = argv[argc - 1];
-  argv[argc - 1] = NULL;
-  argc--;
-
   bb_data->logfile = log_open();
 
-/*
-  FUSESwift::swift_init(nullptr);
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1");
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir2");
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3");
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4");
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir5");
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir6");
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir7");
-  FUSESwift::FileSystem::getInstance()->mkDirectory("/Dir1/Dir3/Dir4/Dir5/Dir8");
 
-  cout<<FUSESwift::FileSystem::getInstance()->printFileSystem()<<endl;
-  cout<<"\nRename:\n";
-  FUSESwift::FileSystem::getInstance()->tryRename("/Dir1/Dir3/Dir4","/Dir1/Dir3/Dir4(has3kids)");
-  FUSESwift::FileSystem::getInstance()->tryRename("/Dir1/Dir3/Dir4(has3kids)/Dir5","/Dir1/Dir3/Dir4(has3kids)/DirNew5");
-  FUSESwift::FileSystem::getInstance()->tryRename("/Dir1/Dir3/Dir4(has3kids)/DirNew5/Dir8","/Dir1/Dir3/Dir4(has3kids)/DirNew5/DirNew5/New8");
-  cout<<FUSESwift::FileSystem::getInstance()->printFileSystem()<<endl;*/
+/*
+  long len = 1000;
+  char buff[len];
+  memset(buff,'*',len);
+
+  FUSESwift::FileNode* myFile = new FileNode("F1",false);
+  myFile->write(buff,0,len);
+  memset(buff,'+',len);
+  myFile->write(buff,len,len);
+  memset(buff,'-',len);
+  myFile->write(buff,50,len);
+*/
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");

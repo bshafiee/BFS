@@ -18,7 +18,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-//#define DEBUG 1
 
 FILE *log_open()
 {
@@ -74,7 +73,6 @@ void log_fuse_context(struct fuse_context *context)
     //	void *private_data;
     log_struct(context, private_data, %08x, );
     log_struct(((struct bb_state *)context->private_data), logfile, %08x, );
-    log_struct(((struct bb_state *)context->private_data), rootdir, %s, );
 	
     /** Umask of the calling process (introduced in version 2.8) */
     //	mode_t umask;

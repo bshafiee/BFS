@@ -18,8 +18,28 @@
 
 struct bb_state {
     FILE *logfile;
-    char *rootdir;
 };
+
 #define BB_DATA ((struct bb_state *) fuse_get_context()->private_data)
 
-#endif
+//DEBUG LEVELS
+#define DEBUG 1
+#define DEBUG_INIT       1
+#define DEBUG_DESTROY    1
+#define DEBUG_GET_ATTRIB 0
+#define DEBUG_MKNOD      0
+#define DEBUG_MKDIR      0
+#define DEBUG_RMDIR      0
+#define DEBUG_RENAME     0
+#define DEBUG_OPEN       0
+#define DEBUG_READ       1
+#define DEBUG_WRITE      1
+#define DEBUG_FLUSH      0
+#define DEBUG_RELEASE    0
+#define DEBUG_OPENDIR    0
+#define DEBUG_READDIR    0
+#define DEBUG_RELEASEDIR 0
+#define DEBUG_ACCESS     0
+
+
+#endif// _PARAMS_H_

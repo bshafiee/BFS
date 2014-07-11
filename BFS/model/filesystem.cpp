@@ -207,15 +207,11 @@ void FileSystem::destroy() {
 bool FileSystem::tryRename(const string &_from,const string &_to) {
   FileNode* node = getNode(_from);
   if(node == nullptr)
-  {
-    log_msg("rename failed 1: from:%s to:%s\n",_from.c_str(),_to.c_str());
     return false;
-  }
 
-  if(_to.length() == 0) {
-    log_msg("rename failed 2: from:%s to:%s\n",_from.c_str(),_to.c_str());
+  if(_to.length() == 0)
     return false;
-  }
+
   //Get last token (name) from destination path
   StringTokenizer tokenizer(_to, "/");
   string newName = tokenizer[tokenizer.count()-1];
@@ -223,13 +219,7 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
   //First find parent node
   FileNode* parentNode = findParent(_from);
   if(parentNode == nullptr)
-  {
-    log_msg("rename failed 3: from:%s to:%s\n",_from.c_str(),_to.c_str());
     return false;
-  }
-
-  log_msg("rename 4: parent:%s node:%s\nPrintFS:",parentNode->getName().c_str(),node->getName().c_str());
-  log_msg("%s\n",printFileSystem().c_str());
 
   //Ask  parent to delete this node
   return parentNode->renameChild(node,newName);

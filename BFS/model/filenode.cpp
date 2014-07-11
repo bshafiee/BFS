@@ -90,7 +90,7 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
   while(_size > 0) {
 	size_t howMuch = FileSystem::blockSize - index;//Left bytes in the last block
 	howMuch = (howMuch > _size)?_size:howMuch;
-	log_msg("howMuch:%d index:%d _size:%d",howMuch,index,_size);
+	log_msg("howMuch:%d index:%d _size:%d\n",howMuch,index,_size);
 	memcpy(_data+total, block+index,howMuch);
 	_size -= howMuch;
 	index += howMuch;
@@ -106,6 +106,7 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
 
 long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   size_t retValue = 0;
+  size_t backupSize = _size;
   if(_offset < size) { //update existing (unlikely)
     //Find correspondent block
 	size_t blockNo = _offset / FileSystem::blockSize;
@@ -117,7 +118,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 	while(_size > 0) {
 		size_t left = FileSystem::blockSize - index;//Left bytes in the last block
 		size_t howMuch = (_size <= left)? _size:left;
-		memcpy(block+index,_data,howMuch);
+		memcpy(block+index,_data+(backupSize-_size),howMuch);
 		_size -= howMuch;
 		index += howMuch;
 		retValue += howMuch;
@@ -126,7 +127,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 		  block = dataList[blockNo];
 		  index = 0;
 		} else if(index >= FileSystem::blockSize && blockNo >= dataList.size()) {
-			return retValue + this->write(_data+retValue,0,_size - retValue);
+			return retValue + this->write(_data+retValue,0,backupSize - retValue);
 		}
 	}
   }
@@ -144,7 +145,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 		char* lastBlock = dataList.at(dataList.size()-1);
 		size_t left = FileSystem::blockSize - blockIndex;//Left bytes in the last block
 		size_t howMuch = (_size <= left)? _size:left;
-		memcpy(lastBlock+blockIndex,_data,howMuch);
+		memcpy(lastBlock+blockIndex,_data+(backupSize-_size),howMuch);
 		_size -= howMuch;
 		size += howMuch;//increase file size
 		retValue += howMuch;
