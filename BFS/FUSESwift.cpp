@@ -6,6 +6,7 @@
  */
 
 #include "FUSESwift.h"
+#include "model/filenode.h"
 #include "log.h"
 #include "model/filesystem.h"
 #include <cstring>
@@ -35,9 +36,8 @@ void fillStat(struct stat *stbuff, FileNode* node) {
   stbuff->st_gid = node->getGID();
   stbuff->st_rdev = 0;
   stbuff->st_size = node->getSize();
-  stbuff->st_blksize = FileSystem::getInstance()->getBlockSize();
-  stbuff->st_blocks = node->getSize()
-      / FileSystem::getInstance()->getBlockSize();
+  stbuff->st_blksize = FileSystem::blockSize;
+  stbuff->st_blocks = node->getSize() / FileSystem::blockSize;
   stbuff->st_atime = 0x00000000;
   stbuff->st_mtime = node->getMTime();
   stbuff->st_ctime = node->getCTime();

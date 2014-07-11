@@ -9,13 +9,14 @@
 #define FILESYSTEM_H_
 
 #include "tree.h"
-#include "filenode.h"
+//#include "filenode.h"
 
 namespace FUSESwift {
 
+
+class FileNode;
+
 class FileSystem: public Tree {
-  const size_t blockSize = 1;
-  const std::string delimiter = "/";
   FileNode *root;
   //Singleton instance
   static FileSystem *mInstance;
@@ -24,6 +25,10 @@ class FileSystem: public Tree {
   FileNode* traversePathToParent(std::string _path);
   std::string openDirPath = "";
 public:
+  //Constants
+  static const size_t blockSize = 1024;
+  const std::string delimiter = "/";
+  //Functions
   void initialize(FileNode* _root);
   static FileSystem* getInstance();
   virtual ~FileSystem();
@@ -34,7 +39,6 @@ public:
   size_t rmNode(FileNode* &_parent,FileNode* &_node);
   FileNode* searchFile(FileNode* _parent, std::string _name);
   FileNode* searchDir(FileNode* _parent, std::string _name);
-  size_t getBlockSize();
   std::string getDelimiter();
   FileNode* getNode(std::string _path);
   FileNode* findParent(const std::string &_path);

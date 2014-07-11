@@ -16,13 +16,13 @@ using namespace std;
 namespace FUSESwift {
 
 FileNode::FileNode(string _name,bool _isDir):Node(_name),
-    isDir(_isDir),data(nullptr),size(0) {
+    isDir(_isDir),size(0),blockIndex(0) {
 }
 
 FileNode::~FileNode() {
-  if(data != nullptr) {
-    free(data);
-    data = nullptr;
+  for(vector<char*>::iterator it = dataList.begin();it != dataList.end();it++) {
+	char *block = *it;
+	delete []block;
   }
 }
 
@@ -72,38 +72,91 @@ void FileNode::setName(std::string _newName) {
 }
 
 long FileNode::read(char* &_data, size_t _offset, size_t _size) {
-  if(_offset >= size || data == nullptr) {
+  if(_offset >= size) {
     _data = nullptr;
     return -1;
   }
 
-  //Valid indices
-  void *pointer = data + _offset;
-  size_t remained = size - _offset;
-  size_t howMany = (_size > remained) ? remained:_size;
-  memcpy(_data,pointer,howMany);
-  return howMany;
+  if (_size > size)
+	  _size = size;
+
+  //Find correspondent block
+  size_t blockNo = _offset / FileSystem::blockSize;
+  unsigned int index = _offset - blockNo*FileSystem::blockSize;
+  char* block = dataList[blockNo];
+
+  size_t total = 0;
+  //Start filling
+  while(_size > 0) {
+	size_t howMuch = FileSystem::blockSize - index;//Left bytes in the last block
+	howMuch = (howMuch > _size)?_size:howMuch;
+	log_msg("howMuch:%d index:%d _size:%d",howMuch,index,_size);
+	memcpy(_data+total, block+index,howMuch);
+	_size -= howMuch;
+	index += howMuch;
+	total += howMuch;
+	blockNo++;
+	if(index >= FileSystem::blockSize) {
+	  block = dataList[blockNo];
+	  index = 0;
+	}
+  }
+  return total;
 }
 
 long FileNode::write(const char* _data, size_t _offset, size_t _size) {
-  if(data == nullptr && size == 0) { //allocate first time
-    data = (char*)malloc(_size);
-    size = _size;
-  }
-  else {
-    void *newData = realloc(data,size+_size);
-    if(newData == nullptr)
-      return -1;
-    size = size+_size;
-    data = (char*)newData;
-  }
+  size_t retValue = 0;
+  if(_offset < size) { //update existing (unlikely)
+    //Find correspondent block
+	size_t blockNo = _offset / FileSystem::blockSize;
+	unsigned int index = _offset - blockNo*FileSystem::blockSize;
 
-  //Valid indices
-  void *pointer = data + _offset;
-  size_t remained = size - _offset;
-  size_t howMany = (_size > remained) ? remained:_size;
-  memcpy(pointer,_data,howMany);
-  return howMany;
+	char* block = dataList[blockNo];
+
+	//Start filling
+	while(_size > 0) {
+		size_t left = FileSystem::blockSize - index;//Left bytes in the last block
+		size_t howMuch = (_size <= left)? _size:left;
+		memcpy(block+index,_data,howMuch);
+		_size -= howMuch;
+		index += howMuch;
+		retValue += howMuch;
+		blockNo++;
+		if(index >= FileSystem::blockSize && blockNo < dataList.size()) {
+		  block = dataList[blockNo];
+		  index = 0;
+		} else if(index >= FileSystem::blockSize && blockNo >= dataList.size()) {
+			return retValue + this->write(_data+retValue,0,_size - retValue);
+		}
+	}
+  }
+  else { //append to the end
+	  //first time (unlikely)
+	  if(dataList.size() == 0) {
+		  char* block = new char[FileSystem::blockSize];
+		  dataList.push_back(block);
+		  blockIndex = 0;
+	  }
+
+	  //Start filling
+	  while(_size > 0) {
+		//Get pointer to the last buffer
+		char* lastBlock = dataList.at(dataList.size()-1);
+		size_t left = FileSystem::blockSize - blockIndex;//Left bytes in the last block
+		size_t howMuch = (_size <= left)? _size:left;
+		memcpy(lastBlock+blockIndex,_data,howMuch);
+		_size -= howMuch;
+		size += howMuch;//increase file size
+		retValue += howMuch;
+		blockIndex += howMuch;
+		if(blockIndex >= FileSystem::blockSize) {
+		  char* block = new char[FileSystem::blockSize];
+		  dataList.push_back(block);
+		  blockIndex = 0;
+		}
+	  }
+  }
+  return retValue;
 }
 
 unsigned long FileNode::getUID() {

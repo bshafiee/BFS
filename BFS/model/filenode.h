@@ -11,6 +11,7 @@
 #include "node.h"
 #include <map>
 #include <atomic>
+#include <vector>
 
 namespace FUSESwift {
 
@@ -26,9 +27,10 @@ class FileNode: public Node {
   //Private Members
   metadataDictionary metadata;
   bool isDir;
-  char* data;
   size_t size;
   std::atomic<unsigned int> open_counter;
+  std::vector<char*> dataList;
+  unsigned int blockIndex;
 public:
   FileNode(std::string _name,bool _isDir);
   virtual ~FileNode();

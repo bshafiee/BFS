@@ -90,7 +90,7 @@ static struct fuse_operations xmp_oper = {
   .write_buf = NULL ,
   .read_buf = NULL ,
   .flock = NULL ,
-  .fallocate = NULL ,
+  //.fallocate = NULL
 };
 
 void bb_usage()

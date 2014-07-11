@@ -6,6 +6,7 @@
  */
 
 #include "filesystem.h"
+#include "filenode.h"
 #include <vector>
 #include <iostream>
 #include <Poco/StringTokenizer.h>
@@ -118,10 +119,6 @@ FileNode* FileSystem::searchFile(FileNode* _parent, std::string _name) {
 
 FileNode* FileSystem::searchDir(FileNode* _parent, std::string _name) {
   return searchNode(_parent, _name, true);
-}
-
-size_t FileSystem::getBlockSize() {
-  return blockSize;
 }
 
 std::string FileSystem::getDelimiter() {
