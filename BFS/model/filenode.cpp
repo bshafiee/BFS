@@ -20,6 +20,7 @@ FileNode::FileNode(string _name,bool _isDir):Node(_name),
 }
 
 FileNode::~FileNode() {
+	log_msg("INJAAA: RELEASE! Name:%s\n",this->key.c_str());
   for(vector<char*>::iterator it = dataList.begin();it != dataList.end();it++) {
 	char *block = *it;
 	delete []block;
@@ -77,8 +78,15 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
     return -1;
   }
 
+  /**
+   * sometimes fuse (for last block) ask for more
+   * bytes than actual size, because it's buffer size
+   * is usually fix
+   */
   if (_size > size)
 	  _size = size;
+  if(_size+_offset > size)
+  	_size = size - _offset;
 
   //Find correspondent block
   size_t blockNo = _offset / FileSystem::blockSize;
@@ -88,19 +96,20 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
   size_t total = 0;
   //Start filling
   while(_size > 0) {
-	size_t howMuch = FileSystem::blockSize - index;//Left bytes in the last block
-	howMuch = (howMuch > _size)?_size:howMuch;
-	log_msg("howMuch:%d index:%d _size:%d\n",howMuch,index,_size);
-	memcpy(_data+total, block+index,howMuch);
-	_size -= howMuch;
-	index += howMuch;
-	total += howMuch;
-	blockNo++;
-	if(index >= FileSystem::blockSize) {
-	  block = dataList[blockNo];
-	  index = 0;
-	}
+  	size_t howMuch = FileSystem::blockSize - index;//Left bytes in the last block
+  	howMuch = (howMuch > _size)?_size:howMuch;
+  	//log_msg("BEFORE howMuch:%zu index:%zu _size:%zu total:%zu SIZE:%zu blockAddr:0x%08x blockNo:%zu  totalBlocks:%zu\n",howMuch,index,_size,total,size,block,blockNo,dataList.size());
+  	memcpy(_data+total, block+index,howMuch);
+  	_size -= howMuch;
+  	index += howMuch;
+  	total += howMuch;
+  	blockNo++;
+  	if(index >= FileSystem::blockSize) {
+  		block = dataList[blockNo];
+  		index = 0;
+  	}
   }
+
   return total;
 }
 
@@ -108,7 +117,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   size_t retValue = 0;
   size_t backupSize = _size;
   if(_offset < size) { //update existing (unlikely)
-    //Find correspondent block
+	//Find correspondent block
 	size_t blockNo = _offset / FileSystem::blockSize;
 	unsigned int index = _offset - blockNo*FileSystem::blockSize;
 

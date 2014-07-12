@@ -12,6 +12,7 @@
 #include <map>
 #include <atomic>
 #include <vector>
+#include <pthread.h>
 
 namespace FUSESwift {
 
@@ -31,6 +32,7 @@ class FileNode: public Node {
   std::atomic<unsigned int> open_counter;
   std::vector<char*> dataList;
   unsigned int blockIndex;
+
 public:
   FileNode(std::string _name,bool _isDir);
   virtual ~FileNode();

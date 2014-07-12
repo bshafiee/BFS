@@ -150,8 +150,8 @@ int main(int argc, char *argv[]) {
   bb_data->logfile = log_open();
 
 
-/*
-  long len = 1000;
+
+  /*long len = 1000;
   char buff[len];
   memset(buff,'*',len);
 
@@ -161,7 +161,12 @@ int main(int argc, char *argv[]) {
   myFile->write(buff,len,len);
   memset(buff,'-',len);
   myFile->write(buff,50,len);
-*/
+
+
+  char *buff2 = new char[1500];
+  myFile->read(buff2,0,1500);
+  myFile->read(buff2,1500,500);*/
+
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");

@@ -230,10 +230,6 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
   if(DEBUG_READ)
     log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
         path, buf, size, offset, fi);
-  // no need to get fpath on this one, since I work from fi->fh not the path
-  if(DEBUG_READ)
-    log_fi(fi);
-
   //Handle path
   if(path == nullptr && fi->fh == 0)
   {
@@ -249,7 +245,11 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
       log_msg("bb_read successful from:%s size=%d, offset=%lld EOF\n",node->getName().c_str(),0,offset);
     return 0;
   }
+  //Lock
+  FileSystem::getInstance()->lock();
   long readBytes = node->read(buf,offset,size);
+  //UnLock
+	FileSystem::getInstance()->unlock();
   if(readBytes >= 0) {
     if(DEBUG_READ)
       log_msg("bb_read successful from:%s size=%d, offset=%lld\n",node->getName().c_str(),readBytes,offset);
@@ -278,7 +278,11 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*)fi->fh;
+  //Lock
+	FileSystem::getInstance()->lock();
   int written = node->write(buf,offset,size);
+  //UnLock
+	FileSystem::getInstance()->unlock();
   if(written == (int)size )
   {
     if(DEBUG_WRITE)

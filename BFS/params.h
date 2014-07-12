@@ -23,17 +23,17 @@ struct bb_state {
 #define BB_DATA ((struct bb_state *) fuse_get_context()->private_data)
 
 //DEBUG LEVELS
-#define DEBUG 1
-#define DEBUG_INIT       1
-#define DEBUG_DESTROY    1
+#define DEBUG 0
+#define DEBUG_INIT       0
+#define DEBUG_DESTROY    0
 #define DEBUG_GET_ATTRIB 0
 #define DEBUG_MKNOD      0
 #define DEBUG_MKDIR      0
 #define DEBUG_RMDIR      0
 #define DEBUG_RENAME     0
 #define DEBUG_OPEN       0
-#define DEBUG_READ       1
-#define DEBUG_WRITE      1
+#define DEBUG_READ       0
+#define DEBUG_WRITE      0
 #define DEBUG_FLUSH      0
 #define DEBUG_RELEASE    0
 #define DEBUG_OPENDIR    0

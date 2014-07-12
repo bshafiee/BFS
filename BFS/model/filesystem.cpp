@@ -31,6 +31,9 @@ FileSystem::~FileSystem() {
 
 void FileSystem::initialize(FileNode* _root) {
   root = _root;
+	int err = pthread_mutex_init(&mutex, NULL);
+	if (err)
+		log_msg("\npthread_mutex_init failed.\n");
 }
 
 FileSystem* FileSystem::getInstance() {
@@ -257,6 +260,14 @@ std::string FileSystem::printFileSystem() {
   }
   log_msg("%s\n\n",output.c_str());
   return output;
+}
+
+void FileSystem::lock() {
+	pthread_mutex_lock(&mutex);
+}
+
+void FileSystem::unlock() {
+	pthread_mutex_unlock(&mutex);
 }
 
 } // namespace
