@@ -190,6 +190,8 @@ int swift_rename(const char* from, const char* to) {
   else {
     if(DEBUG_RENAME)
       log_msg("bb_rename successful.\n");
+    /*FileNode* node = FileSystem::getInstance()->getNode(newPath);
+    log_msg("bb_rename MD5:%s\n",node->getMD5().c_str());*/
     return 0;
   }
 }
@@ -300,8 +302,10 @@ int swift_statfs(const char* path, struct statvfs* stbuf) {
 
 int swift_flush(const char* path, struct fuse_file_info* fi) {
   int retstat = 0;
+  //Get associated FileNode*
+  FileNode* node = (FileNode*)fi->fh;
   if(DEBUG_FLUSH)
-    log_msg("\nbb_flush(path=\"%s\", fi=0x%08x)\n", path, fi);
+    log_msg("\nbb_flush(path=\"%s\", fi=0x%08x) name:%s\n", path, fi,node->getName().c_str());
   // no need to get fpath on this one, since I work from fi->fh not the path
   if(DEBUG_FLUSH)
     log_fi(fi);
@@ -329,6 +333,10 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
 }
 
 int swift_fsync(const char* path, int isdatasynch, struct fuse_file_info* fi) {
+  //Get associated FileNode*
+  FileNode* node = (FileNode*)fi->fh;
+  log_msg("swift_fsync: path:%s,fi->fh:0x%08x isdatasynch:%d\n",path,fi->fh,isdatasynch);
+  return 0;
 }
 
 int swift_setxattr(const char* path, const char* name, const char* value,
@@ -431,6 +439,8 @@ int swift_releasedir(const char* path, struct fuse_file_info* fi) {
 }
 
 int swift_fsyncdir(const char* path, int datasync, struct fuse_file_info* fi) {
+  log_msg("swift_fsync: path:%s,fi->fh:0x%08x isdatasynch:%d\n",path,fi->fh,datasync);
+  return 0;
 }
 
 void* swift_init(struct fuse_conn_info* conn) {

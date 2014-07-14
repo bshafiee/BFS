@@ -38,6 +38,7 @@
 #include "log.h"
 #include "model/filesystem.h"
 #include "model/filenode.h"
+#include "model/SyncQueue.h"
 #include "string.h"
 
 
@@ -150,22 +151,17 @@ int main(int argc, char *argv[]) {
   bb_data->logfile = log_open();
 
 
-
-  /*long len = 1000;
+/*
+  long len = 1000;
   char buff[len];
   memset(buff,'*',len);
 
   FUSESwift::FileNode* myFile = new FileNode("F1",false);
-  myFile->write(buff,0,len);
-  memset(buff,'+',len);
-  myFile->write(buff,len,len);
-  memset(buff,'-',len);
-  myFile->write(buff,50,len);
-
-
-  char *buff2 = new char[1500];
-  myFile->read(buff2,0,1500);
-  myFile->read(buff2,1500,500);*/
+  long offset = 0;
+  for(int i=0;i<100000;i++) {
+    myFile->write(buff,offset,len);
+    offset += len;
+  }*/
 
 
   // turn over control to fuse

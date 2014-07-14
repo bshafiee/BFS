@@ -55,6 +55,7 @@ public:
   metadataDictionary::iterator metadataBegin();
   metadataDictionary::iterator metadataEnd();
   std::string getName();
+  std::string getMD5();
   size_t getSize();
   /**
    * tries to rename input child

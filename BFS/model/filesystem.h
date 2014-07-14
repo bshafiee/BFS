@@ -27,7 +27,7 @@ class FileSystem: public Tree {
   pthread_mutex_t mutex; /* read and write operations */
 public:
   //Constants
-  static const size_t blockSize = 1024;
+  static const size_t blockSize = 4096;
   const std::string delimiter = "/";
   //Functions
   void initialize(FileNode* _root);

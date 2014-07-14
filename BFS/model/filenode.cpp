@@ -10,6 +10,7 @@
 #include <sstream>      // std::istringstream
 #include "../log.h"
 #include "filesystem.h"
+#include <Poco/MD5Engine.h>
 
 using namespace std;
 
@@ -22,8 +23,9 @@ FileNode::FileNode(string _name,bool _isDir):Node(_name),
 FileNode::~FileNode() {
 	log_msg("INJAAA: RELEASE! Name:%s\n",this->key.c_str());
   for(vector<char*>::iterator it = dataList.begin();it != dataList.end();it++) {
-	char *block = *it;
-	delete []block;
+    char *block = *it;
+    free(block);
+    block = nullptr;
   }
 }
 
@@ -160,7 +162,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 		retValue += howMuch;
 		blockIndex += howMuch;
 		if(blockIndex >= FileSystem::blockSize) {
-		  char* block = new char[FileSystem::blockSize];
+		  char* block = (char*)malloc(FileSystem::blockSize*sizeof(char));
 		  dataList.push_back(block);
 		  blockIndex = 0;
 		}
@@ -277,4 +279,17 @@ bool FileNode::isOpen() {
   return open_counter;
 }
 
+std::string FileNode::getMD5() {
+  if(size <= 0)
+    return "";
+  Poco::MD5Engine md5;
+  md5.reset();
+  register size_t blockSize = FileSystem::blockSize;
+  for(uint i=0;i<dataList.size()-1;i++)
+    md5.update(dataList[i],blockSize);
+  //last block might not be full
+  md5.update(dataList[dataList.size()-1],blockIndex);
+  return Poco::DigestEngine::digestToHex(md5.digest());
 }
+
+} //namespace
