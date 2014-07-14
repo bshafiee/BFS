@@ -28,7 +28,7 @@ size_t Tree::destroy(Node*& start) {
 
   while(start != nullptr) {
     //add children to queue
-    childDictionary::iterator childIterator = start->childrendBegin();
+    auto childIterator = start->childrendBegin();
     for(;childIterator != start->childrenEnd();childIterator++)
       childrenQueue.push_back(childIterator->second);
     //Now we can release start node
@@ -38,7 +38,7 @@ size_t Tree::destroy(Node*& start) {
       start = nullptr;
     else {
       //Now assign start to a new node in queue
-      vector<Node*>::iterator frontIt = childrenQueue.begin();
+      auto frontIt = childrenQueue.begin();
       start = *frontIt;
       childrenQueue.erase(frontIt);
     }

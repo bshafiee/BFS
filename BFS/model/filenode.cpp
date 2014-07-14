@@ -17,12 +17,12 @@ using namespace std;
 namespace FUSESwift {
 
 FileNode::FileNode(string _name,bool _isDir):Node(_name),
-    isDir(_isDir),size(0),blockIndex(0) {
+    isDir(_isDir),size(0),blockIndex(0),needSync(false) {
 }
 
 FileNode::~FileNode() {
 	log_msg("INJAAA: RELEASE! Name:%s\n",this->key.c_str());
-  for(vector<char*>::iterator it = dataList.begin();it != dataList.end();it++) {
+  for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
     free(block);
     block = nullptr;
@@ -30,7 +30,7 @@ FileNode::~FileNode() {
 }
 
 void FileNode::metadataAdd(std::string _key, std::string _value) {
-  metadataDictionary::iterator it = metadata.find(_key);
+  auto it = metadata.find(_key);
   if(it == metadata.end())
     metadata.insert(make_pair(_key,_value));
   else //update value
@@ -42,7 +42,7 @@ void FileNode::metadataRemove(std::string _key) {
 }
 
 string FileNode::metadataGet(string _key) {
-  metadataDictionary::iterator it = metadata.find(_key);
+  auto it = metadata.find(_key);
   return (it == metadata.end())? "": it->second;
 }
 
@@ -243,7 +243,7 @@ void FileNode::setMode(mode_t _mode) {
 
 bool FileNode::renameChild(FileNode* _child,const string &_newName) {
   //Not such a node
-  childDictionary::iterator it = children.find(_child->getName());
+  auto it = children.find(_child->getName());
   if(it == children.end())
     return false;
   //First remove node
@@ -267,16 +267,26 @@ bool FileNode::isDirectory() {
 }
 
 bool FileNode::open() {
-  open_counter++;
+  refCount++;
   return true;
 }
 
 void FileNode::close() {
-  open_counter--;
+  refCount--;
+  unsigned int copy = refCount;
+  log_msg("CLOSE: #ref \"%s\":%d  NeedsSycn:%s Size:%zu\n",key.c_str(),copy,needSync?"true":"false",size);
+}
+
+bool FUSESwift::FileNode::getNeedSync() {
+  return needSync;
+}
+
+void FUSESwift::FileNode::setNeedSync(bool _need) {
+  needSync = _need;
 }
 
 bool FileNode::isOpen() {
-  return open_counter;
+  return refCount;
 }
 
 std::string FileNode::getMD5() {

@@ -283,6 +283,10 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   //Lock
 	FileSystem::getInstance()->lock();
   int written = node->write(buf,offset,size);
+  //Update modification time
+  node->setMTime(time(0));
+  //Needs synchronization with the backend
+  node->setNeedSync(true);
   //UnLock
 	FileSystem::getInstance()->unlock();
   if(written == (int)size )
@@ -398,7 +402,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
-  childDictionary::iterator it = node->childrendBegin();
+  auto it = node->childrendBegin();
   for (; it != node->childrenEnd(); it++) {
     FileNode* entry = (FileNode*) it->second;
     struct stat st;

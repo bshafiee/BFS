@@ -44,7 +44,7 @@ FileNode* FileSystem::mkFile(FileNode* _parent, std::string _name) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
   FileNode *dir = new FileNode(_name, false);
-  std::pair<childDictionary::iterator, bool> res = _parent->childAdd(dir);
+  auto res = _parent->childAdd(dir);
   if (res.second)
     return (FileNode*) (res.first->second);
   else
@@ -55,7 +55,7 @@ FileNode* FileSystem::mkDirectory(FileNode* _parent, std::string _name) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
   FileNode *dir = new FileNode(_name, true);
-  std::pair<childDictionary::iterator, bool> res = _parent->childAdd(dir);
+  auto res = _parent->childAdd(dir);
   if (res.second)
     return (FileNode*) (res.first->second);
   else
@@ -71,7 +71,7 @@ FileNode* FileSystem::searchNode(FileNode* _parent, std::string _name,
     if (_parent->getName() == _name && _parent->isDirectory() == _isDir)
       return _parent;
     //add children to queue
-    childDictionary::iterator childIterator = _parent->childrendBegin();
+    auto childIterator = _parent->childrendBegin();
     for (; childIterator != _parent->childrenEnd(); childIterator++)
       childrenQueue.push_back((FileNode*) childIterator->second);
 
@@ -79,7 +79,7 @@ FileNode* FileSystem::searchNode(FileNode* _parent, std::string _name,
       return nullptr;
     else {
       //Now assign start to a new node in queue
-      vector<FileNode*>::iterator frontIt = childrenQueue.begin();
+      auto frontIt = childrenQueue.begin();
       _parent = *frontIt;
       childrenQueue.erase(frontIt);
     }
@@ -97,7 +97,7 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
 
   while (_node != nullptr) {
     //add children to queue
-    childDictionary::iterator childIterator = _node->childrendBegin();
+    auto childIterator = _node->childrendBegin();
     for (; childIterator != _node->childrenEnd(); childIterator++)
       childrenQueue.push_back((FileNode*) childIterator->second);
     //Now we can release start node
@@ -107,7 +107,7 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
       _node = nullptr;
     else {
       //Now assign start to a new node in queue
-      vector<FileNode*>::iterator frontIt = childrenQueue.begin();
+      auto frontIt = childrenQueue.begin();
       _node = *frontIt;
       childrenQueue.erase(frontIt);
     }
@@ -170,7 +170,7 @@ FileNode* FileSystem::getNode(std::string _path) {
     return root;
   //Traverse FileSystem Hierarchies
   StringTokenizer tokenizer(_path, "/");
-  StringTokenizer::Iterator it = tokenizer.begin();
+  auto it = tokenizer.begin();
   FileNode* start = root;
   for (; it != tokenizer.end(); it++) {
     if (it->length() == 0)
@@ -237,7 +237,7 @@ std::string FileSystem::printFileSystem() {
   log_msg("FileSystem:\n\n");
   while (start != nullptr) {
     //add children to queue
-    childDictionary::iterator childIterator = start->childrendBegin();
+    auto childIterator = start->childrendBegin();
     for (; childIterator != start->childrenEnd(); childIterator++)
       childrenQueue.push_back((FileNode*) childIterator->second);
     //Now we can release start node
@@ -253,7 +253,7 @@ std::string FileSystem::printFileSystem() {
       start = nullptr;
     else {
       //Now assign start to a new node in queue
-      vector<FileNode*>::iterator frontIt = childrenQueue.begin();
+      auto frontIt = childrenQueue.begin();
       start = *frontIt;
       childrenQueue.erase(frontIt);
     }

@@ -29,10 +29,10 @@ class FileNode: public Node {
   metadataDictionary metadata;
   bool isDir;
   size_t size;
-  std::atomic<unsigned int> open_counter;
+  std::atomic<unsigned int> refCount;
   std::vector<char*> dataList;
   unsigned int blockIndex;
-
+  std::atomic<bool> needSync;
 public:
   FileNode(std::string _name,bool _isDir);
   virtual ~FileNode();
@@ -52,6 +52,8 @@ public:
   void setCTime(unsigned long _ctime);
   mode_t getMode();
   void setMode(mode_t _mode);
+  bool getNeedSync();
+  void setNeedSync(bool _need);
   metadataDictionary::iterator metadataBegin();
   metadataDictionary::iterator metadataEnd();
   std::string getName();

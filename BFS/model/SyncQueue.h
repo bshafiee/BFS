@@ -10,13 +10,14 @@
 
 #include <vector>
 #include "filenode.h"
+#include "syncEvent.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
 class SyncQueue {
-  vector<FileNode*> list;
+  vector<SyncEvent*> list;
   //singleton instance
   static SyncQueue *mInstance;
   //Private constructor
@@ -24,8 +25,8 @@ class SyncQueue {
 public:
   static SyncQueue* getInstance();
   virtual ~SyncQueue();
-  bool push(FileNode* _node);
-  FileNode* pop();
+  bool push(SyncEvent* _node);
+  SyncEvent* pop();
   long size();
   size_t workloadSize();
 };

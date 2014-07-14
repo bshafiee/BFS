@@ -17,7 +17,7 @@ Node::Node(string _key):key(_key) {
 
 Node::~Node() {
   //delete children
-  for(childDictionary::iterator it = children.begin();it != children.end();it++) {
+  for(auto it = children.begin();it != children.end();it++) {
     delete it->second;
     it->second = nullptr;
   }
@@ -32,7 +32,7 @@ int Node::childRemove(const string& _key) {
 }
 
 Node* Node::childFind(const string& _key) {
-  childDictionary::iterator it = children.find(_key);
+  auto it = children.find(_key);
 
   if(it != children.end())
     return it->second;
