@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include "params.h"
 
+
 //  macro to log fields in structs.
 #define log_struct(st, field, format, typecast) \
   log_msg("    " #field " = " #format "\n", typecast st->field)

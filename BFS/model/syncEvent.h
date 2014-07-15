@@ -9,6 +9,7 @@
 #define SYNCEVENT_H_
 
 #include "filenode.h"
+#include "cstring"
 
 namespace FUSESwift {
 
@@ -17,7 +18,39 @@ enum class SyncEventType {RENAME,DELETE,UPDATE_CONTENT,UPDATE_METADATA};
 struct SyncEvent {
   SyncEventType type;
   FileNode* node;
-  SyncEvent (SyncEventType _type,FileNode* _node):type(_type),node(_node) {}
+  /**
+   * this is used because when the job is posted to queue we still
+   * have the name and node in memory, but lated it'll be removed
+   * and node* pointer is invalid so, we have to keep track of full
+   * path of the file to be deleted
+   */
+  std::string fullPathBuffer;
+  SyncEvent (SyncEventType _type,FileNode* _node, std::string _fullPathBuffer = ""):type(_type),node(_node),
+      fullPathBuffer(_fullPathBuffer) {}
+  bool operator == (const SyncEvent& a) const {
+    if(this->node == a.node && this->type == a.type)
+      return true;
+    else
+      return false;
+  }
+
+  static std::string getEnumString(SyncEventType _type) {
+    switch (_type) {
+      case SyncEventType::RENAME:
+        return "RENAME";
+      case SyncEventType::DELETE:
+        return "DELETE";
+      case SyncEventType::UPDATE_CONTENT:
+              return "UPDATE_CONTENT";
+      case SyncEventType::UPDATE_METADATA:
+              return "UPDATE_METADATA";
+    }
+  }
+  std::string print() {
+    std::string output = "Node:"+ node->getName() + " Type:" + getEnumString(type)
+                    + " DeleteEventFullPath:" + fullPathBuffer;
+    return output;
+  }
 };
 
 } /* namespace FUSESwift */

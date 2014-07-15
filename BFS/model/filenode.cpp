@@ -11,22 +11,26 @@
 #include "../log.h"
 #include "filesystem.h"
 #include <Poco/MD5Engine.h>
+#include "SyncQueue.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
-FileNode::FileNode(string _name,bool _isDir):Node(_name),
+FileNode::FileNode(string _name,bool _isDir, FileNode* _parent):Node(_name,_parent),
     isDir(_isDir),size(0),blockIndex(0),needSync(false) {
 }
 
 FileNode::~FileNode() {
-	log_msg("INJAAA: RELEASE! Name:%s\n",this->key.c_str());
   for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
     free(block);
     block = nullptr;
   }
+}
+
+FileNode* FileNode::getParent() {
+  return (FileNode*)parent;
 }
 
 void FileNode::metadataAdd(std::string _key, std::string _value) {
@@ -273,8 +277,14 @@ bool FileNode::open() {
 
 void FileNode::close() {
   refCount--;
-  unsigned int copy = refCount;
-  log_msg("CLOSE: #ref \"%s\":%d  NeedsSycn:%s Size:%zu\n",key.c_str(),copy,needSync?"true":"false",size);
+  /**
+   * add event to sync queue if all the refrences to this file
+   * are closed and it actually needs updating!
+   */
+  if(refCount == 0 && needSync) {
+    if(SyncQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this)))
+      this->setNeedSync(false);
+  }
 }
 
 bool FUSESwift::FileNode::getNeedSync() {
@@ -283,6 +293,16 @@ bool FUSESwift::FileNode::getNeedSync() {
 
 void FUSESwift::FileNode::setNeedSync(bool _need) {
   needSync = _need;
+}
+
+std::string FUSESwift::FileNode::getFullPath() {
+  string path = this->getName();
+  FileNode* par = getParent();
+  while(par != nullptr) {
+    path = par->getName() + (par->getParent()==nullptr?"":"/") + path;
+    par = par->getParent();
+  }
+  return path;
 }
 
 bool FileNode::isOpen() {

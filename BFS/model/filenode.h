@@ -34,7 +34,7 @@ class FileNode: public Node {
   unsigned int blockIndex;
   std::atomic<bool> needSync;
 public:
-  FileNode(std::string _name,bool _isDir);
+  FileNode(std::string _name,bool _isDir, FileNode* _parent);
   virtual ~FileNode();
   /**
    * if an element with key '_key' exist this will override it
@@ -58,6 +58,8 @@ public:
   metadataDictionary::iterator metadataEnd();
   std::string getName();
   std::string getMD5();
+  FileNode* getParent();
+  std::string getFullPath();
   size_t getSize();
   /**
    * tries to rename input child

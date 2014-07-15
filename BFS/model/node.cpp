@@ -12,7 +12,7 @@ using namespace std;
 
 namespace FUSESwift {
 
-Node::Node(string _key):key(_key) {
+Node::Node(string _key, Node* _parent):key(_key), parent(_parent) {
 }
 
 Node::~Node() {
@@ -21,6 +21,10 @@ Node::~Node() {
     delete it->second;
     it->second = nullptr;
   }
+}
+
+Node* Node::getParent() {
+  return parent;
 }
 
 pair<childDictionary::iterator, bool> Node::childAdd(Node* _node) {

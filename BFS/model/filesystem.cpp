@@ -11,6 +11,7 @@
 #include <iostream>
 #include <Poco/StringTokenizer.h>
 #include "../log.h"
+#include "SyncQueue.h"
 
 using namespace std;
 using namespace Poco;
@@ -43,7 +44,7 @@ FileSystem* FileSystem::getInstance() {
 FileNode* FileSystem::mkFile(FileNode* _parent, std::string _name) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *dir = new FileNode(_name, false);
+  FileNode *dir = new FileNode(_name, false, _parent);
   auto res = _parent->childAdd(dir);
   if (res.second)
     return (FileNode*) (res.first->second);
@@ -54,7 +55,7 @@ FileNode* FileSystem::mkFile(FileNode* _parent, std::string _name) {
 FileNode* FileSystem::mkDirectory(FileNode* _parent, std::string _name) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *dir = new FileNode(_name, true);
+  FileNode *dir = new FileNode(_name, true, _parent);
   auto res = _parent->childAdd(dir);
   if (res.second)
     return (FileNode*) (res.first->second);
@@ -92,8 +93,11 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   vector<FileNode*> childrenQueue;
   size_t numOfRemovedNodes = 0;
   //remove from parent
-  if(_parent != nullptr) //clearing root
+  if(_parent != nullptr) { //removing the node itself
     _parent->childRemove(_node->getName());
+    //Now commit to sync queue! the order matters (before delete)
+    SyncQueue::push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
+  }
 
   while (_node != nullptr) {
     //add children to queue
@@ -110,6 +114,8 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
       auto frontIt = childrenQueue.begin();
       _node = *frontIt;
       childrenQueue.erase(frontIt);
+      //Now commit to sync queue! the order matters (before delete)
+      SyncQueue::push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
     }
   }
 
@@ -225,7 +231,11 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
     return false;
 
   //Ask  parent to delete this node
-  return parentNode->renameChild(node,newName);
+  bool result = parentNode->renameChild(node,newName);
+  //Add syncQueue event
+  if(result)
+    SyncQueue::push(new SyncEvent(SyncEventType::RENAME,node,_from));
+  return result;
 }
 
 std::string FileSystem::printFileSystem() {

@@ -12,13 +12,14 @@
 #include <cstring>
 #include <ctime>
 #include <unistd.h>
+#include "model/SyncQueue.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
 FileNode* createRootNode() {
-  FileNode *node = new FileNode(FileSystem::getInstance()->getDelimiter(), true);
+  FileNode *node = new FileNode(FileSystem::getInstance()->getDelimiter(), true, nullptr);
   unsigned long now = time(0);
   node->setCTime(now);
   node->setCTime(now);
@@ -330,7 +331,7 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   FileNode* node = (FileNode*)fi->fh;
   node->close();
   if(DEBUG_RELEASE) {
-    log_msg("\nbb_release(name=\"%s\", fi=0x%08x) isStillOpen?%d \n", node->getName().c_str(), fi, node->isOpen());
+    log_msg("\nbb_release(name=\"%s\", fi=0x%08x) isStillOpen?%d \n", node->getFullPath().c_str(), fi, node->isOpen());
     log_fi(fi);
   }
   return retstat;
@@ -456,12 +457,17 @@ void* swift_init(struct fuse_conn_info* conn) {
   rootNode->setGID(fuseContext.gid);
   rootNode->setUID(fuseContext.uid);
   //Log
-  if(DEBUG_INIT)
+  if(DEBUG_INIT) {
     log_msg("\nbb_init()\n");
-  log_conn(conn);
-  log_fuse_context(&fuseContext);
+    log_conn(conn);
+    log_fuse_context(&fuseContext);
+  }
 
-  return BB_DATA ;
+  log_msg("\nStarting SyncThread\n");
+  //Start SyncQueue thread
+  SyncQueue::startSyncThread();
+
+  return nullptr;
 }
 
 void swift_destroy(void* userdata) {

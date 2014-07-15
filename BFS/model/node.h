@@ -21,10 +21,11 @@ class Node {
 protected:
   childDictionary children;
   std::string key;
+  Node* parent;
 public:
 
   /** Functions **/
-  Node(std::string _key);
+  Node(std::string _key, Node* _parent);
 
   virtual ~Node();
 
@@ -74,6 +75,8 @@ public:
    * access it results in undefined behavior.
    */
   childDictionary::iterator childrenEnd();
+
+  Node* getParent();
 };
 
 } /* namespace FUSESwift */

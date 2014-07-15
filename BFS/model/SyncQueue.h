@@ -11,24 +11,31 @@
 #include <vector>
 #include "filenode.h"
 #include "syncEvent.h"
+#include <mutex>
+#include <thread>
 
 using namespace std;
 
 namespace FUSESwift {
 
 class SyncQueue {
-  vector<SyncEvent*> list;
-  //singleton instance
-  static SyncQueue *mInstance;
+  static vector<SyncEvent*> list;
+  //Mutex to protect queue
+  static std::mutex mutex;
+  //Thread to run syncLoop
+  static std::thread *syncThread;
   //Private constructor
   SyncQueue();
+  //Process Events
+  static void processEvent(SyncEvent* _event);
+  static void syncLoop();
 public:
-  static SyncQueue* getInstance();
   virtual ~SyncQueue();
-  bool push(SyncEvent* _node);
-  SyncEvent* pop();
-  long size();
-  size_t workloadSize();
+  static bool push(SyncEvent* _node);
+  static SyncEvent* pop();
+  static long size();
+  static size_t workloadSize();
+  static void startSyncThread();
 };
 
 } /* namespace FUSESwift */

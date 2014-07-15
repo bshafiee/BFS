@@ -117,7 +117,8 @@ int main(int argc, char *argv[]) {
 
   //Start fuse_main
   int fuse_stat;
-  struct bb_state *bb_data;
+  //make ready log file
+  log_open();
 
   // bbfs doesn't do any access checking on its own (the comment
   // blocks in fuse.h mention some of the functions that need
@@ -142,15 +143,6 @@ int main(int argc, char *argv[]) {
   if (argc < 1)
     bb_usage();
 
-  bb_data = (bb_state*)malloc(sizeof(struct bb_state));
-  if (bb_data == NULL) {
-    perror("main calloc");
-    abort();
-  }
-
-  bb_data->logfile = log_open();
-
-
   /*
   long len = 1000;
   char buff[len];
@@ -161,11 +153,27 @@ int main(int argc, char *argv[]) {
   for(int i=0;i<100000;i++) {
     myFile->write(buff,offset,len);
     offset += len;
-  }*/
+  }
+
+  FUSESwift::FileNode* f1 = new FileNode("F1",false);
+  FUSESwift::FileNode* f2 = new FileNode("F2",false);
+  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::RENAME,f1));
+  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::RENAME,f1));
+  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,f1));
+  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,f2));
+  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_METADATA,f1));
+  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,f2));
+  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_CONTENT,f2));
+
+  while(SyncQueue::getInstance()->size())
+    cout<<SyncQueue::getInstance()->pop()->print()<<endl;
+  */
+
+  //SyncQueue::startSyncThread();
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
-  fuse_stat = fuse_main(argc, argv, &xmp_oper, bb_data);
+  fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
 
   return fuse_stat;
