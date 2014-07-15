@@ -339,7 +339,7 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
 
 int swift_fsync(const char* path, int isdatasynch, struct fuse_file_info* fi) {
   //Get associated FileNode*
-  FileNode* node = (FileNode*)fi->fh;
+  //FileNode* node = (FileNode*)fi->fh;
   log_msg("swift_fsync: path:%s,fi->fh:0x%08x isdatasynch:%d\n",path,fi->fh,isdatasynch);
   return 0;
 }
