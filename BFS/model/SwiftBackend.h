@@ -10,12 +10,17 @@
 
 #include "Backend.h"
 #include <Authentication.h>
+#include <Account.h>
 
 namespace FUSESwift {
 
 class SwiftBackend: public Backend {
+  const std::string DEFAULT_CONTAINER_NAME = "KOS";
+  Swift::Account* account;
+  Swift::Container* defaultContainer;
+  bool initDefaultContainer();
 public:
-  SwiftBackend(BackendType _type);
+  SwiftBackend();
   virtual ~SwiftBackend();
 
   //Implement backend interface

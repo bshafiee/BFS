@@ -39,6 +39,8 @@
 #include "model/filesystem.h"
 #include "model/filenode.h"
 #include "model/SyncQueue.h"
+#include "model/SwiftBackend.h"
+#include "model/BackendManager.h"
 #include "string.h"
 
 
@@ -169,7 +171,15 @@ int main(int argc, char *argv[]) {
     cout<<SyncQueue::getInstance()->pop()->print()<<endl;
   */
 
-  //SyncQueue::startSyncThread();
+  SwiftBackend swiftBackend;
+  swiftBackend.initialize(&info);
+  BackendManager::registerBackend(&swiftBackend);
+
+
+  FUSESwift::FileNode* f1 = new FileNode("F1",false,nullptr);
+  f1->write("1234",4);
+  SyncQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,f1,f1->getFullPath()));
+  SyncQueue::startSyncThread();
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");

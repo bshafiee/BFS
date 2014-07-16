@@ -8,6 +8,7 @@
 #include "SyncQueue.h"
 #include "../log.h"
 #include <cstdio>
+#include "BackendManager.h"
 
 namespace FUSESwift {
 
@@ -67,22 +68,31 @@ size_t SyncQueue::workloadSize() {
 }
 
 void SyncQueue::processEvent(SyncEvent* _event) {
+  Backend *backend = BackendManager::getActiveBackend();
+  if(backend == nullptr) {
+    log_msg("No active backend\n");
+    return;
+  }
+
   switch (_event->type) {
     case SyncEventType::DELETE:
       log_msg("Event:DELETE fullpath:%s\n",_event->fullPathBuffer.c_str());
+      backend->remove(_event);
       break;
     case SyncEventType::RENAME:
       log_msg("Event:RENAME from:%s to:%s\n",_event->fullPathBuffer.c_str(),_event->node->getFullPath().c_str());
-          break;
+      backend->move(_event);
+      break;
     case SyncEventType::UPDATE_CONTENT:
       log_msg("Event:UPDATE_CONTENT file:%s\n",_event->node->getFullPath().c_str());
-          break;
+      backend->put(_event);
+      break;
     case SyncEventType::UPDATE_METADATA:
       log_msg("Event:UPDATE_METADATA file:%s\n",_event->node->getFullPath().c_str());
-          break;
+      backend->put_metadata(_event);
+      break;
     default:
       log_msg("Event:UNKNOWN file:%s\n",_event->node->getFullPath().c_str());
-      ;
   }
 }
 
