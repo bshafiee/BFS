@@ -79,7 +79,10 @@ void FileNode::setName(std::string _newName) {
 }
 
 long FileNode::read(char* &_data, size_t _offset, size_t _size) {
-  if(_offset >= size) {
+  if(_offset == size)
+    return 0;
+
+  if(_offset > size) {
     _data = nullptr;
     return -1;
   }

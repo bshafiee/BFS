@@ -259,7 +259,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
     return readBytes;
   }
   else {
-    log_msg("\nswift_read: error in reading: size:%d offset:%lld readBytes:%d\n",size,offset,readBytes);
+    log_msg("\nswift_read: error in reading: size:%d offset:%lld readBytes:%d fileSize:%lld\n",size,offset,readBytes,node->getSize());
     return -EIO;
   }
 }

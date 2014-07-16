@@ -171,20 +171,22 @@ int main(int argc, char *argv[]) {
     cout<<SyncQueue::getInstance()->pop()->print()<<endl;
   */
 
+
   SwiftBackend swiftBackend;
   swiftBackend.initialize(&info);
   BackendManager::registerBackend(&swiftBackend);
 
-
+/*
   FUSESwift::FileNode* f1 = new FileNode("F1",false,nullptr);
   f1->write("1234",4);
   SyncQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,f1,f1->getFullPath()));
   SyncQueue::startSyncThread();
-
+*/
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
   fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+  while(1) {}
 
   return fuse_stat;
 }

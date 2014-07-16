@@ -10,6 +10,7 @@
 #include <Object.h>
 #include <Container.h>
 #include <Poco/Net/HTTPClientSession.h>
+#include <Poco/Net/HTTPResponse.h>
 #include "filesystem.h"
 
 using namespace std;
@@ -69,8 +70,11 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   //Check if Obj already exist
   if(obj != nullptr) {
     //check MD5
-    if(obj->getHash() == _putEvent->node->getMD5()) //No change
+    if(obj->getHash() == _putEvent->node->getMD5()) {//No change
+      log_msg("Sync: File:%s did not change with compare to remote version, MD5:%s\n",
+          _putEvent->node->getFullPath().c_str(),_putEvent->node->getMD5().c_str());
       return true;
+    }
   }
   else
     obj = new Object(defaultContainer,_putEvent->node->getFullPath());
@@ -87,11 +91,24 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   //Ready to write (write each time a blocksize)
   char *buff = new char[FileSystem::blockSize];
   size_t offset = 0;
-  size_t read = 0;
-  while((read = _putEvent->node->read(buff,offset,FileSystem::blockSize)) > 0)
+  long read = 0;
+  while((read = _putEvent->node->read(buff,offset,FileSystem::blockSize)) > 0) {
+    offset += read;
     outStream->write(buff,read);
-  delete []buff;
-  return true;
+  }
+  log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu\n",
+      _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize());
+  //Now send object
+  Poco::Net::HTTPResponse response;
+  chunkedResult->getPayload()->receiveResponse(response);
+  if(response.getStatus() == response.HTTP_CREATED) {
+    delete []buff;
+    return true;
+  }
+  else {
+    log_msg("Error in swift: %s\n",response.getReason().c_str());
+    return false;
+  }
 }
 
 bool SwiftBackend::put_metadata(SyncEvent* _removeEvent) {
