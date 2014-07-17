@@ -12,7 +12,8 @@
 #include <map>
 #include <atomic>
 #include <vector>
-#include <pthread.h>
+#include <mutex>
+
 
 namespace FUSESwift {
 
@@ -29,7 +30,7 @@ class FileNode: public Node {
   metadataDictionary metadata;
   bool isDir;
   size_t size;
-  std::atomic<unsigned int> refCount;
+  std::atomic<int> refCount;
   std::vector<char*> dataList;
   unsigned int blockIndex;
   std::atomic<bool> needSync;

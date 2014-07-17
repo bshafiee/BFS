@@ -64,7 +64,7 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   SwiftResult<vector<Object*>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
   for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
-    if((*it)->getName() == _putEvent->node->getFullPath()) {
+    if((*it)->getName() == convertToSwiftName(_putEvent->node->getFullPath())) {
       obj = *it;
     }
   //Check if Obj already exist
@@ -77,7 +77,7 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
     }
   }
   else
-    obj = new Object(defaultContainer,_putEvent->node->getFullPath());
+    obj = new Object(defaultContainer,convertToSwiftName(_putEvent->node->getFullPath()));
 
   //upload chunk by chunk
   ostream *outStream = nullptr;
@@ -96,8 +96,9 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
     offset += read;
     outStream->write(buff,read);
   }
-  log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu\n",
-      _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize());
+  log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
+      _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize(),
+      _putEvent->node->getMD5().c_str(),obj->getName().c_str());
   //Now send object
   Poco::Net::HTTPResponse response;
   chunkedResult->getPayload()->receiveResponse(response);
@@ -117,14 +118,27 @@ bool SwiftBackend::put_metadata(SyncEvent* _removeEvent) {
 bool SwiftBackend::move(SyncEvent* _moveEvent) {
 }
 
+std::string FUSESwift::SwiftBackend::convertToSwiftName(
+    const std::string& fullPath) {
+  if(fullPath.length() == 0)
+    return "";
+  else//remove leading '/'
+    return fullPath.substr(1,fullPath.length()-1);
+}
+
 bool SwiftBackend::remove(SyncEvent* _moveEvent) {
   if(_moveEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)
       return false;
-  Object obj(defaultContainer,_moveEvent->node->getFullPath());
+  Object obj(defaultContainer,convertToSwiftName(_moveEvent->fullPathBuffer));
   SwiftResult<std::istream*>* delResult = obj.swiftDeleteObject();
-  if(delResult->getError().code != SwiftError::SWIFT_OK)
+  log_msg("Sync: remove fullpathBuffer:%s SwiftName:%s httpresponseMsg:%s\n",
+      _moveEvent->fullPathBuffer.c_str(),obj.getName().c_str(),
+      delResult->getResponse()->getReason().c_str());
+  if(delResult->getError().code != SwiftError::SWIFT_OK) {
+    log_msg("Error in swift delete: %s\n",delResult->getError().msg.c_str());
     return false;
+  }
   else
     return true;
 }

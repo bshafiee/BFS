@@ -18,7 +18,7 @@ using namespace std;
 namespace FUSESwift {
 
 FileNode::FileNode(string _name,bool _isDir, FileNode* _parent):Node(_name,_parent),
-    isDir(_isDir),size(0),blockIndex(0),needSync(false) {
+    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false) {
 }
 
 FileNode::~FileNode() {
@@ -287,6 +287,11 @@ void FileNode::close() {
   if(refCount == 0 && needSync) {
     if(SyncQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this)))
       this->setNeedSync(false);
+  }
+  else {
+    /*int refs = refCount;
+    bool needs = needSync;
+    log_msg("UPDATE Event File:%s  but: refCount:%d  needSync:%d\n",getFullPath().c_str(),refs,needs);*/
   }
 }
 

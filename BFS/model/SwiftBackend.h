@@ -19,6 +19,7 @@ class SwiftBackend: public Backend {
   Swift::Account* account;
   Swift::Container* defaultContainer;
   bool initDefaultContainer();
+  std::string convertToSwiftName(const std::string &fullPath);
 public:
   SwiftBackend();
   virtual ~SwiftBackend();

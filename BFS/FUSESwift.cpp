@@ -219,7 +219,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
-    log_msg("swift_open: Node not found: %s\n", path);
+    log_msg("error swift_open: Node not found: %s\n", path);
     fi->fh = 0;
     return -ENOENT;
   }

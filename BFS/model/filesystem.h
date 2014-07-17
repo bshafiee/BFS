@@ -23,7 +23,6 @@ class FileSystem: public Tree {
   FileSystem(FileNode* _root);
   FileNode* searchNode(FileNode* _parent, std::string _name, bool _isDir);
   FileNode* traversePathToParent(std::string _path);
-  std::string openDirPath = "";
   pthread_mutex_t mutex; /* read and write operations */
 public:
   //Constants
