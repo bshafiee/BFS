@@ -13,7 +13,7 @@
 
 namespace FUSESwift {
 
-enum class SyncEventType {RENAME,DELETE,UPDATE_CONTENT,UPDATE_METADATA};
+enum class SyncEventType {RENAME,DELETE,UPDATE_CONTENT,UPDATE_METADATA,DOWNLOAD_CONTENT,DOWNLOAD_METADATA};
 
 struct SyncEvent {
   SyncEventType type;
@@ -41,9 +41,15 @@ struct SyncEvent {
       case SyncEventType::DELETE:
         return "DELETE";
       case SyncEventType::UPDATE_CONTENT:
-              return "UPDATE_CONTENT";
+        return "UPDATE_CONTENT";
       case SyncEventType::UPDATE_METADATA:
-              return "UPDATE_METADATA";
+        return "UPDATE_METADATA";
+      case SyncEventType::DOWNLOAD_CONTENT:
+        return "DOWNLOAD_CONTENT";
+      case SyncEventType::DOWNLOAD_METADATA:
+              return "DOWNLOAD_METADATA";
+      default:
+        return "UNKNOWN";
     }
   }
   std::string print() {

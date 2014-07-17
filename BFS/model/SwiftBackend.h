@@ -24,12 +24,14 @@ public:
   SwiftBackend();
   virtual ~SwiftBackend();
 
-  //Implement backend interface
   bool initialize(Swift::AuthenticationInfo* _authInfo);
+  //Implement backend interface
+  std::istream* get(SyncEvent *_getEvent);
+  std::vector<std::pair<std::string,std::string> >* get_metadata(SyncEvent *_getMetaEvent);
   bool put(SyncEvent *_putEvent);
-  bool put_metadata(SyncEvent *_removeEvent);
+  bool put_metadata(SyncEvent *_putMetaEvent);
   bool move(SyncEvent *_moveEvent);
-  bool remove(SyncEvent *_moveEvent);
+  bool remove(SyncEvent *_removeEvent);
 
 };
 

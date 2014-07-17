@@ -112,10 +112,32 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   }
 }
 
-bool SwiftBackend::put_metadata(SyncEvent* _removeEvent) {
+bool SwiftBackend::put_metadata(SyncEvent* _putMetaEvent) {
 }
 
 bool SwiftBackend::move(SyncEvent* _moveEvent) {
+  /*
+  if(_moveEvent == nullptr || account == nullptr
+        || defaultContainer == nullptr)
+    return false;
+  SwiftResult<vector<Object*>*>* res = defaultContainer->swiftGetObjects();
+  Object *obj = nullptr;
+  for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
+    if((*it)->getName() == convertToSwiftName(_moveEvent->fullPathBuffer)) {
+      obj = *it;
+  }
+  //Check if Obj already exist
+  if(obj != nullptr) {
+    //check MD5
+    if(obj->getHash() == _putEvent->node->getMD5()) {//No change
+      log_msg("Sync: File:%s did not change with compare to remote version, MD5:%s\n",
+          _putEvent->node->getFullPath().c_str(),_putEvent->node->getMD5().c_str());
+      return true;
+    }
+  }
+  else
+    obj = new Object(defaultContainer,convertToSwiftName(_putEvent->node->getFullPath()));*/
+  return false;
 }
 
 std::string FUSESwift::SwiftBackend::convertToSwiftName(
@@ -126,14 +148,14 @@ std::string FUSESwift::SwiftBackend::convertToSwiftName(
     return fullPath.substr(1,fullPath.length()-1);
 }
 
-bool SwiftBackend::remove(SyncEvent* _moveEvent) {
-  if(_moveEvent == nullptr || account == nullptr
+bool SwiftBackend::remove(SyncEvent* _removeEvent) {
+  if(_removeEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)
       return false;
-  Object obj(defaultContainer,convertToSwiftName(_moveEvent->fullPathBuffer));
+  Object obj(defaultContainer,convertToSwiftName(_removeEvent->fullPathBuffer));
   SwiftResult<std::istream*>* delResult = obj.swiftDeleteObject();
   log_msg("Sync: remove fullpathBuffer:%s SwiftName:%s httpresponseMsg:%s\n",
-      _moveEvent->fullPathBuffer.c_str(),obj.getName().c_str(),
+      _removeEvent->fullPathBuffer.c_str(),obj.getName().c_str(),
       delResult->getResponse()->getReason().c_str());
   if(delResult->getError().code != SwiftError::SWIFT_OK) {
     log_msg("Error in swift delete: %s\n",delResult->getError().msg.c_str());
@@ -141,6 +163,28 @@ bool SwiftBackend::remove(SyncEvent* _moveEvent) {
   }
   else
     return true;
+}
+
+istream* SwiftBackend::get(SyncEvent* _getEvent) {
+  if(_getEvent == nullptr || account == nullptr
+      || defaultContainer == nullptr)
+    return false;
+  //Try to download object
+  Object obj(defaultContainer,_getEvent->fullPathBuffer);
+  SwiftResult<std::istream*>* res = obj.swiftGetObjectContent();
+  if(res->getError().code != SwiftError::SWIFT_OK)
+    return nullptr;
+  else
+    return res->getPayload();
+}
+
+vector<pair<string,string>>* SwiftBackend::get_metadata(SyncEvent* _getMetaEvent) {
+  if(_getMetaEvent == nullptr || account == nullptr
+        || defaultContainer == nullptr)
+      return false;
+  //Try to download object
+  Object obj(defaultContainer,_getMetaEvent->fullPathBuffer);
+  return obj.getExistingMetaData();
 }
 
 } /* namespace FUSESwift */
