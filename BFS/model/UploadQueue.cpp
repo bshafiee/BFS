@@ -27,7 +27,7 @@ void UploadQueue::startSynchronization() {
   syncThread = new thread(syncLoop);
 }
 
-void UploadQueue::processEvent(SyncEvent* _event) {
+void UploadQueue::processEvent(SyncEvent* &_event) {
   Backend *backend = BackendManager::getActiveBackend();
   if(backend == nullptr) {
     log_msg("No active backend\n");
@@ -55,6 +55,10 @@ void UploadQueue::processEvent(SyncEvent* _event) {
       log_msg("INVALID Event: file:%s TYPE:%S\n",_event->node->getFullPath().c_str(),
           SyncEvent::getEnumString(_event->type).c_str());
   }
+  //do cleanup! delete event
+  if(_event != nullptr)
+		delete _event;
+  _event = nullptr;
 }
 
 void UploadQueue::syncLoop() {
@@ -73,7 +77,8 @@ void UploadQueue::syncLoop() {
       continue;
     }
     //pop the first element and process it
-    processEvent(pop());
+    SyncEvent* event = pop();
+    processEvent(event);
     //reset delay
     delay = minDelay;
   }

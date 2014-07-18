@@ -11,7 +11,7 @@
 #include "../log.h"
 #include "filesystem.h"
 #include <Poco/MD5Engine.h>
-#include "SyncQueue.h"
+#include "UploadQueue.h"
 
 using namespace std;
 
@@ -285,7 +285,7 @@ void FileNode::close() {
    * are closed and it actually needs updating!
    */
   if(refCount == 0 && needSync) {
-    if(SyncQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this)))
+    if(UploadQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this)))
       this->setNeedSync(false);
   }
   else {

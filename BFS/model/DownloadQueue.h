@@ -13,8 +13,11 @@ namespace FUSESwift {
 
 class DownloadQueue: public SyncQueue{
   //Process Events
-  static void processEvent(SyncEvent* _event);
+  static void processEvent(SyncEvent* &_event);
   static void syncLoop();
+  static void updateFromBackend();
+  static void processDownloadContent(SyncEvent* _event);
+  static void processDownloadMetadata(SyncEvent* _event);
 public:
   DownloadQueue();
   virtual ~DownloadQueue();

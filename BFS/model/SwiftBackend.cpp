@@ -148,6 +148,26 @@ std::string FUSESwift::SwiftBackend::convertToSwiftName(
     return fullPath.substr(1,fullPath.length()-1);
 }
 
+std::string FUSESwift::SwiftBackend::convertFromSwiftName(
+		const std::string& swiftPath) {
+	if(swiftPath.length() == 0)
+		return "";
+	else
+		return "/"+swiftPath;
+}
+
+vector<string>* FUSESwift::SwiftBackend::list() {
+	if(account == nullptr || defaultContainer == nullptr)
+		return nullptr;
+	SwiftResult<vector<Object*>*>* res = defaultContainer->swiftGetObjects();
+	if(res->getError().code != SwiftError::SWIFT_OK)
+		return nullptr;
+	vector<string>* listFiles = new vector<string>();
+	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
+		listFiles->push_back(convertFromSwiftName((*it)->getName()));
+	return listFiles;
+}
+
 bool SwiftBackend::remove(SyncEvent* _removeEvent) {
   if(_removeEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)

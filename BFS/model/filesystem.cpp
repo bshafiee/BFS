@@ -11,7 +11,7 @@
 #include <iostream>
 #include <Poco/StringTokenizer.h>
 #include "../log.h"
-#include "SyncQueue.h"
+#include "UploadQueue.h"
 
 using namespace std;
 using namespace Poco;
@@ -96,7 +96,7 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   if(_parent != nullptr) { //removing the node itself
     _parent->childRemove(_node->getName());
     //Now commit to sync queue! the order matters (before delete)
-    SyncQueue::push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
+    UploadQueue::push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
   }
 
   while (_node != nullptr) {
@@ -115,7 +115,7 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
       _node = *frontIt;
       childrenQueue.erase(frontIt);
       //Now commit to sync queue! the order matters (before delete)
-      SyncQueue::push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
+      UploadQueue::push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
     }
   }
 
@@ -234,7 +234,7 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
   bool result = parentNode->renameChild(node,newName);
   //Add syncQueue event
   if(result)
-    SyncQueue::push(new SyncEvent(SyncEventType::RENAME,node,_from));
+    UploadQueue::push(new SyncEvent(SyncEventType::RENAME,node,_from));
   return result;
 }
 

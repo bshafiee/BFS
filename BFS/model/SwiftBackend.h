@@ -20,12 +20,14 @@ class SwiftBackend: public Backend {
   Swift::Container* defaultContainer;
   bool initDefaultContainer();
   std::string convertToSwiftName(const std::string &fullPath);
+  std::string convertFromSwiftName(const std::string &swiftPath);
 public:
   SwiftBackend();
   virtual ~SwiftBackend();
 
   bool initialize(Swift::AuthenticationInfo* _authInfo);
   //Implement backend interface
+  std::vector<std::string>* list();
   std::istream* get(SyncEvent *_getEvent);
   std::vector<std::pair<std::string,std::string> >* get_metadata(SyncEvent *_getMetaEvent);
   bool put(SyncEvent *_putEvent);

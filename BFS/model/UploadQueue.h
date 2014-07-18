@@ -13,7 +13,7 @@ namespace FUSESwift {
 
 class UploadQueue: public SyncQueue{
   //Process Events
-  static void processEvent(SyncEvent* _event);
+  static void processEvent(SyncEvent* &_event);
   static void syncLoop();
 public:
   UploadQueue();
