@@ -9,6 +9,8 @@
 #include <thread>
 #include "BackendManager.h"
 #include "../log.h"
+#include "filesystem.h"
+#include <iostream>
 
 using namespace std;
 
@@ -38,13 +40,35 @@ void DownloadQueue::updateFromBackend() {
 		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,*it));
 		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,*it));
 	}
+	log_msg("DOWNLOAD QUEUE: I pushed %zu Events.\n",listFiles->size());
 }
 
 void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	if(_event == nullptr || _event->fullPathBuffer.length()==0)
 		return;
 	FileNode* fileNode = FileSystem::getInstance()->getNode(_event->fullPathBuffer);
-	if(fileno)
+	//If File exist then we won't download it!
+	if(fileNode!=nullptr)
+	  return;
+	//Ask backend to downnload the file for us
+	Backend *backend = BackendManager::getActiveBackend();
+	istream *iStream = backend->get(_event);
+	if(iStream == nullptr) {
+	  log_msg("Error in Downloading file:%s\n",_event->fullPathBuffer.c_str());
+	  return;
+	}
+	//Now create a file in FS
+	FileNode *newFile = FileSystem::getInstance()->mkFile(_event->fullPathBuffer);
+	newFile->open();
+	//and write the content
+	char buff[FileSystem::blockSize];
+	size_t offset = 0;
+	while(iStream->eof() == false) {
+	  iStream->read(buff,FileSystem::blockSize);
+	  newFile->write(buff,offset,iStream->gcount());
+	  offset += iStream->gcount();
+	}
+	newFile->close();
 }
 
 void DownloadQueue::processDownloadMetadata(SyncEvent* _event) {

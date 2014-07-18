@@ -190,10 +190,12 @@ istream* SwiftBackend::get(SyncEvent* _getEvent) {
       || defaultContainer == nullptr)
     return false;
   //Try to download object
-  Object obj(defaultContainer,_getEvent->fullPathBuffer);
+  Object obj(defaultContainer,convertToSwiftName(_getEvent->fullPathBuffer));
   SwiftResult<std::istream*>* res = obj.swiftGetObjectContent();
-  if(res->getError().code != SwiftError::SWIFT_OK)
+  if(res->getError().code != SwiftError::SWIFT_OK) {
+    log_msg("Swift Error: Downloading obj:%s\n",res->getError().msg.c_str());
     return nullptr;
+  }
   else
     return res->getPayload();
 }

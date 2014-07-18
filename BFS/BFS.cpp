@@ -42,6 +42,7 @@
 #include "model/SwiftBackend.h"
 #include "model/BackendManager.h"
 #include "string.h"
+#include "model/DownloadQueue.h"
 
 
 using namespace Swift;
@@ -190,6 +191,9 @@ int main(int argc, char *argv[]) {
   FileNode* root = nullptr;
   this_thread::sleep_for(chrono::milliseconds(5000));
   SyncQueue::push(new SyncEvent(SyncEventType::DELETE,f1,f1->getFullPath()));*/
+
+  //swift_init(nullptr);
+  //DownloadQueue::startSynchronization();
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");

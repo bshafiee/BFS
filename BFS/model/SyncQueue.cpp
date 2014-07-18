@@ -26,9 +26,6 @@ SyncQueue::~SyncQueue() {
 bool SyncQueue::push(SyncEvent* _event) {
   if(_event == nullptr)
     return false;
-  if(_event->node == nullptr)
-    return false;
-
 
   bool exist = false;
   for(auto it = list.begin(); it != list.end();++it)

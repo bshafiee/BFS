@@ -13,6 +13,7 @@
 #include <ctime>
 #include <unistd.h>
 #include "model/UploadQueue.h"
+#include "model/DownloadQueue.h"
 
 using namespace std;
 
@@ -464,8 +465,9 @@ void* swift_init(struct fuse_conn_info* conn) {
   }
 
   log_msg("\nStarting SyncThread\n");
-  //Start SyncQueue thread
+  //Start SyncQueue threads
   UploadQueue::startSynchronization();
+  DownloadQueue::startSynchronization();
 
   return nullptr;
 }
