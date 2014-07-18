@@ -455,8 +455,8 @@ void* swift_init(struct fuse_conn_info* conn) {
   FileSystem::getInstance()->initialize(rootNode);
   //Get Context
   struct fuse_context fuseContext = *fuse_get_context();
-  rootNode->setGID(fuseContext.gid);
-  rootNode->setUID(fuseContext.uid);
+  //rootNode->setGID(fuseContext.gid);
+  //rootNode->setUID(fuseContext.uid);
   //Log
   if(DEBUG_INIT) {
     log_msg("\nbb_init()\n");
@@ -466,8 +466,8 @@ void* swift_init(struct fuse_conn_info* conn) {
 
   log_msg("\nStarting SyncThread\n");
   //Start SyncQueue threads
-  UploadQueue::startSynchronization();
-  DownloadQueue::startSynchronization();
+  //UploadQueue::startSynchronization();
+  //DownloadQueue::startSynchronization();
 
   return nullptr;
 }

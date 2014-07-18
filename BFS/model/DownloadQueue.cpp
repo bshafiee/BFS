@@ -39,8 +39,9 @@ void DownloadQueue::updateFromBackend() {
 	for(auto it=listFiles->begin();it!=listFiles->end();it++) {
 		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,*it));
 		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,*it));
+		log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
-	log_msg("DOWNLOAD QUEUE: I pushed %zu Events.\n",listFiles->size());
+	log_msg("DOWNLOAD QUEUE: I pushed %zu Events.\n",list.size());
 }
 
 void DownloadQueue::processDownloadContent(SyncEvent* _event) {
@@ -113,7 +114,6 @@ void DownloadQueue::syncLoop() {
 	long delay = 10; //Milliseconds
 
 	while (true) {
-		updateFromBackend();
 		//Empty list
 		if (!list.size()) {
 			log_msg("DOWNLOADQUEUE: I will sleep for %zu milliseconds\n", delay);
@@ -121,6 +121,8 @@ void DownloadQueue::syncLoop() {
 			delay *= 2;
 			if (delay > maxDelay)
 				delay = maxDelay;
+			//Update list
+			updateFromBackend();
 			continue;
 		}
 		//pop the first element and process it

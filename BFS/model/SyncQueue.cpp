@@ -47,7 +47,7 @@ SyncEvent* SyncQueue::pop() {
   mutex.lock();
   //First element
   SyncEvent* firstElem = list.front();
-  //Now we can remove last element
+  //Now we can remove front element
   list.erase(list.begin());
   mutex.unlock();
   return firstElem;
