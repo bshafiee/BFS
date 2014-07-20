@@ -163,8 +163,15 @@ vector<string>* FUSESwift::SwiftBackend::list() {
 	if(res->getError().code != SwiftError::SWIFT_OK)
 		return nullptr;
 	vector<string>* listFiles = new vector<string>();
-	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
-		listFiles->push_back(convertFromSwiftName((*it)->getName()));
+	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
+	  //Check if this object already is downloaded
+	  FileNode* node =
+	      FileSystem::getInstance()->getNode(convertFromSwiftName((*it)->getName()));
+	  if(node!=nullptr && node->getMD5() == (*it)->getHash())
+	    continue;//existing node
+	  else
+	    listFiles->push_back(convertFromSwiftName((*it)->getName()));
+	}
 	return listFiles;
 }
 

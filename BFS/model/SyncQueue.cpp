@@ -12,12 +12,7 @@
 
 namespace FUSESwift {
 
-//static members
-vector<SyncEvent*> SyncQueue::list;
-mutex SyncQueue::mutex;
-thread *SyncQueue::syncThread = nullptr;
-
-SyncQueue::SyncQueue() {}
+SyncQueue::SyncQueue():syncThread(nullptr) {}
 
 SyncQueue::~SyncQueue() {
   list.clear();

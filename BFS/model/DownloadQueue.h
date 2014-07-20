@@ -12,17 +12,22 @@
 namespace FUSESwift {
 
 class DownloadQueue: public SyncQueue{
+  //Singleton instance
+  static DownloadQueue* mInstance;
   //Process Events
-  static void processEvent(SyncEvent* &_event);
-  static void syncLoop();
-  static void updateFromBackend();
-  static void processDownloadContent(SyncEvent* _event);
-  static void processDownloadMetadata(SyncEvent* _event);
-public:
+  void processEvent(SyncEvent* &_event);
+  static void syncLoopWrapper();
+  void syncLoop();
+  void updateFromBackend();
+  void processDownloadContent(SyncEvent* _event);
+  void processDownloadMetadata(SyncEvent* _event);
+  //Private constructor
   DownloadQueue();
+public:
+  static DownloadQueue* getInstance();
   virtual ~DownloadQueue();
   //Start Downlaod Thread
-  static void startSynchronization();
+  void startSynchronization();
 };
 
 } /* namespace FUSESwift */

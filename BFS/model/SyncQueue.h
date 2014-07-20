@@ -18,21 +18,25 @@ using namespace std;
 
 namespace FUSESwift {
 
-class SyncQueue {
+class SyncQueue{
 protected:
-  static vector<SyncEvent*> list;
+  vector<SyncEvent*> list;
   //Mutex to protect queue
-  static std::mutex mutex;
+  std::mutex mutex;
   //Thread to run syncLoop
-  static std::thread *syncThread;
+  std::thread *syncThread;
   //Private constructor
   SyncQueue();
+  //Protected virtual methods
+  virtual void processEvent(SyncEvent* &_event) = 0;
+  virtual void syncLoop() = 0;
 public:
   virtual ~SyncQueue();
-  static bool push(SyncEvent* _node);
-  static SyncEvent* pop();
-  static long size();
-  static size_t workloadSize();
+  bool push(SyncEvent* _node);
+  SyncEvent* pop();
+  long size();
+  size_t workloadSize();
+  virtual void startSynchronization() = 0;
 };
 
 } /* namespace FUSESwift */

@@ -16,7 +16,10 @@ using namespace std;
 
 namespace FUSESwift {
 
-DownloadQueue::DownloadQueue() {
+//Static members
+DownloadQueue* DownloadQueue::mInstance = new DownloadQueue();
+
+DownloadQueue::DownloadQueue():SyncQueue() {
 	// TODO Auto-generated constructor stub
 
 }
@@ -39,9 +42,9 @@ void DownloadQueue::updateFromBackend() {
 	for(auto it=listFiles->begin();it!=listFiles->end();it++) {
 		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,*it));
 		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,*it));
-		log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
+		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
-	log_msg("DOWNLOAD QUEUE: I pushed %zu Events.\n",list.size());
+	log_msg("DOWNLOAD QUEUE: Num of Events: %zu .\n",list.size());
 }
 
 void DownloadQueue::processDownloadContent(SyncEvent* _event) {
@@ -75,8 +78,16 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 void DownloadQueue::processDownloadMetadata(SyncEvent* _event) {
 }
 
+DownloadQueue* DownloadQueue::getInstance() {
+  return mInstance;
+}
+
+void DownloadQueue::syncLoopWrapper() {
+  DownloadQueue::getInstance()->syncLoop();
+}
+
 void DownloadQueue::startSynchronization() {
-	syncThread = new thread(syncLoop);
+	syncThread = new thread(syncLoopWrapper);
 }
 
 void DownloadQueue::processEvent(SyncEvent* &_event) {
@@ -109,7 +120,7 @@ void DownloadQueue::processEvent(SyncEvent* &_event) {
 }
 
 void DownloadQueue::syncLoop() {
-	const long maxDelay = 1000; //Milliseconds
+	const long maxDelay = 10000; //Milliseconds
 	const long minDelay = 10; //Milliseconds
 	long delay = 10; //Milliseconds
 

@@ -25,10 +25,13 @@ struct SyncEvent {
    * path of the file to be deleted
    */
   std::string fullPathBuffer;
+
   SyncEvent (SyncEventType _type,FileNode* _node, std::string _fullPathBuffer = ""):type(_type),node(_node),
       fullPathBuffer(_fullPathBuffer) {}
   bool operator == (const SyncEvent& a) const {
-    if(this->node == a.node && this->type == a.type)
+    if(this->node == a.node &&
+       this->type == a.type &&
+       this->fullPathBuffer == a.fullPathBuffer)
       return true;
     else
       return false;

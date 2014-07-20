@@ -285,7 +285,7 @@ void FileNode::close() {
    * are closed and it actually needs updating!
    */
   if(refCount == 0 && needSync) {
-    if(UploadQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this)))
+    if(UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this)))
       this->setNeedSync(false);
   }
   else {

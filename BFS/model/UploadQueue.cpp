@@ -14,7 +14,10 @@ using namespace std;
 
 namespace FUSESwift {
 
-UploadQueue::UploadQueue() {
+//Static members
+UploadQueue* UploadQueue::mInstance = new UploadQueue();
+
+UploadQueue::UploadQueue():SyncQueue() {
   // TODO Auto-generated constructor stub
 
 }
@@ -23,8 +26,16 @@ UploadQueue::~UploadQueue() {
   // TODO Auto-generated destructor stub
 }
 
+UploadQueue* UploadQueue::getInstance() {
+  return mInstance;
+}
+
+void UploadQueue::syncLoopWrapper() {
+  UploadQueue::getInstance()->syncLoop();
+}
+
 void UploadQueue::startSynchronization() {
-  syncThread = new thread(syncLoop);
+  syncThread = new thread(syncLoopWrapper);
 }
 
 void UploadQueue::processEvent(SyncEvent* &_event) {

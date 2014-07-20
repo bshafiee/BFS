@@ -208,6 +208,7 @@ int swift_chown(const char* path, uid_t uid, gid_t gid) {
 }
 
 int swift_truncate(const char* path, off_t size) {
+  log_msg("\nbb_truncate(path=\"%s\", size=%zu)\n", path, size);
 }
 
 int swift_utime(const char* path, struct utimbuf* ubuf) {
@@ -455,8 +456,8 @@ void* swift_init(struct fuse_conn_info* conn) {
   FileSystem::getInstance()->initialize(rootNode);
   //Get Context
   struct fuse_context fuseContext = *fuse_get_context();
-  //rootNode->setGID(fuseContext.gid);
-  //rootNode->setUID(fuseContext.uid);
+  rootNode->setGID(fuseContext.gid);
+  rootNode->setUID(fuseContext.uid);
   //Log
   if(DEBUG_INIT) {
     log_msg("\nbb_init()\n");
@@ -464,10 +465,10 @@ void* swift_init(struct fuse_conn_info* conn) {
     log_fuse_context(&fuseContext);
   }
 
-  log_msg("\nStarting SyncThread\n");
+  log_msg("\nStarting SyncThreads\n");
   //Start SyncQueue threads
-  //UploadQueue::startSynchronization();
-  //DownloadQueue::startSynchronization();
+  UploadQueue::getInstance()->startSynchronization();
+  DownloadQueue::getInstance()->startSynchronization();
 
   return nullptr;
 }
@@ -494,6 +495,7 @@ int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
 }
 
 int swift_ftruncate(const char* path, off_t offset, struct fuse_file_info* fi) {
+  log_msg("\nbb_ftruncate(path=\"%s\", fi->fh:0x%08x )\n", path, fi->fh);
 }
 
 int swift_fgetattr(const char* path, struct stat* statbuf,

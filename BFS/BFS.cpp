@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
   if ((getuid() == 0) || (geteuid() == 0)) {
     fprintf(stderr,
         "Running BBFS as root opens unnacceptable security holes\n");
-    return 1;
+    //return 1;
   }
 
   // Perform some sanity checking on the command line:  make sure
@@ -192,14 +192,14 @@ int main(int argc, char *argv[]) {
   this_thread::sleep_for(chrono::milliseconds(5000));
   SyncQueue::push(new SyncEvent(SyncEventType::DELETE,f1,f1->getFullPath()));*/
 
-  swift_init(nullptr);
-  DownloadQueue::startSynchronization();
+  //swift_init(nullptr);
+  //DownloadQueue::getInstance()->startSynchronization();
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
-  //fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
+  fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-  while(1) {}
+  //while(1) {}
 
   return fuse_stat;
 }
