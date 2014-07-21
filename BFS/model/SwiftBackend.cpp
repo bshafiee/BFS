@@ -113,6 +113,7 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
 }
 
 bool SwiftBackend::put_metadata(SyncEvent* _putMetaEvent) {
+  return false;
 }
 
 bool SwiftBackend::move(SyncEvent* _moveEvent) {
@@ -195,7 +196,7 @@ bool SwiftBackend::remove(SyncEvent* _removeEvent) {
 istream* SwiftBackend::get(SyncEvent* _getEvent) {
   if(_getEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)
-    return false;
+    return nullptr;
   //Try to download object
   Object obj(defaultContainer,convertToSwiftName(_getEvent->fullPathBuffer));
   SwiftResult<std::istream*>* res = obj.swiftGetObjectContent();
@@ -210,7 +211,7 @@ istream* SwiftBackend::get(SyncEvent* _getEvent) {
 vector<pair<string,string>>* SwiftBackend::get_metadata(SyncEvent* _getMetaEvent) {
   if(_getMetaEvent == nullptr || account == nullptr
         || defaultContainer == nullptr)
-      return false;
+      return nullptr;
   //Try to download object
   Object obj(defaultContainer,_getMetaEvent->fullPathBuffer);
   return obj.getExistingMetaData();

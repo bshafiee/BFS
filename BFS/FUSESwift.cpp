@@ -209,6 +209,7 @@ int swift_chown(const char* path, uid_t uid, gid_t gid) {
 
 int swift_truncate(const char* path, off_t size) {
   log_msg("\nbb_truncate(path=\"%s\", size=%zu)\n", path, size);
+  return 0;
 }
 
 int swift_utime(const char* path, struct utimbuf* ubuf) {
@@ -348,6 +349,7 @@ int swift_fsync(const char* path, int isdatasynch, struct fuse_file_info* fi) {
 
 int swift_setxattr(const char* path, const char* name, const char* value,
     size_t size, int flags) {
+  return 1;
 }
 
 int swift_getxattr(const char* path, const char* name, char* value,
@@ -446,7 +448,7 @@ int swift_releasedir(const char* path, struct fuse_file_info* fi) {
 }
 
 int swift_fsyncdir(const char* path, int datasync, struct fuse_file_info* fi) {
-  log_msg("swift_fsync: path:%s,fi->fh:0x%08x isdatasynch:%d\n",path,fi->fh,datasync);
+  log_msg("swift_fsyncdir: path:%s,fi->fh:0x%08x isdatasynch:%d\n",path,fi->fh,datasync);
   return 0;
 }
 
@@ -467,7 +469,7 @@ void* swift_init(struct fuse_conn_info* conn) {
 
   log_msg("\nStarting SyncThreads\n");
   //Start SyncQueue threads
-  UploadQueue::getInstance()->startSynchronization();
+  //UploadQueue::getInstance()->startSynchronization();
   DownloadQueue::getInstance()->startSynchronization();
 
   return nullptr;
@@ -495,7 +497,8 @@ int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
 }
 
 int swift_ftruncate(const char* path, off_t offset, struct fuse_file_info* fi) {
-  log_msg("\nbb_ftruncate(path=\"%s\", fi->fh:0x%08x )\n", path, fi->fh);
+  log_msg("\nbb_ftruncate(path=\"%s\", fi->fh: )\n", path);
+  return 0;
 }
 
 int swift_fgetattr(const char* path, struct stat* statbuf,

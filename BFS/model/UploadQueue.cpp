@@ -80,7 +80,7 @@ void UploadQueue::syncLoop() {
   while(true) {
     //Empty list
     if(!list.size()) {
-      log_msg("UPLOADQUEUE: I will sleep for %zu milliseconds\n",delay);
+      //log_msg("UPLOADQUEUE: I will sleep for %zu milliseconds\n",delay);
       this_thread::sleep_for(chrono::milliseconds(delay));
       delay *= 2;
       if(delay > maxDelay)
