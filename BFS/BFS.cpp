@@ -179,12 +179,20 @@ int main(int argc, char *argv[]) {
 
 
   /*FUSESwift::FileNode* f1 = new FileNode("F1",false,nullptr);
-  long len = 28;
+  long len = 5000;
   char buff[len];
   memset(buff,'*',len);
-  for(int i=0;i<13457876;i++)
-      f1->write(buff,f1->getSize(),len);
+  //for(int i=0;i<5000;i++)
+  f1->write(buff,f1->getSize(),len);
   cout<<"MD5:"<<f1->getMD5()<<"\tSize:"<<f1->getSize()<<endl;
+  char buff2[4000];
+  memset(buff2,'*',4000);
+  f1->write(buff2,4500,4000);
+  cout<<"MD5:"<<f1->getMD5()<<"\tSize:"<<f1->getSize()<<endl;
+
+  f1->truncate(5000);
+  cout<<"MD5:"<<f1->getMD5()<<"\tSize:"<<f1->getSize()<<endl;*/
+/*
   SyncQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,f1,f1->getFullPath()));
   SyncQueue::startSyncThread();
 

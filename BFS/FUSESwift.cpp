@@ -469,8 +469,9 @@ void* swift_init(struct fuse_conn_info* conn) {
 
   log_msg("\nStarting SyncThreads\n");
   //Start SyncQueue threads
-  //UploadQueue::getInstance()->startSynchronization();
+  UploadQueue::getInstance()->startSynchronization();
   DownloadQueue::getInstance()->startSynchronization();
+  log_msg("\nSyncThreads running...\n");
 
   return nullptr;
 }
@@ -496,9 +497,25 @@ int swift_access(const char* path, int mask) {
 int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
 }
 
-int swift_ftruncate(const char* path, off_t offset, struct fuse_file_info* fi) {
-  log_msg("\nbb_ftruncate(path=\"%s\", fi->fh: )\n", path);
-  return 0;
+int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
+  log_msg("\nbb_ftruncate(path=\"%s\", fi:%p newsize:%zu )\n", path,fi,size);
+  //Get associated FileNode*
+  string pathStr(path, strlen(path));
+  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  if (node == nullptr) {
+    log_msg("error swift_ftruncate: Node not found: %s\n", path);
+    fi->fh = 0;
+    return -ENOENT;
+  }
+  else
+    log_msg("swift_ftruncate: Truncating:%s from:%zu to:%zu bytes\n", path,node->getSize(),size);
+
+  if(!node->truncate(size)) {
+    log_msg("error swift_ftruncate: truncate failed: %s newSize:%zu\n", path,node->getSize());
+    return EIO;
+  }
+  else
+    return 0;
 }
 
 int swift_fgetattr(const char* path, struct stat* statbuf,

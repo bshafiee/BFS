@@ -26,7 +26,7 @@ struct bb_state {
 #define DEBUG 0
 #define DEBUG_INIT       0
 #define DEBUG_DESTROY    0
-#define DEBUG_GET_ATTRIB 1
+#define DEBUG_GET_ATTRIB 0
 #define DEBUG_MKNOD      0
 #define DEBUG_MKDIR      0
 #define DEBUG_RMDIR      0

@@ -24,9 +24,10 @@ FileNode::FileNode(string _name,bool _isDir, FileNode* _parent):Node(_name,_pare
 FileNode::~FileNode() {
   for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
-    free(block);
+    delete []block;
     block = nullptr;
   }
+  dataList.clear();
 }
 
 FileNode* FileNode::getParent() {
@@ -141,11 +142,22 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 		index += howMuch;
 		retValue += howMuch;
 		blockNo++;
+		//Increase size and blockIndex if in the last block
+		if(index > blockIndex && blockNo == dataList.size()) {
+		  size += index-blockIndex;
+		  blockIndex = index;
+		  if(blockIndex >= FileSystem::blockSize)
+		    blockIndex = 0;
+		}
 		if(index >= FileSystem::blockSize && blockNo < dataList.size()) {
 		  block = dataList[blockNo];
 		  index = 0;
 		} else if(index >= FileSystem::blockSize && blockNo >= dataList.size()) {
-			return retValue + this->write(_data+retValue,0,backupSize - retValue);
+		  //We should allocate a new block
+		  char* block = new char[FileSystem::blockSize];
+      dataList.push_back(block);
+      //block index shouuld have alreadey be reset to 0
+			return retValue + this->write(_data+retValue,getSize(),backupSize - retValue);
 		}
 	}
   }
@@ -176,6 +188,45 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 	  }
   }
   return retValue;
+}
+
+bool FUSESwift::FileNode::truncate(size_t _size) {
+  if(_size == size)
+    return true;
+  else if(_size > size) { //Expand
+    //we just call write with '\0' chars buffers
+    size_t diff = _size-size;
+    while(diff > 0) {
+      long howMuch = (diff>FileSystem::blockSize)?FileSystem::blockSize:diff;
+      char buff[howMuch];
+      memset(buff,'\0',howMuch);
+      //write
+      if(write(buff,getSize(),howMuch) != howMuch)
+        return false; //Error in writing
+      diff -= howMuch;
+    }
+  }
+  else {//Shrink
+    size_t diff = size-_size;
+    while(diff > 0) {
+      if(blockIndex >= diff) {
+        blockIndex -= diff;
+        size -= diff;
+        return true;
+      }
+      else {
+        //release block by block
+        char *block = dataList[dataList.size()-1];
+        delete []block;
+        block = nullptr;
+        dataList.erase(dataList.end()-1);
+        diff -= blockIndex;
+        size -= blockIndex;
+        blockIndex = FileSystem::blockSize;
+      }
+    }
+  }
+  return true;
 }
 
 unsigned long FileNode::getUID() {

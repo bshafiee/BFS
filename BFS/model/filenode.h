@@ -94,6 +94,10 @@ public:
    * if specified _offset or _size are irrelevant false is returned
    */
   long write(const char *_data, size_t _offset, size_t _size);
+  /**
+   * Truncates the file to the specified size if possible
+   */
+  bool truncate(size_t _size);
 
   bool isDirectory();
   bool open();

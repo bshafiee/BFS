@@ -15,7 +15,9 @@ namespace FUSESwift {
 SyncQueue::SyncQueue():syncThread(nullptr) {}
 
 SyncQueue::~SyncQueue() {
+  mutex.lock();
   list.clear();
+  mutex.unlock();
 }
 
 bool SyncQueue::push(SyncEvent* _event) {
