@@ -28,6 +28,12 @@ FileNode::~FileNode() {
     block = nullptr;
   }
   dataList.clear();
+  //Clean up children
+  for(auto it = children.begin();it != children.end();it++) {
+    FileNode* child = (FileNode*)it->second;
+    delete child;
+    it->second = nullptr;
+  }
 }
 
 FileNode* FileNode::getParent() {
@@ -358,7 +364,7 @@ std::string FUSESwift::FileNode::getFullPath() {
   string path = this->getName();
   FileNode* par = getParent();
   while(par != nullptr) {
-    path = par->getName() + (par->getParent()==nullptr?"":"/") + path;
+    path = par->getName() + (par->getParent()==nullptr?"":FileSystem::delimiter) + path;
     par = par->getParent();
   }
   return path;

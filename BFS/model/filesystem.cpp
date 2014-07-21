@@ -20,6 +20,7 @@ namespace FUSESwift {
 
 //initialize static variables
 FileSystem* FileSystem::mInstance = new FileSystem(nullptr);
+std::string FileSystem::delimiter = "/";
 
 FileSystem::FileSystem(FileNode* _root) :
     Tree(_root), root(_root) {
@@ -41,7 +42,7 @@ FileSystem* FileSystem::getInstance() {
   return mInstance;
 }
 
-FileNode* FileSystem::mkFile(FileNode* _parent, std::string _name) {
+FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
   FileNode *dir = new FileNode(_name, false, _parent);
@@ -52,7 +53,7 @@ FileNode* FileSystem::mkFile(FileNode* _parent, std::string _name) {
     return nullptr;
 }
 
-FileNode* FileSystem::mkDirectory(FileNode* _parent, std::string _name) {
+FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
   FileNode *dir = new FileNode(_name, true, _parent);
@@ -89,15 +90,42 @@ FileNode* FileSystem::searchNode(FileNode* _parent, std::string _name,
 }
 
 size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
+  //First traverse and store list of all files to be deleted by backend(bottom up!)
+  //we need stack because we traverse top-down
+  vector<string> fullPathStack;
   //Recursive removing is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
-  size_t numOfRemovedNodes = 0;
-  //remove from parent
-  if(_parent != nullptr) { //removing the node itself
-    _parent->childRemove(_node->getName());
-    //Now commit to sync queue! the order matters (before delete)
-    UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
+  FileNode* temp = _node;
+  while (temp != nullptr) {
+    fullPathStack.push_back(temp->getFullPath());
+    //add children to queue
+    auto childIterator = temp->childrendBegin();
+    for (; childIterator != temp->childrenEnd(); childIterator++)
+      childrenQueue.push_back((FileNode*) childIterator->second);
+    if (childrenQueue.size() == 0)
+      temp = nullptr;
+    else {
+      //Now assign start to a new node in queue
+      temp = childrenQueue.front();
+      childrenQueue.erase(childrenQueue.begin());
+    }
   }
+
+  //Now commit to sync queue! the order matters (before delete)
+  for(int i=fullPathStack.size()-1;i>=0;i--)
+    UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,nullptr,fullPathStack[i]));
+
+  //Do the actual removing on local file system
+  //remove from parent
+  if(_parent != nullptr) //removing the node itself
+    _parent->childRemove(_node->getName());
+
+  delete _node;//this will recursively call destructor of all kids
+  /*
+  //Recursive removing is dangerous, because we might run out of memory.
+  childrenQueue.clear();
+  size_t numOfRemovedNodes = 0;
+
 
   while (_node != nullptr) {
     //add children to queue
@@ -114,31 +142,23 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
       auto frontIt = childrenQueue.begin();
       _node = *frontIt;
       childrenQueue.erase(frontIt);
-      //Now commit to sync queue! the order matters (before delete)
-      UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,_node,_node->getFullPath()));
     }
-  }
+  }*/
 
-  return numOfRemovedNodes;
+  return fullPathStack.size();
 }
 
-FileNode* FileSystem::searchFile(FileNode* _parent, std::string _name) {
+FileNode* FileSystem::searchFile(FileNode* _parent, const std::string &_name) {
   return searchNode(_parent, _name, false);
 }
 
-FileNode* FileSystem::searchDir(FileNode* _parent, std::string _name) {
+FileNode* FileSystem::searchDir(FileNode* _parent, const std::string &_name) {
   return searchNode(_parent, _name, true);
 }
 
-std::string FileSystem::getDelimiter() {
-  return delimiter;
-}
-
-
-
-FileNode* FileSystem::traversePathToParent(string _path) {
+FileNode* FileSystem::traversePathToParent(const string &_path) {
   //Traverse FileSystem Hierarchies
-  StringTokenizer tokenizer(_path, "/");
+  StringTokenizer tokenizer(_path, FileSystem::delimiter);
   string name = tokenizer[tokenizer.count() - 1];
   FileNode* start = root;
   for (uint i = 0; i < tokenizer.count() - 1; i++) {
@@ -150,35 +170,66 @@ FileNode* FileSystem::traversePathToParent(string _path) {
   return start;
 }
 
-string getNameFromPath(string _path) {
+std::string FileSystem::getFileNameFromPath(const std::string &_path) {
+  if(_path.length() == 0)
+    return "";
+  if(_path.find(delimiter) == string::npos)
+    return _path;
   //Traverse FileSystem Hierarchies
-  StringTokenizer tokenizer(_path, "/");
+  StringTokenizer tokenizer(_path, FileSystem::delimiter);
   return tokenizer[tokenizer.count() - 1];
 }
 
-FileNode* FileSystem::mkFile(string _path) {
+FileNode* FileSystem::createHierarchy(const std::string &_path) {
+  if(root == nullptr)
+    return nullptr;
+  //Traverse FileSystem Hierarchies
+  StringTokenizer tokenizer(_path, FileSystem::delimiter);
+  string name = tokenizer[tokenizer.count() - 1];
+  FileNode* start = root;
+  for (uint i = 0; i < tokenizer.count() - 1; i++) {
+    if (tokenizer[i].length() == 0)
+      continue;
+    Node* node = start->childFind(tokenizer[i]);
+    if(node == nullptr)
+      start = mkDirectory(start,tokenizer[i]);
+    else
+      start = (FileNode*) node;
+  }
+  return start;
+}
+
+string getNameFromPath(const string &_path) {
+  //Traverse FileSystem Hierarchies
+  StringTokenizer tokenizer(_path, FileSystem::delimiter);
+  return tokenizer[tokenizer.count() - 1];
+}
+
+FileNode* FileSystem::mkFile(const string &_path) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
   return mkFile(parent, name);
 }
 
-FileNode* FileSystem::mkDirectory(std::string _path) {
+FileNode* FileSystem::mkDirectory(const std::string &_path) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
   return mkDirectory(parent, name);
 }
 
-FileNode* FileSystem::getNode(std::string _path) {
+FileNode* FileSystem::getNode(const std::string &_path) {
   //Root
-  if (_path == "/")
+  if (_path == FileSystem::delimiter)
     return root;
   //Traverse FileSystem Hierarchies
-  StringTokenizer tokenizer(_path, "/");
+  StringTokenizer tokenizer(_path, FileSystem::delimiter);
   auto it = tokenizer.begin();
   FileNode* start = root;
   for (; it != tokenizer.end(); it++) {
+    if(start == nullptr)
+      return nullptr;
     if (it->length() == 0)
       continue;
     //log_msg("inja: %s\tstart: %s\n",(*it).c_str(),start->getName().c_str());
@@ -191,18 +242,18 @@ FileNode* FileSystem::getNode(std::string _path) {
 FileNode* FileSystem::findParent(const string &_path) {
   vector<FileNode*> childrenQueue;
   //Root
-  if (_path == "/")
+  if (_path == FileSystem::delimiter)
     return root;
-  string parentPath = "/";
+  string parentPath = FileSystem::delimiter;
   //Traverse FileSystem Hierarchies
-  StringTokenizer tokenizer(_path, "/");
+  StringTokenizer tokenizer(_path, FileSystem::delimiter);
   for (uint i=0; i < tokenizer.count()-1; i++) {
     if (tokenizer[i].length() == 0)
       continue;
     if(i == tokenizer.count()-2)
       parentPath += tokenizer[i];
     else
-      parentPath += tokenizer[i]+"/";
+      parentPath += tokenizer[i]+FileSystem::delimiter;
   }
   log_msg("parent path: %s\n",parentPath.c_str());
   return getNode(parentPath);
@@ -222,7 +273,7 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
     return false;
 
   //Get last token (name) from destination path
-  StringTokenizer tokenizer(_to, "/");
+  StringTokenizer tokenizer(_to, FileSystem::delimiter);
   string newName = tokenizer[tokenizer.count()-1];
 
   //First find parent node

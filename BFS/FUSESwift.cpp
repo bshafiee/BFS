@@ -20,7 +20,7 @@ using namespace std;
 namespace FUSESwift {
 
 FileNode* createRootNode() {
-  FileNode *node = new FileNode(FileSystem::getInstance()->getDelimiter(), true, nullptr);
+  FileNode *node = new FileNode(FileSystem::delimiter, true, nullptr);
   unsigned long now = time(0);
   node->setCTime(now);
   node->setCTime(now);

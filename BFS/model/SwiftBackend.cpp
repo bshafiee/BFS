@@ -154,7 +154,7 @@ std::string FUSESwift::SwiftBackend::convertFromSwiftName(
 	if(swiftPath.length() == 0)
 		return "";
 	else
-		return "/"+swiftPath;
+		return FileSystem::delimiter+swiftPath;
 }
 
 vector<string>* FUSESwift::SwiftBackend::list() {

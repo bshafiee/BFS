@@ -21,6 +21,7 @@ Node::~Node() {
     delete it->second;
     it->second = nullptr;
   }
+  children.clear();
 }
 
 Node* Node::getParent() {

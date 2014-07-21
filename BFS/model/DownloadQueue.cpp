@@ -54,7 +54,7 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	//If File exist then we won't download it!
 	if(fileNode!=nullptr)
 	  return;
-	//Ask backend to downnload the file for us
+	//Ask backend to download the file for us
 	Backend *backend = BackendManager::getActiveBackend();
 	istream *iStream = backend->get(_event);
 	if(iStream == nullptr) {
@@ -62,7 +62,10 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	  return;
 	}
 	//Now create a file in FS
-	FileNode *newFile = FileSystem::getInstance()->mkFile(_event->fullPathBuffer);
+	//handle directories
+	FileNode* parent = FileSystem::getInstance()->createHierarchy(_event->fullPathBuffer);
+	string fileName = FileSystem::getInstance()->getFileNameFromPath(_event->fullPathBuffer);
+	FileNode *newFile = FileSystem::getInstance()->mkFile(parent, fileName);
 	newFile->open();
 	//and write the content
 	char buff[FileSystem::blockSize];
