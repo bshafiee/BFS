@@ -232,7 +232,7 @@ bool FUSESwift::FileNode::truncate(size_t _size) {
       }
     }
   }
-  return true;
+  return (size == _size);
 }
 
 unsigned long FileNode::getUID() {
@@ -379,7 +379,7 @@ std::string FileNode::getMD5() {
     return "";
   Poco::MD5Engine md5;
   md5.reset();
-  register size_t blockSize = FileSystem::blockSize;
+  size_t blockSize = FileSystem::blockSize;
   for(uint i=0;i<dataList.size()-1;i++)
     md5.update(dataList[i],blockSize);
   //last block might not be full

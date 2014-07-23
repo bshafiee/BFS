@@ -63,10 +63,11 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
     return false;
   SwiftResult<vector<Object*>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
-  for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
-    if((*it)->getName() == convertToSwiftName(_putEvent->node->getFullPath())) {
-      obj = *it;
-    }
+  if(res->getPayload() != nullptr)
+    for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
+      if((*it)->getName() == convertToSwiftName(_putEvent->node->getFullPath())) {
+        obj = *it;
+      }
   //Check if Obj already exist
   if(obj != nullptr) {
     //check MD5
@@ -80,6 +81,8 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
     obj = new Object(defaultContainer,convertToSwiftName(_putEvent->node->getFullPath()));
 
   //upload chunk by chunk
+  //Make a back up of file name in case it gets deleted while uploading
+  string nameBackup = _putEvent->node->getName();
   ostream *outStream = nullptr;
   SwiftResult<Poco::Net::HTTPClientSession*> *chunkedResult =
       obj->swiftCreateReplaceObject(outStream);
@@ -92,11 +95,23 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   char *buff = new char[FileSystem::blockSize];
   size_t offset = 0;
   long read = 0;
-  while((read = _putEvent->node->read(buff,offset,FileSystem::blockSize)) > 0) {
+  FileNode *node = nullptr;
+  do {
+    node = FileSystem::getInstance()->getNode(nameBackup);
+    if(node == nullptr)
+      break;
+    read = node->read(buff,offset,FileSystem::blockSize);
     offset += read;
     outStream->write(buff,read);
   }
-  log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
+  while(read > 0);
+
+  if(node == nullptr) {
+    log_msg("Sync: File:%s failed due to interferring delete operation\n",nameBackup.c_str());
+    return false;
+  }
+  else
+    log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
       _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize(),
       _putEvent->node->getMD5().c_str(),obj->getName().c_str());
   //Now send object

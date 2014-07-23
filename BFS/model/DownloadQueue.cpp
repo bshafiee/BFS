@@ -76,6 +76,7 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	  offset += iStream->gcount();
 	}
 	newFile->close();
+	printf("DONWLOAD FINISHED:%s\n",newFile->getName().c_str());
 }
 
 void DownloadQueue::processDownloadMetadata(SyncEvent* _event) {

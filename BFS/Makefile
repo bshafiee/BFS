@@ -14,7 +14,7 @@ CXXFLAGS+=$(LD)
 LIBS = -pthread -lfuse -lSwift -lPocoNet -lPocoFoundation
 
 TARGET =	BFS
-#CXX=clang++
+CXX=clang++
 $(TARGET):	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
 
