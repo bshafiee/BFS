@@ -91,7 +91,12 @@ void DownloadQueue::syncLoopWrapper() {
 }
 
 void DownloadQueue::startSynchronization() {
+  running = true;
 	syncThread = new thread(syncLoopWrapper);
+}
+
+void DownloadQueue::stopSynchronization() {
+  running = false;
 }
 
 void DownloadQueue::processEvent(SyncEvent* &_event) {
@@ -128,7 +133,7 @@ void DownloadQueue::syncLoop() {
 	const long minDelay = 10; //Milliseconds
 	long delay = 10; //Milliseconds
 
-	while (true) {
+	while (running) {
 		//Empty list
 		if (!list.size()) {
 			//log_msg("DOWNLOADQUEUE: I will sleep for %zu milliseconds\n", delay);

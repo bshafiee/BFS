@@ -28,6 +28,8 @@ public:
   virtual ~DownloadQueue();
   //Start Downlaod Thread
   void startSynchronization();
+  //Stop Downlaod Thread
+  void stopSynchronization();
 };
 
 } /* namespace FUSESwift */

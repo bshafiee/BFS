@@ -50,6 +50,15 @@ SyncEvent* SyncQueue::pop() {
   return firstElem;
 }
 
+bool SyncQueue::containsEvent(const SyncEvent* _event) {
+  if(_event == nullptr || list.size() == 0)
+    return false;
+  for(auto it = list.begin(); it != list.end();++it)
+      if (*(*it) == *_event)
+        return true;
+  return false;
+}
+
 long SyncQueue::size() {
   return list.size();
 }

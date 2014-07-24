@@ -22,6 +22,9 @@ FileNode::FileNode(string _name,bool _isDir, FileNode* _parent):Node(_name,_pare
 }
 
 FileNode::~FileNode() {
+  //We need Delete lock before releasing this document.
+  lockDelete();
+
   for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
     delete []block;
@@ -34,6 +37,8 @@ FileNode::~FileNode() {
     delete child;
     it->second = nullptr;
   }
+  //Unlock delete no unlock when being removed
+  //unlockDelete();
 }
 
 FileNode* FileNode::getParent() {
@@ -130,6 +135,9 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
 }
 
 long FileNode::write(const char* _data, size_t _offset, size_t _size) {
+  //Acquire lock
+  lock_guard<mutex> lock(ioMutex);
+
   size_t retValue = 0;
   size_t backupSize = _size;
   if(_offset < size) { //update existing (unlikely)
@@ -197,6 +205,8 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 }
 
 bool FUSESwift::FileNode::truncate(size_t _size) {
+  //Acquire lock
+  lock_guard<mutex> lock(ioMutex);
   if(_size == size)
     return true;
   else if(_size > size) { //Expand
@@ -252,12 +262,16 @@ unsigned long FileNode::getGID() {
 }
 
 void FileNode::setUID(unsigned long _uid) {
+  //Acquire lock
+  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _uid;
   metadataAdd(uidKey,ss.str());
 }
 
 void FileNode::setGID(unsigned long _gid) {
+  //Acquire lock
+  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _gid;
   metadataAdd(gidKey,ss.str());
@@ -280,12 +294,16 @@ unsigned long FileNode::getCTime() {
 }
 
 void FileNode::setMTime(unsigned long _mtime) {
+  //Acquire lock
+  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _mtime;
   metadataAdd(mtimeKey,ss.str());
 }
 
 void FileNode::setCTime(unsigned long _ctime) {
+  //Acquire lock
+  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _ctime;
   metadataAdd(ctimeKey,ss.str());
@@ -300,6 +318,8 @@ mode_t FileNode::getMode() {
 }
 
 void FileNode::setMode(mode_t _mode) {
+  //Acquire lock
+  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _mode;
   metadataAdd(modeKey,ss.str());
@@ -342,7 +362,7 @@ void FileNode::close() {
    * are closed and it actually needs updating!
    */
   if(refCount == 0 && needSync) {
-    if(UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this)))
+    if(UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this,this->getFullPath())))
       this->setNeedSync(false);
   }
   else {
@@ -385,6 +405,14 @@ std::string FileNode::getMD5() {
   //last block might not be full
   md5.update(dataList[dataList.size()-1],blockIndex);
   return Poco::DigestEngine::digestToHex(md5.digest());
+}
+
+void FileNode::lockDelete() {
+  deleteMutex.lock();
+}
+
+void FileNode::unlockDelete() {
+  deleteMutex.unlock();
 }
 
 } //namespace

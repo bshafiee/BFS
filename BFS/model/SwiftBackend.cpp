@@ -12,6 +12,7 @@
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPResponse.h>
 #include "filesystem.h"
+#include "UploadQueue.h"
 
 using namespace std;
 using namespace Swift;
@@ -59,8 +60,11 @@ bool SwiftBackend::initDefaultContainer() {
 
 bool SwiftBackend::put(SyncEvent* _putEvent) {
   if(_putEvent == nullptr || account == nullptr
-      || defaultContainer == nullptr)
+      || defaultContainer == nullptr || _putEvent->node == nullptr)
     return false;
+  //get lock delete so file won't be deleted
+  _putEvent->node->lockDelete();
+
   SwiftResult<vector<Object*>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
   if(res->getPayload() != nullptr)
@@ -68,12 +72,21 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
       if((*it)->getName() == convertToSwiftName(_putEvent->node->getFullPath())) {
         obj = *it;
       }
+
+  //CheckEvent validity
+  if(!UploadQueue::getInstance()->checkEventValidity(*_putEvent)) {
+    //release file delete lock, so they can delete it
+    _putEvent->node->unlockDelete();
+    return false;
+  }
   //Check if Obj already exist
   if(obj != nullptr) {
     //check MD5
     if(obj->getHash() == _putEvent->node->getMD5()) {//No change
       log_msg("Sync: File:%s did not change with compare to remote version, MD5:%s\n",
           _putEvent->node->getFullPath().c_str(),_putEvent->node->getMD5().c_str());
+      //release file delete lock, so they can delete it
+      _putEvent->node->unlockDelete();
       return true;
     }
   }
@@ -89,18 +102,29 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   if(chunkedResult->getError().code != SwiftError::SWIFT_OK) {
     delete outStream;
     delete obj;
+    //release file delete lock, so they can delete it
+    _putEvent->node->unlockDelete();
     return false;
   }
+  //release file delete lock, so they can delete it
+  _putEvent->node->unlockDelete();
+
   //Ready to write (write each time a blocksize)
   char *buff = new char[FileSystem::blockSize];
   size_t offset = 0;
   long read = 0;
-  FileNode *node = nullptr;
+  FileNode *node = _putEvent->node;
   do {
-    node = FileSystem::getInstance()->getNode(nameBackup);
-    if(node == nullptr)
-      break;
+    //node = FileSystem::getInstance()->getNode(nameBackup);
+    //if(node == nullptr)
+      //break;
+    //CheckEvent validity
+    if(!UploadQueue::getInstance()->checkEventValidity(*_putEvent)) return false;
+    //get lock delete so file won't be deleted
+    _putEvent->node->lockDelete();
     read = node->read(buff,offset,FileSystem::blockSize);
+    //get lock delete so file won't be deleted
+    _putEvent->node->unlockDelete();
     offset += read;
     outStream->write(buff,read);
   }
@@ -110,10 +134,17 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
     log_msg("Sync: File:%s failed due to interferring delete operation\n",nameBackup.c_str());
     return false;
   }
-  else
+  else {
+    //CheckEvent validity
+    if(!UploadQueue::getInstance()->checkEventValidity(*_putEvent)) return false;
+    //get lock delete so file won't be deleted
+    _putEvent->node->lockDelete();
     log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
       _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize(),
       _putEvent->node->getMD5().c_str(),obj->getName().c_str());
+    //get lock delete so file won't be deleted
+    _putEvent->node->unlockDelete();
+  }
   //Now send object
   Poco::Net::HTTPResponse response;
   chunkedResult->getPayload()->receiveResponse(response);
@@ -132,6 +163,7 @@ bool SwiftBackend::put_metadata(SyncEvent* _putMetaEvent) {
 }
 
 bool SwiftBackend::move(SyncEvent* _moveEvent) {
+  //we need locking here as well like delete!
   /*
   if(_moveEvent == nullptr || account == nullptr
         || defaultContainer == nullptr)
@@ -183,7 +215,9 @@ vector<string>* FUSESwift::SwiftBackend::list() {
 	  //Check if this object already is downloaded
 	  FileNode* node =
 	      FileSystem::getInstance()->getNode(convertFromSwiftName((*it)->getName()));
-	  if(node!=nullptr && node->getMD5() == (*it)->getHash())
+	  //TODO check last modified time not MD5
+	  //if(node!=nullptr && node->getMD5() == (*it)->getHash())
+	  if(node!=nullptr)
 	    continue;//existing node
 	  else
 	    listFiles->push_back(convertFromSwiftName((*it)->getName()));

@@ -107,6 +107,13 @@ void bb_usage()
     abort();
 }
 
+// function to call if operator new can't allocate enough memory or error arises
+void outOfMemHandler()
+{
+    std::cerr << "Unable to satisfy request for memory\n";
+    std::abort();
+}
+
 int main(int argc, char *argv[]) {
   AuthenticationInfo info;
   info.username = "behrooz";
@@ -203,6 +210,8 @@ int main(int argc, char *argv[]) {
   //swift_init(nullptr);
   //DownloadQueue::getInstance()->startSynchronization();
 
+  //set the new_handler
+  std::set_new_handler(outOfMemHandler);
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
   fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);

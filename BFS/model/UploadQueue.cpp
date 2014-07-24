@@ -35,7 +35,12 @@ void UploadQueue::syncLoopWrapper() {
 }
 
 void UploadQueue::startSynchronization() {
+  running = true;
   syncThread = new thread(syncLoopWrapper);
+}
+
+void UploadQueue::stopSynchronization() {
+  running = false;
 }
 
 void UploadQueue::processEvent(SyncEvent* &_event) {
@@ -44,22 +49,26 @@ void UploadQueue::processEvent(SyncEvent* &_event) {
     log_msg("No active backend\n");
     return;
   }
-
+  //accessing _event->node is dangerous it may be deleted from main thread!
   switch (_event->type) {
     case SyncEventType::DELETE:
+      if(!checkEventValidity(*_event)) return;
       log_msg("Event:DELETE fullpath:%s\n",_event->fullPathBuffer.c_str());
       backend->remove(_event);
       break;
     case SyncEventType::RENAME:
-      log_msg("Event:RENAME from:%s to:%s\n",_event->fullPathBuffer.c_str(),_event->node->getFullPath().c_str());
+      if(!checkEventValidity(*_event)) return;
+      //log_msg("Event:RENAME from:%s to:%s\n",_event->fullPathBuffer.c_str(),_event->node->getFullPath().c_str());
       backend->move(_event);
       break;
     case SyncEventType::UPDATE_CONTENT:
-      log_msg("Event:UPDATE_CONTENT file:%s\n",_event->node->getFullPath().c_str());
+      if(!checkEventValidity(*_event)) return;
+      //log_msg("Event:UPDATE_CONTENT file:%s\n",_event->node->getFullPath().c_str());
       backend->put(_event);
       break;
     case SyncEventType::UPDATE_METADATA:
-      log_msg("Event:UPDATE_METADATA file:%s\n",_event->node->getFullPath().c_str());
+      if(!checkEventValidity(*_event)) return;
+      //log_msg("Event:UPDATE_METADATA file:%s\n",_event->node->getFullPath().c_str());
       backend->put_metadata(_event);
       break;
     default:
@@ -77,7 +86,7 @@ void UploadQueue::syncLoop() {
   const long minDelay = 10;//Milliseconds
   long delay = 10;//Milliseconds
 
-  while(true) {
+  while(running) {
     //Empty list
     if(!list.size()) {
       //log_msg("UPLOADQUEUE: I will sleep for %zu milliseconds\n",delay);
@@ -92,6 +101,41 @@ void UploadQueue::syncLoop() {
     processEvent(event);
     //reset delay
     delay = minDelay;
+  }
+}
+
+inline bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
+  switch (_event.type) {
+    case SyncEventType::DELETE:
+      return true;
+    case SyncEventType::RENAME:
+      //Check if there is another delete or update in the queue coming
+      for(int i=0;i<list.size();i++) {
+        SyncEvent *upcomingEvent = list[i];
+        if(upcomingEvent->type == SyncEventType::DELETE)
+          if(upcomingEvent->fullPathBuffer == _event.fullPathBuffer) {
+            printf("SAVED a RENAME OPERATION FullBuffer:%s\n",_event.fullPathBuffer.c_str());
+            return false;
+          }
+
+      }
+      return true;
+    case SyncEventType::UPDATE_CONTENT:
+      //Check if there is another delete or update in the queue coming
+      for(int i=0;i<list.size();i++) {
+        SyncEvent *upcomingEvent = list[i];
+        if(upcomingEvent->type == SyncEventType::DELETE ||
+            upcomingEvent->type == SyncEventType::UPDATE_CONTENT)
+          if(upcomingEvent->fullPathBuffer == _event.fullPathBuffer) {
+            printf("SAVED a UPLOAD OPERATION FullBuffer:%s\n",_event.fullPathBuffer.c_str());
+            return false;
+          }
+      }
+      return true;
+    case SyncEventType::UPDATE_METADATA:
+      //Check if there is a delete event coming in the queu
+    default:
+      return false;
   }
 }
 

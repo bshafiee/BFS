@@ -13,6 +13,7 @@
 #include "syncEvent.h"
 #include <mutex>
 #include <thread>
+#include <atomic>
 
 using namespace std;
 
@@ -20,6 +21,8 @@ namespace FUSESwift {
 
 class SyncQueue{
 protected:
+  //atomic stop/start condition
+  atomic<bool> running;
   vector<SyncEvent*> list;
   //Mutex to protect queue
   std::mutex mutex;
@@ -37,6 +40,8 @@ public:
   long size();
   size_t workloadSize();
   virtual void startSynchronization() = 0;
+  virtual void stopSynchronization() = 0;
+  inline bool containsEvent(const SyncEvent* _event);
 };
 
 } /* namespace FUSESwift */

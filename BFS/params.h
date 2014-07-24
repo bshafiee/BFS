@@ -40,6 +40,7 @@ struct bb_state {
 #define DEBUG_READDIR    0
 #define DEBUG_RELEASEDIR 0
 #define DEBUG_ACCESS     0
+#define DEBUG_UNLINK     0
 
 
 #endif// _PARAMS_H_

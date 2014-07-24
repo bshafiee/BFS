@@ -52,7 +52,8 @@ int swift_getattr(const char *path, struct stat *stbuff) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
-    log_msg("Node not found: %s\n", path);
+    if(DEBUG_GET_ATTRIB)
+      log_msg("swift_getattr: Node not found: %s\n", path);
     return -ENOENT;
   }
   //Fill Stat struct
@@ -139,19 +140,21 @@ int swift_mkdir(const char* path, mode_t mode) {
 }
 
 int swift_unlink(const char* path) {
-  log_msg("bb_unlink(path=\"%s\")\n", path);
+  if(DEBUG_UNLINK)
+    log_msg("bb_unlink(path=\"%s\")\n", path);
 
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
-    log_msg("Node not found: %s\n", path);
+    log_msg("swift_unlink: Node not found: %s\n", path);
     return -ENOENT;
   }
 
   FileNode* parent = FileSystem::getInstance()->findParent(path);
   size_t remNodes = FileSystem::getInstance()->rmNode(parent, node);
-  log_msg("Removed %d nodes from %s file.\n", remNodes, path);
+  if(DEBUG_UNLINK)
+    log_msg("Removed %d nodes from %s file.\n", remNodes, path);
 
   return 0;
 }
@@ -164,7 +167,7 @@ int swift_rmdir(const char* path) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
-    log_msg("Node not found: %s\n", path);
+    log_msg("swift_rmdir: Node not found: %s\n", path);
     return -ENOENT;
   }
 
@@ -222,7 +225,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
-    log_msg("error swift_open: Node not found: %s\n", path);
+    log_msg("swift_utime error swift_open: Node not found: %s\n", path);
     fi->fh = 0;
     return -ENOENT;
   }
@@ -251,11 +254,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
       log_msg("bb_read successful from:%s size=%d, offset=%lld EOF\n",node->getName().c_str(),0,offset);
     return 0;
   }
-  //Lock
-  FileSystem::getInstance()->lock();
   long readBytes = node->read(buf,offset,size);
-  //UnLock
-	FileSystem::getInstance()->unlock();
   if(readBytes >= 0) {
     if(DEBUG_READ)
       log_msg("bb_read successful from:%s size=%d, offset=%lld\n",node->getName().c_str(),readBytes,offset);
@@ -284,15 +283,11 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*)fi->fh;
-  //Lock
-	FileSystem::getInstance()->lock();
   int written = node->write(buf,offset,size);
   //Update modification time
   node->setMTime(time(0));
   //Needs synchronization with the backend
   node->setNeedSync(true);
-  //UnLock
-	FileSystem::getInstance()->unlock();
   if(written == (int)size )
   {
     if(DEBUG_WRITE)
@@ -369,7 +364,7 @@ int swift_opendir(const char* path, struct fuse_file_info* fi) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
-    log_msg("swift_opendir: Node not found: %s\n", path);
+    log_msg("swift_opendir: swift_opendir: Node not found: %s\n", path);
     fi->fh = 0;
     return -ENOENT;
   }
@@ -503,7 +498,7 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance()->getNode(pathStr);
   if (node == nullptr) {
-    log_msg("error swift_ftruncate: Node not found: %s\n", path);
+    log_msg("swift_ftruncate: error swift_ftruncate: Node not found: %s\n", path);
     fi->fh = 0;
     return -ENOENT;
   }

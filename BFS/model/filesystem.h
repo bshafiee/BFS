@@ -23,7 +23,6 @@ class FileSystem: public Tree {
   FileSystem(FileNode* _root);
   FileNode* searchNode(FileNode* _parent, std::string _name, bool _isDir);
   FileNode* traversePathToParent(const std::string &_path);
-  pthread_mutex_t mutex; /* read and write operations */
 public:
   //Constants
   static const size_t blockSize = 4096;
@@ -43,8 +42,6 @@ public:
   FileNode* findParent(const std::string &_path);
   std::string getFileNameFromPath(const std::string &_path);
   void destroy();
-  void lock();
-  void unlock();
   /**
    * tries to rename it it is permitted.
    * @return

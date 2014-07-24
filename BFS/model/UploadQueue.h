@@ -23,8 +23,14 @@ class UploadQueue: public SyncQueue{
 public:
   static UploadQueue* getInstance();
   virtual ~UploadQueue();
-  //Start Upload Thread
+  //Start/stop Upload Thread
   void startSynchronization();
+  void stopSynchronization();
+  //Check if this event is still valid
+  /**
+   * returns true in case the event should be performed
+   */
+  bool checkEventValidity(const SyncEvent& _event);
 };
 
 } /* namespace FUSESwift */

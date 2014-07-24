@@ -34,6 +34,10 @@ class FileNode: public Node {
   std::vector<char*> dataList;
   unsigned int blockIndex;
   std::atomic<bool> needSync;
+  //Delete Lock
+  std::mutex deleteMutex;
+  //Read/Write Lock
+  std::mutex ioMutex;
 public:
   FileNode(std::string _name,bool _isDir, FileNode* _parent);
   virtual ~FileNode();
@@ -103,6 +107,8 @@ public:
   bool open();
   void close();
   bool isOpen();
+  void lockDelete();
+  void unlockDelete();
 };
 
 } /* namespace FUSESwift */

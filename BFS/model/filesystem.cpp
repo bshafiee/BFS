@@ -12,6 +12,7 @@
 #include <Poco/StringTokenizer.h>
 #include "../log.h"
 #include "UploadQueue.h"
+#include "DownloadQueue.h"
 
 using namespace std;
 using namespace Poco;
@@ -33,9 +34,6 @@ FileSystem::~FileSystem() {
 
 void FileSystem::initialize(FileNode* _root) {
   root = _root;
-	int err = pthread_mutex_init(&mutex, NULL);
-	if (err)
-		log_msg("\npthread_mutex_init failed.\n");
 }
 
 FileSystem* FileSystem::getInstance() {
@@ -121,6 +119,7 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
     _parent->childRemove(_node->getName());
 
   delete _node;//this will recursively call destructor of all kids
+  _node = nullptr;
   /*
   //Recursive removing is dangerous, because we might run out of memory.
   childrenQueue.clear();
@@ -255,13 +254,15 @@ FileNode* FileSystem::findParent(const string &_path) {
     else
       parentPath += tokenizer[i]+FileSystem::delimiter;
   }
-  log_msg("parent path: %s\n",parentPath.c_str());
+  //log_msg("parent path: %s\n",parentPath.c_str());
   return getNode(parentPath);
 }
 
 void FileSystem::destroy() {
-  FileNode* nullNode = nullptr;
-  rmNode(nullNode, root);
+  //Important, first kill download and upload thread
+  DownloadQueue::getInstance()->stopSynchronization();
+  UploadQueue::getInstance()->stopSynchronization();
+  delete root;
 }
 
 bool FileSystem::tryRename(const string &_from,const string &_to) {
@@ -321,14 +322,6 @@ std::string FileSystem::printFileSystem() {
   }
   log_msg("%s\n\n",output.c_str());
   return output;
-}
-
-void FileSystem::lock() {
-	pthread_mutex_lock(&mutex);
-}
-
-void FileSystem::unlock() {
-	pthread_mutex_unlock(&mutex);
 }
 
 } // namespace
