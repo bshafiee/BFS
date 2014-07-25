@@ -6,6 +6,7 @@
  */
 
 #include "DownloadQueue.h"
+#include "UploadQueue.h"
 #include <thread>
 #include "BackendManager.h"
 #include "../log.h"
@@ -66,17 +67,28 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	FileNode* parent = FileSystem::getInstance()->createHierarchy(_event->fullPathBuffer);
 	string fileName = FileSystem::getInstance()->getFileNameFromPath(_event->fullPathBuffer);
 	FileNode *newFile = FileSystem::getInstance()->mkFile(parent, fileName);
+	newFile->lockDelete();
 	newFile->open();
+	newFile->unlockDelete();
+	//Make a fake event to check if the file has been deleted
+	SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content
 	char buff[FileSystem::blockSize];
 	size_t offset = 0;
 	while(iStream->eof() == false) {
 	  iStream->read(buff,FileSystem::blockSize);
+	  //CheckEvent validity
+    if(!UploadQueue::getInstance()->checkEventValidity(fakeDeleteEvent)) return;
+    //get lock delete so file won't be deleted
+    newFile->lockDelete();
 	  newFile->write(buff,offset,iStream->gcount());
+	  newFile->unlockDelete();
 	  offset += iStream->gcount();
 	}
+	newFile->lockDelete();
 	newFile->close();
 	printf("DONWLOAD FINISHED:%s\n",newFile->getName().c_str());
+	newFile->unlockDelete();
 }
 
 void DownloadQueue::processDownloadMetadata(SyncEvent* _event) {

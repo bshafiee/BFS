@@ -110,7 +110,7 @@ inline bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
       return true;
     case SyncEventType::RENAME:
       //Check if there is another delete or update in the queue coming
-      for(int i=0;i<list.size();i++) {
+      for(int i=0;i<list.size();i++) {//TODO there is a bug here! (probabaly concurrent push or pop is killing it! :()
         SyncEvent *upcomingEvent = list[i];
         if(upcomingEvent->type == SyncEventType::DELETE)
           if(upcomingEvent->fullPathBuffer == _event.fullPathBuffer) {
@@ -135,7 +135,7 @@ inline bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
     case SyncEventType::UPDATE_METADATA:
       //Check if there is a delete event coming in the queu
     default:
-      return false;
+      return true;
   }
 }
 
