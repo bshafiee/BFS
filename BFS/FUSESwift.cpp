@@ -284,8 +284,6 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   //Get associated FileNode*
   FileNode* node = (FileNode*)fi->fh;
   int written = node->write(buf,offset,size);
-  //Update modification time
-  node->setMTime(time(0));
   //Needs synchronization with the backend
   node->setNeedSync(true);
   if(written == (int)size )
@@ -327,6 +325,8 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*)fi->fh;
+  //Update modification time
+  node->setMTime(time(0));
   node->close();
   if(DEBUG_RELEASE) {
     log_msg("\nbb_release(name=\"%s\", fi=0x%08x) isStillOpen?%d \n", node->getFullPath().c_str(), fi, node->isOpen());
@@ -433,6 +433,8 @@ int swift_releasedir(const char* path, struct fuse_file_info* fi) {
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*)fi->fh;
+  //Update modification time
+  node->setMTime(time(0));
   node->close();
 
   if(DEBUG_RELEASEDIR) {

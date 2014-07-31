@@ -195,7 +195,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 		retValue += howMuch;
 		blockIndex += howMuch;
 		if(blockIndex >= FileSystem::blockSize) {
-		  char* block = (char*)malloc(FileSystem::blockSize*sizeof(char));
+		  char* block = new char[FileSystem::blockSize];
 		  dataList.push_back(block);
 		  blockIndex = 0;
 		}
