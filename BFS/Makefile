@@ -1,5 +1,5 @@
-CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++11
-#CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++11
+#CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++11
+CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++11
 CXXSOURCES = $(wildcard *.cpp model/*.cpp)
 OBJS =		$(CXXSOURCES:%.cpp=%.o)
 
@@ -14,7 +14,7 @@ CXXFLAGS+=$(LD)
 LIBS = -pthread -lfuse -lSwift -lPocoNet -lPocoFoundation
 
 TARGET =	BFS
-#CXX=clang++
+CXX=clang++
 $(TARGET):	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
 

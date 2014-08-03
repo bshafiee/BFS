@@ -29,7 +29,7 @@ public:
   static std::string delimiter;
   //Functions
   void initialize(FileNode* _root);
-  static FileSystem* getInstance();
+  static FileSystem& getInstance();
   virtual ~FileSystem();
   FileNode* mkFile(FileNode* _parent, const std::string &_name);
   FileNode* mkDirectory(FileNode* _parent, const std::string &_name);

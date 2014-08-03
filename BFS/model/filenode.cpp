@@ -37,6 +37,7 @@ FileNode::~FileNode() {
     delete child;
     it->second = nullptr;
   }
+  children.clear();
   //Unlock delete no unlock when being removed
   //unlockDelete();
 }
@@ -337,7 +338,7 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
   if(it != children.end()) {
     FileNode* existingNodes = (FileNode*)(it->second);
     FileNode* parent = this;
-    FileSystem::getInstance()->rmNode(parent, existingNodes);
+    FileSystem::getInstance().rmNode(parent, existingNodes);
     //children.erase(it);
   }
 
@@ -362,7 +363,7 @@ void FileNode::close() {
    * are closed and it actually needs updating!
    */
   if(refCount == 0 && needSync) {
-    if(UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this,this->getFullPath())))
+    if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this,this->getFullPath())))
       this->setNeedSync(false);
   }
   else {

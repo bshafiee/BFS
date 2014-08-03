@@ -31,7 +31,7 @@ protected:
   //Private constructor
   SyncQueue();
   //Protected virtual methods
-  virtual void processEvent(SyncEvent* &_event) = 0;
+  virtual void processEvent(const SyncEvent* _event) = 0;
   virtual void syncLoop() = 0;
 public:
   virtual ~SyncQueue();

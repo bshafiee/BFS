@@ -12,16 +12,14 @@
 namespace FUSESwift {
 
 class UploadQueue: public SyncQueue{
-  //Singleton instance
-  static UploadQueue *mInstance;
   //Process Events
-  void processEvent(SyncEvent* &_event);
+  void processEvent(const SyncEvent* _event);
   static void syncLoopWrapper();
   void syncLoop();
   //Private Constructor
   UploadQueue();
 public:
-  static UploadQueue* getInstance();
+  static UploadQueue& getInstance();
   virtual ~UploadQueue();
   //Start/stop Upload Thread
   void startSynchronization();

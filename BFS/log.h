@@ -16,6 +16,7 @@
   log_msg("    " #field " = " #format "\n", typecast st->field)
 
 FILE *log_open(void);
+void  log_close(void);
 void log_conn (struct fuse_conn_info *conn);
 void log_fi (struct fuse_file_info *fi);
 void log_stat(struct stat *si);

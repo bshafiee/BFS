@@ -50,7 +50,7 @@ int swift_getattr(const char *path, struct stat *stbuff) {
     log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n", path, stbuff);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr) {
     if(DEBUG_GET_ATTRIB)
       log_msg("swift_getattr: Node not found: %s\n", path);
@@ -81,7 +81,7 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
 
   if (S_ISREG(mode)) {
     string pathStr(path, strlen(path));
-    FileNode *newFile = FileSystem::getInstance()->mkFile(pathStr);
+    FileNode *newFile = FileSystem::getInstance().mkFile(pathStr);
     if (newFile == nullptr) {
       retstat = ENOENT;
       log_msg("bb_mknod mkFile (newFile is nullptr)\n");
@@ -117,7 +117,7 @@ int swift_mkdir(const char* path, mode_t mode) {
 
   if (S_ISDIR(mode)) {
     string pathStr(path, strlen(path));
-    FileNode *newDir = FileSystem::getInstance()->mkDirectory(pathStr);
+    FileNode *newDir = FileSystem::getInstance().mkDirectory(pathStr);
     if (newDir == nullptr){
       retstat = ENOENT;
       log_msg("bb_mkdir mkFile (newFile is nullptr)\n");
@@ -145,14 +145,14 @@ int swift_unlink(const char* path) {
 
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_unlink: Node not found: %s\n", path);
     return -ENOENT;
   }
 
-  FileNode* parent = FileSystem::getInstance()->findParent(path);
-  size_t remNodes = FileSystem::getInstance()->rmNode(parent, node);
+  FileNode* parent = FileSystem::getInstance().findParent(path);
+  size_t remNodes = FileSystem::getInstance().rmNode(parent, node);
   if(DEBUG_UNLINK)
     log_msg("Removed %d nodes from %s file.\n", remNodes, path);
 
@@ -165,22 +165,22 @@ int swift_rmdir(const char* path) {
 
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_rmdir: Node not found: %s\n", path);
     return -ENOENT;
   }
 
-  FileNode* parent = FileSystem::getInstance()->findParent(path);
-  size_t remNodes = FileSystem::getInstance()->rmNode(parent,node);
+  FileNode* parent = FileSystem::getInstance().findParent(path);
+  size_t remNodes = FileSystem::getInstance().rmNode(parent,node);
   if(DEBUG_RMDIR)
     log_msg("Removed %d nodes from %s dir.\n", remNodes, path);
 
   return 0;
 }
-
+/*
 int swift_symlink(const char* from, const char* to) {
-}
+}*/
 
 int swift_rename(const char* from, const char* to) {
   if(DEBUG_RENAME)
@@ -188,42 +188,42 @@ int swift_rename(const char* from, const char* to) {
 
   string oldPath(from, strlen(from));
   string newPath(to, strlen(to));
-  if(!FileSystem::getInstance()->tryRename(oldPath,newPath)) {
+  if(!FileSystem::getInstance().tryRename(oldPath,newPath)) {
     log_msg("\nbb_rename failed.\n");
     return -ENOENT;
   }
   else {
     if(DEBUG_RENAME)
       log_msg("bb_rename successful.\n");
-    /*FileNode* node = FileSystem::getInstance()->getNode(newPath);
+    /*FileNode* node = FileSystem::getInstance().getNode(newPath);
     log_msg("bb_rename MD5:%s\n",node->getMD5().c_str());*/
     return 0;
   }
 }
 
-int swift_link(const char* from, const char* to) {
+/*int swift_link(const char* from, const char* to) {
 }
 
 int swift_chmod(const char* path, mode_t mode) {
 }
 
 int swift_chown(const char* path, uid_t uid, gid_t gid) {
-}
+}*/
 
 int swift_truncate(const char* path, off_t size) {
   log_msg("\nbb_truncate(path=\"%s\", size=%zu)\n", path, size);
   return 0;
 }
 
-int swift_utime(const char* path, struct utimbuf* ubuf) {
-}
+/*int swift_utime(const char* path, struct utimbuf* ubuf) {
+}*/
 
 int swift_open(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_OPEN)
     log_msg("\nbb_open(path=\"%s\", fi=0x%08x fh=0x%08x)\n", path, fi,fi->fh);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_utime error swift_open: Node not found: %s\n", path);
     fi->fh = 0;
@@ -298,8 +298,8 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   }
 }
 
-int swift_statfs(const char* path, struct statvfs* stbuf) {
-}
+/*int swift_statfs(const char* path, struct statvfs* stbuf) {
+}*/
 
 int swift_flush(const char* path, struct fuse_file_info* fi) {
   int retstat = 0;
@@ -347,7 +347,7 @@ int swift_setxattr(const char* path, const char* name, const char* value,
   return 1;
 }
 
-int swift_getxattr(const char* path, const char* name, char* value,
+/*int swift_getxattr(const char* path, const char* name, char* value,
     size_t size) {
 }
 
@@ -355,14 +355,14 @@ int swift_listxattr(const char* path, char* list, size_t size) {
 }
 
 int swift_removexattr(const char* path, const char* name) {
-}
+}*/
 
 int swift_opendir(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_OPENDIR)
     log_msg("\nbb_opendir(path=\"%s\", fi=0x%08x)\n", path, fi);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_opendir: swift_opendir: Node not found: %s\n", path);
     fi->fh = 0;
@@ -387,7 +387,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
   else if(path != nullptr) {
     //Get associated FileNode*
     string pathStr(path, strlen(path));
-    node = FileSystem::getInstance()->getNode(pathStr);
+    node = FileSystem::getInstance().getNode(pathStr);
   }
   else
     node = (FileNode*)fi->fh;
@@ -452,7 +452,7 @@ int swift_fsyncdir(const char* path, int datasync, struct fuse_file_info* fi) {
 void* swift_init(struct fuse_conn_info* conn) {
   //Initialize file system
   FileNode* rootNode = createRootNode();
-  FileSystem::getInstance()->initialize(rootNode);
+  FileSystem::getInstance().initialize(rootNode);
   //Get Context
   struct fuse_context fuseContext = *fuse_get_context();
   rootNode->setGID(fuseContext.gid);
@@ -466,8 +466,8 @@ void* swift_init(struct fuse_conn_info* conn) {
 
   log_msg("\nStarting SyncThreads\n");
   //Start SyncQueue threads
-  UploadQueue::getInstance()->startSynchronization();
-  DownloadQueue::getInstance()->startSynchronization();
+  //UploadQueue::getInstance()->startSynchronization();
+  //DownloadQueue::getInstance()->startSynchronization();
   log_msg("\nSyncThreads running...\n");
 
   return nullptr;
@@ -476,7 +476,7 @@ void* swift_init(struct fuse_conn_info* conn) {
 void swift_destroy(void* userdata) {
   if(DEBUG_DESTROY)
     log_msg("\nbb_destroy(userdata=0x%08x)\n", userdata);
-  FileSystem::getInstance()->destroy();
+  FileSystem::getInstance().destroy();
 }
 /**
  * we just give all the permissions
@@ -491,14 +491,14 @@ int swift_access(const char* path, int mask) {
   return retstat;
 }
 
-int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
-}
+/*int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+}*/
 
 int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   log_msg("\nbb_ftruncate(path=\"%s\", fi:%p newsize:%zu )\n", path,fi,size);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance()->getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_ftruncate: error swift_ftruncate: Node not found: %s\n", path);
     fi->fh = 0;
@@ -515,7 +515,7 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
     return 0;
 }
 
-int swift_fgetattr(const char* path, struct stat* statbuf,
+/*int swift_fgetattr(const char* path, struct stat* statbuf,
     struct fuse_file_info* fi) {
 }
 
@@ -550,6 +550,6 @@ int swift_flock(const char* arg1, struct fuse_file_info* arg2, int op) {
 
 int swift_fallocate(const char* path, int mode, off_t offset, off_t length,
     struct fuse_file_info* fi) {
-}
+}*/
 
 } //FUSESwift namespace

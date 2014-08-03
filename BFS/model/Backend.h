@@ -26,12 +26,12 @@ public:
    * Backend implementation should provide
    * **/
   virtual std::vector<std::string>* list() = 0;
-  virtual std::istream* get(SyncEvent *_getEvent) = 0;
-  virtual std::vector<std::pair<std::string,std::string> >* get_metadata(SyncEvent *_getMetaEvent) = 0;
-  virtual bool put(SyncEvent *_putEvent) = 0;
-  virtual bool put_metadata(SyncEvent *_putMetaEvent) = 0;
-  virtual bool move(SyncEvent *_moveEvent) = 0;
-  virtual bool remove(SyncEvent *_removeEvent) = 0;
+  virtual std::istream* get(const SyncEvent *_getEvent) = 0;
+  virtual std::vector<std::pair<std::string,std::string> >* get_metadata(const SyncEvent *_getMetaEvent) = 0;
+  virtual bool put(const SyncEvent *_putEvent) = 0;
+  virtual bool put_metadata(const SyncEvent *_putMetaEvent) = 0;
+  virtual bool move(const SyncEvent *_moveEvent) = 0;
+  virtual bool remove(const SyncEvent *_removeEvent) = 0;
   BackendType getType();
   static std::string backendTypeToStr(BackendType _type);
 };

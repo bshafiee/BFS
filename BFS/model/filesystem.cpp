@@ -20,7 +20,6 @@ using namespace Poco;
 namespace FUSESwift {
 
 //initialize static variables
-FileSystem* FileSystem::mInstance = new FileSystem(nullptr);
 std::string FileSystem::delimiter = "/";
 
 FileSystem::FileSystem(FileNode* _root) :
@@ -36,7 +35,8 @@ void FileSystem::initialize(FileNode* _root) {
   root = _root;
 }
 
-FileSystem* FileSystem::getInstance() {
+FileSystem& FileSystem::getInstance() {
+  static FileSystem mInstance(nullptr);
   return mInstance;
 }
 
@@ -111,7 +111,7 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
 
   //Now commit to sync queue! the order matters (before delete)
   for(int i=fullPathStack.size()-1;i>=0;i--)
-    UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,nullptr,fullPathStack[i]));
+    UploadQueue::getInstance().push(new SyncEvent(SyncEventType::DELETE,nullptr,fullPathStack[i]));
 
   //Do the actual removing on local file system
   //remove from parent
@@ -120,30 +120,6 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
 
   delete _node;//this will recursively call destructor of all kids
   _node = nullptr;
-  /*
-  //Recursive removing is dangerous, because we might run out of memory.
-  childrenQueue.clear();
-  size_t numOfRemovedNodes = 0;
-
-
-  while (_node != nullptr) {
-    //add children to queue
-    auto childIterator = _node->childrendBegin();
-    for (; childIterator != _node->childrenEnd(); childIterator++)
-      childrenQueue.push_back((FileNode*) childIterator->second);
-    //Now we can release start node
-    delete _node;
-    numOfRemovedNodes++;
-    if (childrenQueue.size() == 0)
-      _node = nullptr;
-    else {
-      //Now assign start to a new node in queue
-      auto frontIt = childrenQueue.begin();
-      _node = *frontIt;
-      childrenQueue.erase(frontIt);
-    }
-  }*/
-
   return fullPathStack.size();
 }
 
@@ -260,8 +236,8 @@ FileNode* FileSystem::findParent(const string &_path) {
 
 void FileSystem::destroy() {
   //Important, first kill download and upload thread
-  DownloadQueue::getInstance()->stopSynchronization();
-  UploadQueue::getInstance()->stopSynchronization();
+  DownloadQueue::getInstance().stopSynchronization();
+  UploadQueue::getInstance().stopSynchronization();
   delete root;
 }
 
@@ -286,7 +262,7 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
   bool result = parentNode->renameChild(node,newName);
   //Add syncQueue event
   if(result)
-    UploadQueue::getInstance()->push(new SyncEvent(SyncEventType::RENAME,node,_from));
+    UploadQueue::getInstance().push(new SyncEvent(SyncEventType::RENAME,node,_from));
   return result;
 }
 

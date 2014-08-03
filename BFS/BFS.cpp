@@ -122,9 +122,6 @@ int main(int argc, char *argv[]) {
   info.tenantName = "kos";
   info.method = AuthenticationMethod::KEYSTONE;
 
-  //Authenticate
-  //SwiftResult<Account*>* authenticateResult = Account::authenticate(info);
-
   //Start fuse_main
   int fuse_stat;
   //make ready log file
@@ -181,7 +178,7 @@ int main(int argc, char *argv[]) {
 
 
   SwiftBackend swiftBackend;
-  swiftBackend.initialize(&info);
+  //swiftBackend.initialize(&info);
   BackendManager::registerBackend(&swiftBackend);
 
 
@@ -218,5 +215,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
   //while(1) {}
 
+  //Log Close
+  log_close();
   return fuse_stat;
 }

@@ -17,16 +17,12 @@ using namespace std;
 
 namespace FUSESwift {
 
-//Static members
-DownloadQueue* DownloadQueue::mInstance = new DownloadQueue();
-
 DownloadQueue::DownloadQueue():SyncQueue() {
 	// TODO Auto-generated constructor stub
 
 }
 
 DownloadQueue::~DownloadQueue() {
-	// TODO Auto-generated destructor stub
 }
 
 void DownloadQueue::updateFromBackend() {
@@ -48,10 +44,10 @@ void DownloadQueue::updateFromBackend() {
 	log_msg("DOWNLOAD QUEUE: Num of Events: %zu .\n",list.size());
 }
 
-void DownloadQueue::processDownloadContent(SyncEvent* _event) {
+void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	if(_event == nullptr || _event->fullPathBuffer.length()==0)
 		return;
-	FileNode* fileNode = FileSystem::getInstance()->getNode(_event->fullPathBuffer);
+	FileNode* fileNode = FileSystem::getInstance().getNode(_event->fullPathBuffer);
 	//If File exist then we won't download it!
 	if(fileNode!=nullptr)
 	  return;
@@ -64,9 +60,9 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	}
 	//Now create a file in FS
 	//handle directories
-	FileNode* parent = FileSystem::getInstance()->createHierarchy(_event->fullPathBuffer);
-	string fileName = FileSystem::getInstance()->getFileNameFromPath(_event->fullPathBuffer);
-	FileNode *newFile = FileSystem::getInstance()->mkFile(parent, fileName);
+	FileNode* parent = FileSystem::getInstance().createHierarchy(_event->fullPathBuffer);
+	string fileName = FileSystem::getInstance().getFileNameFromPath(_event->fullPathBuffer);
+	FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName);
 	newFile->lockDelete();
 	newFile->open();
 	newFile->unlockDelete();
@@ -78,7 +74,7 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	while(iStream->eof() == false) {
 	  iStream->read(buff,FileSystem::blockSize);
 	  //CheckEvent validity
-    if(!UploadQueue::getInstance()->checkEventValidity(fakeDeleteEvent)) return;
+    if(!UploadQueue::getInstance().checkEventValidity(fakeDeleteEvent)) return;
     //get lock delete so file won't be deleted
     newFile->lockDelete();
 	  newFile->write(buff,offset,iStream->gcount());
@@ -91,15 +87,17 @@ void DownloadQueue::processDownloadContent(SyncEvent* _event) {
 	newFile->unlockDelete();
 }
 
-void DownloadQueue::processDownloadMetadata(SyncEvent* _event) {
+void DownloadQueue::processDownloadMetadata(const SyncEvent* _event) {
 }
 
-DownloadQueue* DownloadQueue::getInstance() {
-  return mInstance;
+DownloadQueue& DownloadQueue::getInstance() {
+  //Static members
+  static DownloadQueue instance;
+  return instance;
 }
 
 void DownloadQueue::syncLoopWrapper() {
-  DownloadQueue::getInstance()->syncLoop();
+  DownloadQueue::getInstance().syncLoop();
 }
 
 void DownloadQueue::startSynchronization() {
@@ -111,13 +109,12 @@ void DownloadQueue::stopSynchronization() {
   running = false;
 }
 
-void DownloadQueue::processEvent(SyncEvent* &_event) {
+void DownloadQueue::processEvent(const SyncEvent* _event) {
 	Backend *backend = BackendManager::getActiveBackend();
 	if (backend == nullptr) {
 		log_msg("No active backend\n");
 		return;
 	}
-
 	switch (_event->type) {
 	case SyncEventType::DOWNLOAD_CONTENT:
 		log_msg("Event:DOWNLOAD_CONTENT fullpath:%s\n",
@@ -134,10 +131,6 @@ void DownloadQueue::processEvent(SyncEvent* &_event) {
 				_event->node->getFullPath().c_str(),
 				SyncEvent::getEnumString(_event->type).c_str());
 	}
-	//Do clean up! delete event
-	if(_event != nullptr)
-		delete _event;
-	_event = nullptr;
 }
 
 void DownloadQueue::syncLoop() {
@@ -160,6 +153,10 @@ void DownloadQueue::syncLoop() {
 		//pop the first element and process it
 		SyncEvent* event = pop();
 		processEvent(event);
+		//do cleanup! delete event
+    if(event != nullptr)
+      delete event;
+    event = nullptr;
 		//reset delay
 		delay = minDelay;
 	}

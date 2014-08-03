@@ -28,12 +28,12 @@ public:
   bool initialize(Swift::AuthenticationInfo* _authInfo);
   //Implement backend interface
   std::vector<std::string>* list();
-  std::istream* get(SyncEvent *_getEvent);
-  std::vector<std::pair<std::string,std::string> >* get_metadata(SyncEvent *_getMetaEvent);
-  bool put(SyncEvent *_putEvent);
-  bool put_metadata(SyncEvent *_putMetaEvent);
-  bool move(SyncEvent *_moveEvent);
-  bool remove(SyncEvent *_removeEvent);
+  std::istream* get(const SyncEvent *_getEvent);
+  std::vector<std::pair<std::string,std::string> >* get_metadata(const SyncEvent *_getMetaEvent);
+  bool put(const SyncEvent *_putEvent);
+  bool put_metadata(const SyncEvent *_putMetaEvent);
+  bool move(const SyncEvent *_moveEvent);
+  bool remove(const SyncEvent *_removeEvent);
 
 };
 

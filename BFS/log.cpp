@@ -41,6 +41,11 @@ FILE *log_open() {
   return logfile;
 }
 
+void log_close() {
+  fclose(bb_data->logfile);
+  delete bb_data;
+}
+
 void log_msg(const char *format, ...) {
 #ifdef DEBUG
   va_list ap;

@@ -15,16 +15,16 @@ class DownloadQueue: public SyncQueue{
   //Singleton instance
   static DownloadQueue* mInstance;
   //Process Events
-  void processEvent(SyncEvent* &_event);
+  void processEvent(const SyncEvent* _event);
   static void syncLoopWrapper();
   void syncLoop();
   void updateFromBackend();
-  void processDownloadContent(SyncEvent* _event);
-  void processDownloadMetadata(SyncEvent* _event);
+  void processDownloadContent(const SyncEvent* _event);
+  void processDownloadMetadata(const SyncEvent* _event);
   //Private constructor
   DownloadQueue();
 public:
-  static DownloadQueue* getInstance();
+  static DownloadQueue& getInstance();
   virtual ~DownloadQueue();
   //Start Downlaod Thread
   void startSynchronization();

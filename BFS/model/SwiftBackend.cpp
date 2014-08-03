@@ -58,7 +58,7 @@ bool SwiftBackend::initDefaultContainer() {
     return false;
 }
 
-bool SwiftBackend::put(SyncEvent* _putEvent) {
+bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(_putEvent == nullptr || account == nullptr
       || defaultContainer == nullptr || _putEvent->node == nullptr)
     return false;
@@ -74,7 +74,7 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
       }
 
   //CheckEvent validity
-  if(!UploadQueue::getInstance()->checkEventValidity(*_putEvent)) {
+  if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
     //release file delete lock, so they can delete it
     _putEvent->node->unlockDelete();
     return false;
@@ -115,11 +115,11 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   long read = 0;
   FileNode *node = _putEvent->node;
   do {
-    //node = FileSystem::getInstance()->getNode(nameBackup);
+    //node = FileSystem::getInstance().getNode(nameBackup);
     //if(node == nullptr)
       //break;
     //CheckEvent validity
-    if(!UploadQueue::getInstance()->checkEventValidity(*_putEvent)) return false;
+    if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) return false;
     //get lock delete so file won't be deleted
     _putEvent->node->lockDelete();
     read = node->read(buff,offset,FileSystem::blockSize);
@@ -136,7 +136,7 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   }
   else {
     //CheckEvent validity
-    if(!UploadQueue::getInstance()->checkEventValidity(*_putEvent)) return false;
+    if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) return false;
     //get lock delete so file won't be deleted
     _putEvent->node->lockDelete();
     log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
@@ -158,11 +158,11 @@ bool SwiftBackend::put(SyncEvent* _putEvent) {
   }
 }
 
-bool SwiftBackend::put_metadata(SyncEvent* _putMetaEvent) {
+bool SwiftBackend::put_metadata(const SyncEvent* _putMetaEvent) {
   return false;
 }
 
-bool SwiftBackend::move(SyncEvent* _moveEvent) {
+bool SwiftBackend::move(const SyncEvent* _moveEvent) {
   //we need locking here as well like delete!
   /*
   if(_moveEvent == nullptr || account == nullptr
@@ -214,7 +214,7 @@ vector<string>* FUSESwift::SwiftBackend::list() {
 	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
 	  //Check if this object already is downloaded
 	  FileNode* node =
-	      FileSystem::getInstance()->getNode(convertFromSwiftName((*it)->getName()));
+	      FileSystem::getInstance().getNode(convertFromSwiftName((*it)->getName()));
 	  //TODO check last modified time not MD5
 	  //if(node!=nullptr && node->getMD5() == (*it)->getHash())
 	  if(node!=nullptr)
@@ -225,7 +225,7 @@ vector<string>* FUSESwift::SwiftBackend::list() {
 	return listFiles;
 }
 
-bool SwiftBackend::remove(SyncEvent* _removeEvent) {
+bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
   if(_removeEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)
       return false;
@@ -242,7 +242,7 @@ bool SwiftBackend::remove(SyncEvent* _removeEvent) {
     return true;
 }
 
-istream* SwiftBackend::get(SyncEvent* _getEvent) {
+istream* SwiftBackend::get(const SyncEvent* _getEvent) {
   if(_getEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)
     return nullptr;
@@ -257,7 +257,7 @@ istream* SwiftBackend::get(SyncEvent* _getEvent) {
     return res->getPayload();
 }
 
-vector<pair<string,string>>* SwiftBackend::get_metadata(SyncEvent* _getMetaEvent) {
+vector<pair<string,string>>* SwiftBackend::get_metadata(const SyncEvent* _getMetaEvent) {
   if(_getMetaEvent == nullptr || account == nullptr
         || defaultContainer == nullptr)
       return nullptr;
