@@ -9,6 +9,7 @@
 #include <thread>
 #include "BackendManager.h"
 #include "../log.h"
+#include "MemoryController.h"
 
 using namespace std;
 
@@ -87,6 +88,9 @@ void UploadQueue::syncLoop() {
       delay *= 2;
       if(delay > maxDelay)
         delay = maxDelay;
+      double vm,rss;
+      process_mem_usage(vm,rss);
+      cout << "VM: " << vm/1024 << " MB; RSS: " << rss/1024 << " MB" << endl;
       continue;
     }
     //pop the first element and process it
@@ -98,6 +102,9 @@ void UploadQueue::syncLoop() {
     event = nullptr;
     //reset delay
     delay = minDelay;
+    double vm,rss;
+    process_mem_usage(vm,rss);
+    cout << "VM: " << vm/1024 << " MB; RSS: " << rss/1024 << " MB" << endl;
   }
 }
 

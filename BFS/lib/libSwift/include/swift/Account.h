@@ -50,12 +50,12 @@ private:
   /**
    * Account Roles
    */
-  std::vector<Role> roles;
+  std::vector<Role*> roles;
 
   /**
    * Openstack Services
    */
-  std::vector<Service> services;
+  std::vector<Service*> services;
 
   /**
    * ObjectStore tokens expire after 24 hours. If reauthentication is allowed (default behaviour),
@@ -162,7 +162,7 @@ public:
   /**
    * Get All Containers
    */
-  SwiftResult<std::vector<Container*>*>* swiftGetContainers(bool _newest = false);
+  SwiftResult<std::vector<Container>*>* swiftGetContainers(bool _newest = false);
 
   SwiftResult<std::istream*>* swiftAccountDetails(HTTPHeader &_formatHeader =
       HEADER_FORMAT_APPLICATION_JSON,

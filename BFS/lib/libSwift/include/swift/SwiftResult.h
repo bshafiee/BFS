@@ -10,23 +10,45 @@
 
 //#include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPResponse.h>
+#include <Poco/Net/HTTPClientSession.h>
 #include <iostream>
 #include <ErrorNo.h>
+#include <typeinfo>
+#include <type_traits>
 
 namespace Swift {
 
 template <class T>
 class SwiftResult {
   Poco::Net::HTTPResponse *response;
+  Poco::Net::HTTPClientSession *session;
   SwiftError error;
   /** Real Data **/
   T payload;
 
 public:
-  SwiftResult():response(nullptr), error(SwiftError::SWIFT_OK,"SWIFT_OK")  {
+  SwiftResult():response(nullptr), session(nullptr), error(SwiftError::SWIFT_OK,"SWIFT_OK")  {
   }
 
-  virtual ~SwiftResult()  {
+  virtual ~SwiftResult() {
+    if(response!=nullptr) {
+      delete response;
+      response = nullptr;
+    }
+    if(session!=nullptr) {
+      delete session;
+      session = nullptr;
+    }
+
+    if(payload!=nullptr) {
+      //Istream is part of session which is being deleted in the next statement
+      if (!std::is_same<T, std::istream*>::value &&
+          !std::is_same<T, Poco::Net::HTTPClientSession*>::value)//session as paylod
+        delete static_cast<T>(payload);
+      payload = nullptr;
+    }
+
+    //std::cout <<"DESTRUCTOR SWIFTRESULT"<<std::endl;
   }
 
   const SwiftError& getError() const {
@@ -51,6 +73,14 @@ public:
 
   void setResponse(Poco::Net::HTTPResponse* response) {
     this->response = response;
+  }
+
+  Poco::Net::HTTPClientSession* getSession() const {
+    return session;
+  }
+
+  void setSession(Poco::Net::HTTPClientSession* _session) {
+    this->session = _session;
   }
 };
 

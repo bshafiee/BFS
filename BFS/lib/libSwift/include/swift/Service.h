@@ -33,7 +33,7 @@ namespace Swift {
 class Service {
   std::string name;
   std::string type;
-  std::vector<Endpoint> endpoints;
+  std::vector<Endpoint*> endpoints;
 
 public:
   Service();
@@ -45,8 +45,8 @@ public:
   void setName(const std::string& name);
   const std::string& getType() const;
   void setType(const std::string& type);
-  const std::vector<Endpoint>& getEndpoints() const;
-  void setEndpoints(const std::vector<Endpoint>& endpoints);
+  const std::vector<Endpoint*>& getEndpoints() const;
+  void setEndpoints(const std::vector<Endpoint*>& endpoints);
   Endpoint* getFirstEndpoint();
 };
 

@@ -17,6 +17,7 @@ private:
   std::pair<std::string,std::string> pair;
 public:
   HTTPHeader(std::string key,std::string value);
+  virtual ~HTTPHeader();
   /** Methods **/
   std::string getKey();
   std::string getValue();

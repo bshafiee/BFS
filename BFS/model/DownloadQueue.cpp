@@ -25,23 +25,36 @@ DownloadQueue::DownloadQueue():SyncQueue() {
 DownloadQueue::~DownloadQueue() {
 }
 
+bool DownloadQueue::shouldDownload(string path) {
+  for(string toBeDelete:deletedFiles)
+    if(toBeDelete == path)
+      return false;
+  return true;
+}
+
 void DownloadQueue::updateFromBackend() {
 	//Try to query backend for list of files
 	Backend* backend = BackendManager::getActiveBackend();
 	if (backend == nullptr) {
 		log_msg("No active backend for Download Queue\n");
+		deletedFiles.clear();
 		return;
 	}
 	vector<string>* listFiles = backend->list();
-	if(listFiles == nullptr || listFiles->size() == 0)
+	if(listFiles == nullptr || listFiles->size() == 0) {
+	  deletedFiles.clear();
 		return;
+	}
 	//Now we have actully some files to sync(download)
 	for(auto it=listFiles->begin();it!=listFiles->end();it++) {
+	  if(!shouldDownload(*it))
+	    continue;
 		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,*it));
 		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,*it));
 		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
 	log_msg("DOWNLOAD QUEUE: Num of Events: %zu .\n",list.size());
+	deletedFiles.clear();
 }
 
 void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
@@ -160,6 +173,11 @@ void DownloadQueue::syncLoop() {
 		//reset delay
 		delay = minDelay;
 	}
+}
+
+void DownloadQueue::informDeletedFiles(std::vector<std::string> list) {
+  for(string item:list)
+    deletedFiles.push_back(item);
 }
 
 } /* namespace FUSESwift */

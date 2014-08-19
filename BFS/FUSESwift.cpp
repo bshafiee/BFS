@@ -466,8 +466,8 @@ void* swift_init(struct fuse_conn_info* conn) {
 
   log_msg("\nStarting SyncThreads\n");
   //Start SyncQueue threads
-  //UploadQueue::getInstance()->startSynchronization();
-  //DownloadQueue::getInstance()->startSynchronization();
+  UploadQueue::getInstance().startSynchronization();
+  DownloadQueue::getInstance().startSynchronization();
   log_msg("\nSyncThreads running...\n");
 
   return nullptr;

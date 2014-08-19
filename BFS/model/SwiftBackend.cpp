@@ -39,14 +39,14 @@ bool SwiftBackend::initialize(Swift::AuthenticationInfo* _authInfo) {
 }
 
 bool SwiftBackend::initDefaultContainer() {
-  SwiftResult<vector<Container*>*>* res = account->swiftGetContainers(true);
+  SwiftResult<vector<Container>*>* res = account->swiftGetContainers(true);
   if(res->getError().code != SwiftError::SWIFT_OK) {
       log_msg("SwiftError: %s\n",res->getError().msg.c_str());
       return false;
   }
   for(auto it = res->getPayload()->begin(); it != res->getPayload()->end();it++)
-    if((*it)->getName() == DEFAULT_CONTAINER_NAME)
-      defaultContainer = *it;
+    if((*it).getName() == DEFAULT_CONTAINER_NAME)
+      defaultContainer = &(*it);
   if(defaultContainer!=nullptr)
     return true;
   //create default container
@@ -65,12 +65,12 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   //get lock delete so file won't be deleted
   _putEvent->node->lockDelete();
 
-  SwiftResult<vector<Object*>*>* res = defaultContainer->swiftGetObjects();
+  SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
   if(res->getPayload() != nullptr)
     for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
-      if((*it)->getName() == convertToSwiftName(_putEvent->node->getFullPath())) {
-        obj = *it;
+      if((*it).getName() == convertToSwiftName(_putEvent->node->getFullPath())) {
+        obj = &(*it);
       }
 
   //CheckEvent validity
@@ -207,20 +207,20 @@ std::string FUSESwift::SwiftBackend::convertFromSwiftName(
 vector<string>* FUSESwift::SwiftBackend::list() {
 	if(account == nullptr || defaultContainer == nullptr)
 		return nullptr;
-	SwiftResult<vector<Object*>*>* res = defaultContainer->swiftGetObjects();
+	SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
 	if(res->getError().code != SwiftError::SWIFT_OK)
 		return nullptr;
 	vector<string>* listFiles = new vector<string>();
 	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
 	  //Check if this object already is downloaded
 	  FileNode* node =
-	      FileSystem::getInstance().getNode(convertFromSwiftName((*it)->getName()));
+	      FileSystem::getInstance().getNode(convertFromSwiftName((*it).getName()));
 	  //TODO check last modified time not MD5
 	  //if(node!=nullptr && node->getMD5() == (*it)->getHash())
 	  if(node!=nullptr)
 	    continue;//existing node
 	  else
-	    listFiles->push_back(convertFromSwiftName((*it)->getName()));
+	    listFiles->push_back(convertFromSwiftName((*it).getName()));
 	}
 	return listFiles;
 }

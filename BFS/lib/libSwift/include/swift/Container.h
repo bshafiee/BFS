@@ -22,7 +22,7 @@ public:
   virtual ~Container();
 
   /** API Functions **/
-  SwiftResult<std::vector<Object*>*>* swiftGetObjects(bool _newest = false);
+  SwiftResult<std::vector<Object>*>* swiftGetObjects(bool _newest = false);
 
   SwiftResult<std::istream*>* swiftListObjects(HTTPHeader &_formatHeader = HEADER_FORMAT_APPLICATION_JSON,
       std::vector<HTTPHeader> *_uriParam = nullptr, bool _newest = false);

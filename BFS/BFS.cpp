@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
 
 
   SwiftBackend swiftBackend;
-  //swiftBackend.initialize(&info);
+  swiftBackend.initialize(&info);
   BackendManager::registerBackend(&swiftBackend);
 
 
