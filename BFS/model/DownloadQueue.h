@@ -12,8 +12,6 @@
 namespace FUSESwift {
 
 class DownloadQueue: public SyncQueue{
-  //Singleton instance
-  static DownloadQueue* mInstance;
   //Process Events
   void processEvent(const SyncEvent* _event);
   static void syncLoopWrapper();
@@ -22,6 +20,7 @@ class DownloadQueue: public SyncQueue{
   void processDownloadContent(const SyncEvent* _event);
   void processDownloadMetadata(const SyncEvent* _event);
   //Delete files
+  std::mutex deletedFilesMutex;
   std::vector<std::string> deletedFiles;
   bool shouldDownload(std::string);
   //Private constructor

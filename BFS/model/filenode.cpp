@@ -12,6 +12,7 @@
 #include "filesystem.h"
 #include <Poco/MD5Engine.h>
 #include "UploadQueue.h"
+#include "MemoryController.h"
 
 using namespace std;
 
@@ -40,6 +41,9 @@ FileNode::~FileNode() {
   children.clear();
   //Unlock delete no unlock when being removed
   //unlockDelete();
+
+  //Release Memory in the memory controller!
+  MemoryContorller::getInstance().releaseMemory(size);
 }
 
 FileNode* FileNode::getParent() {
@@ -138,6 +142,12 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
 long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   //Acquire lock
   lock_guard<mutex> lock(ioMutex);
+
+  //Check Storage space Availability
+  size_t newReqMemSize = _offset+_size - size;
+  if(newReqMemSize > 0)
+    if(!MemoryContorller::getInstance().requestMemory(newReqMemSize))
+      return -1;
 
   size_t retValue = 0;
   size_t backupSize = _size;

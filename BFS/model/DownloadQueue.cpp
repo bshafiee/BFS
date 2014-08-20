@@ -12,6 +12,7 @@
 #include "../log.h"
 #include "filesystem.h"
 #include <iostream>
+#include <mutex>
 
 using namespace std;
 
@@ -37,14 +38,18 @@ void DownloadQueue::updateFromBackend() {
 	Backend* backend = BackendManager::getActiveBackend();
 	if (backend == nullptr) {
 		log_msg("No active backend for Download Queue\n");
+		lock_guard<std::mutex> lock(deletedFilesMutex);
 		deletedFiles.clear();
 		return;
 	}
 	vector<string>* listFiles = backend->list();
+	//Get lock for deleted files
+	lock_guard<std::mutex> lock(deletedFilesMutex);
 	if(listFiles == nullptr || listFiles->size() == 0) {
 	  deletedFiles.clear();
 		return;
 	}
+
 	//Now we have actully some files to sync(download)
 	for(auto it=listFiles->begin();it!=listFiles->end();it++) {
 	  if(!shouldDownload(*it))
@@ -54,7 +59,18 @@ void DownloadQueue::updateFromBackend() {
 		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
 	log_msg("DOWNLOAD QUEUE: Num of Events: %zu .\n",list.size());
-	deletedFiles.clear();
+	//Update list of files that were actually deleted
+	for(auto it=deletedFiles.begin();it!=deletedFiles.end();) {
+    bool exist = false;
+    for(string file:*listFiles) {
+      if(file == *it)
+        exist = true;
+    }
+    if(!exist)
+      it = deletedFiles.erase(it);
+    else
+      ++it;
+  }
 }
 
 void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
@@ -176,6 +192,7 @@ void DownloadQueue::syncLoop() {
 }
 
 void DownloadQueue::informDeletedFiles(std::vector<std::string> list) {
+  lock_guard<std::mutex> lock(deletedFilesMutex);
   for(string item:list)
     deletedFiles.push_back(item);
 }

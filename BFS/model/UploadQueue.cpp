@@ -88,9 +88,7 @@ void UploadQueue::syncLoop() {
       delay *= 2;
       if(delay > maxDelay)
         delay = maxDelay;
-      double vm,rss;
-      process_mem_usage(vm,rss);
-      cout << "VM: " << vm/1024 << " MB; RSS: " << rss/1024 << " MB" << endl;
+      cout << "TOTAL USED: "<<MemoryContorller::getInstance().getTotal()/1024/1024 << " MB" << endl;
       continue;
     }
     //pop the first element and process it
@@ -102,13 +100,12 @@ void UploadQueue::syncLoop() {
     event = nullptr;
     //reset delay
     delay = minDelay;
-    double vm,rss;
-    process_mem_usage(vm,rss);
-    cout << "VM: " << vm/1024 << " MB; RSS: " << rss/1024 << " MB" << endl;
+    cout << "TOTAL USED: "<<MemoryContorller::getInstance().getTotal()/1024/1024 << " MB" << endl;
   }
 }
 
 bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
+  lock_guard<std::mutex> lock(mutex);
   switch (_event.type) {
     case SyncEventType::DELETE:
       return true;

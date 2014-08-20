@@ -11,7 +11,7 @@ CXXFLAGS+= $(LFLAGS)
 LD = -Llib/poco/lib -Llib/libSwift/lib -L/usr/local/lib
 CXXFLAGS+=$(LD)
 
-LIBS = -pthread -lfuse -lSwift -lPocoNet -lPocoFoundation
+LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation
 
 TARGET =	BFS
 CXX=clang++

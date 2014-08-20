@@ -43,6 +43,7 @@
 #include "model/BackendManager.h"
 #include "string.h"
 #include "model/DownloadQueue.h"
+#include "model/MemoryController.h"
 
 
 using namespace Swift;
@@ -111,6 +112,13 @@ void bb_usage()
 void outOfMemHandler()
 {
     std::cerr << "Unable to satisfy request for memory\n";
+    std::abort();
+}
+
+// function to call if operator new can't allocate enough memory or error arises
+void systemErrorHandler()
+{
+    std::cerr << "System Termination Occurred\n";
     std::abort();
 }
 
@@ -207,8 +215,12 @@ int main(int argc, char *argv[]) {
   //swift_init(nullptr);
   //DownloadQueue::getInstance()->startSynchronization();
 
+  //Get Physical Memory amount
+  cout <<"Total Physical Memory:"<<MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024<<" MB"<<endl;
+
   //set the new_handler
   std::set_new_handler(outOfMemHandler);
+  std::set_terminate(systemErrorHandler);
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
   fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);

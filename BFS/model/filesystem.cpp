@@ -13,6 +13,7 @@
 #include "../log.h"
 #include "UploadQueue.h"
 #include "DownloadQueue.h"
+#include <malloc.h>
 
 using namespace std;
 using namespace Poco;
@@ -109,6 +110,12 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
     }
   }
 
+  /**
+   * Inform Download queue that these files are going to be deleted!
+   * So no need to download them.
+   */
+  DownloadQueue::getInstance().informDeletedFiles(fullPathStack);
+
   //Now commit to sync queue! the order matters (before delete)
   for(int i=fullPathStack.size()-1;i>=0;i--)
     UploadQueue::getInstance().push(new SyncEvent(SyncEventType::DELETE,nullptr,fullPathStack[i]));
@@ -120,6 +127,9 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
 
   delete _node;//this will recursively call destructor of all kids
   _node = nullptr;
+
+  //Just trying!
+  malloc_trim(0);
   return fullPathStack.size();
 }
 

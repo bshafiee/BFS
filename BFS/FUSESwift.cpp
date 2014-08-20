@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include "model/UploadQueue.h"
 #include "model/DownloadQueue.h"
+#include "model/MemoryController.h"
 
 using namespace std;
 
@@ -293,6 +294,10 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     return written;
   }
   else {
+    //Not Enough space left on the disk!
+    if(written == -1)
+      return ENOSPC;
+
     log_msg("\nswift_write: error in writing to:%s\n",node->getName().c_str());
     return -EIO;
   }
@@ -507,12 +512,25 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   else
     log_msg("swift_ftruncate: Truncating:%s from:%zu to:%zu bytes\n", path,node->getSize(),size);
 
+  //Checking Space availability
+  size_t diff = size - node->getSize();
+  if(diff > 0)
+    if(!MemoryContorller::getInstance().checkPossibility(diff))
+      return ENOSPC;
+
   if(!node->truncate(size)) {
     log_msg("error swift_ftruncate: truncate failed: %s newSize:%zu\n", path,node->getSize());
     return EIO;
   }
-  else
+  else {
+    //Update Memory Info
+    if(diff > 0)
+      MemoryContorller::getInstance().requestMemory(diff);
+    else
+      MemoryContorller::getInstance().releaseMemory(diff);
+
     return 0;
+  }
 }
 
 /*int swift_fgetattr(const char* path, struct stat* statbuf,
