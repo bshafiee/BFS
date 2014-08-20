@@ -41,8 +41,6 @@ FileNode::~FileNode() {
   children.clear();
   //Unlock delete no unlock when being removed
   //unlockDelete();
-
-  //Release Memory in the memory controller!
   MemoryContorller::getInstance().releaseMemory(size);
 }
 

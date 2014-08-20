@@ -13,7 +13,6 @@
 #include "../log.h"
 #include "UploadQueue.h"
 #include "DownloadQueue.h"
-#include <malloc.h>
 
 using namespace std;
 using namespace Poco;
@@ -128,8 +127,6 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   delete _node;//this will recursively call destructor of all kids
   _node = nullptr;
 
-  //Just trying!
-  malloc_trim(0);
   return fullPathStack.size();
 }
 
