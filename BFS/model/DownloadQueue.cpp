@@ -106,7 +106,15 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
     if(!UploadQueue::getInstance().checkEventValidity(fakeDeleteEvent)) return;
     //get lock delete so file won't be deleted
     newFile->lockDelete();
-	  newFile->write(buff,offset,iStream->gcount());
+    int retCode = newFile->write(buff,offset,iStream->gcount());
+	  if(retCode < 0) {
+	    log_msg("Error in writing file:%s, probably no diskspace, Code:%d\n",newFile->getFullPath().c_str(),retCode);
+	    FileNode* par =  newFile->getParent();
+	    newFile->close();
+	    newFile->unlockDelete();
+	    FileSystem::getInstance().rmNode(par,newFile);
+	    return;
+	  }
 	  newFile->unlockDelete();
 	  offset += iStream->gcount();
 	}
