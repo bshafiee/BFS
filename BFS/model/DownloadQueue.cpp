@@ -112,7 +112,12 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	    FileNode* par =  newFile->getParent();
 	    newFile->close();
 	    newFile->unlockDelete();
-	    FileSystem::getInstance().rmNode(par,newFile);
+	    //Do the actual removing on local file system
+      //remove from parent
+      if(par != nullptr) //removing the node itself
+        par->childRemove(newFile->getName());
+      delete newFile;//this will recursively call destructor of all kids
+      newFile = nullptr;
 	    return;
 	  }
 	  newFile->unlockDelete();

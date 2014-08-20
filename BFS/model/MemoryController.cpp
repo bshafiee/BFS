@@ -62,7 +62,8 @@ void MemoryContorller::processMemUsage(double& vm_usage,
 }
 
 MemoryContorller::MemoryContorller():total(0),max_allowed(0) {
-  max_allowed = getTotalSystemMemory() * MAX_MEM_COEF;
+  //max_allowed = getTotalSystemMemory() * MAX_MEM_COEF;
+  max_allowed = 500*1024*1024;
 }
 
 bool MemoryContorller::requestMemory(ulong _size) {
