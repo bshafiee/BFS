@@ -25,7 +25,7 @@ public:
    * Virtual list of methods that each
    * Backend implementation should provide
    * **/
-  virtual std::vector<std::string>* list() = 0;
+  virtual std::vector<std::pair<std::string,size_t>>* list() = 0;
   virtual std::istream* get(const SyncEvent *_getEvent) = 0;
   virtual std::vector<std::pair<std::string,std::string> >* get_metadata(const SyncEvent *_getMetaEvent) = 0;
   virtual bool put(const SyncEvent *_putEvent) = 0;

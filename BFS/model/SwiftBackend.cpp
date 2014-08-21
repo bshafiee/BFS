@@ -204,13 +204,13 @@ std::string FUSESwift::SwiftBackend::convertFromSwiftName(
 		return FileSystem::delimiter+swiftPath;
 }
 
-vector<string>* FUSESwift::SwiftBackend::list() {
+std::vector<std::pair<std::string,size_t>>* FUSESwift::SwiftBackend::list() {
 	if(account == nullptr || defaultContainer == nullptr)
 		return nullptr;
 	SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
 	if(res->getError().code != SwiftError::SWIFT_OK)
 		return nullptr;
-	vector<string>* listFiles = new vector<string>();
+	vector<pair<string,size_t>>* listFiles = new vector<pair<string,size_t>>();
 	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
 	  //Check if this object already is downloaded
 	  FileNode* node =
@@ -220,7 +220,7 @@ vector<string>* FUSESwift::SwiftBackend::list() {
 	  if(node!=nullptr)
 	    continue;//existing node
 	  else
-	    listFiles->push_back(convertFromSwiftName((*it).getName()));
+	    listFiles->push_back(make_pair(convertFromSwiftName((*it).getName()),it->getLength()));
 	}
 	return listFiles;
 }

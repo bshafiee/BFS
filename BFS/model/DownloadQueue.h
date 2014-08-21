@@ -22,7 +22,7 @@ class DownloadQueue: public SyncQueue{
   //Delete files
   std::mutex deletedFilesMutex;
   std::vector<std::string> deletedFiles;
-  bool shouldDownload(std::string);
+  bool shouldDownload(std::pair<std::string,size_t>);
   //Private constructor
   DownloadQueue();
 public:

@@ -27,7 +27,7 @@ struct SyncEvent {
   std::string fullPathBuffer;
 
   SyncEvent (SyncEventType _type,FileNode* _node, std::string _fullPathBuffer = ""):type(_type),node(_node),
-      fullPathBuffer(_fullPathBuffer) {}
+      fullPathBuffer(_fullPathBuffer){}
   bool operator == (const SyncEvent& a) const {
     if(this->node == a.node &&
        this->type == a.type &&

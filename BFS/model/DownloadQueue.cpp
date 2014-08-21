@@ -13,6 +13,7 @@
 #include "filesystem.h"
 #include <iostream>
 #include <mutex>
+#include "MemoryController.h"
 
 using namespace std;
 
@@ -26,10 +27,15 @@ DownloadQueue::DownloadQueue():SyncQueue() {
 DownloadQueue::~DownloadQueue() {
 }
 
-bool DownloadQueue::shouldDownload(string path) {
+bool DownloadQueue::shouldDownload(pair<string,size_t> item) {
   for(string toBeDelete:deletedFiles)
-    if(toBeDelete == path)
+    if(toBeDelete == item.first)
       return false;
+  //Check Size
+  if(!MemoryContorller::getInstance().checkPossibility(item.second)){
+    log_msg("Can't download %s, due to lack of space.\n",item.first.c_str());
+    return false;
+  }
   return true;
 }
 
@@ -42,7 +48,7 @@ void DownloadQueue::updateFromBackend() {
 		deletedFiles.clear();
 		return;
 	}
-	vector<string>* listFiles = backend->list();
+	vector<pair<string,size_t>>* listFiles = backend->list();
 	//Get lock for deleted files
 	lock_guard<std::mutex> lock(deletedFilesMutex);
 	if(listFiles == nullptr || listFiles->size() == 0) {
@@ -54,16 +60,16 @@ void DownloadQueue::updateFromBackend() {
 	for(auto it=listFiles->begin();it!=listFiles->end();it++) {
 	  if(!shouldDownload(*it))
 	    continue;
-		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,*it));
-		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,*it));
+		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,it->first));
+		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,it->first));
 		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
 	log_msg("DOWNLOAD QUEUE: Num of Events: %zu .\n",list.size());
 	//Update list of files that were actually deleted
 	for(auto it=deletedFiles.begin();it!=deletedFiles.end();) {
     bool exist = false;
-    for(string file:*listFiles) {
-      if(file == *it)
+    for(pair<string,size_t> fileItem:*listFiles) {
+      if(fileItem.first == *it)
         exist = true;
     }
     if(!exist)
@@ -107,19 +113,14 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
     //get lock delete so file won't be deleted
     newFile->lockDelete();
     int retCode = newFile->write(buff,offset,iStream->gcount());
+    //Check space availability
 	  if(retCode < 0) {
 	    log_msg("Error in writing file:%s, probably no diskspace, Code:%d\n",newFile->getFullPath().c_str(),retCode);
-	    FileNode* par =  newFile->getParent();
 	    newFile->close();
 	    newFile->unlockDelete();
-	    //Do the actual removing on local file system
-      //remove from parent
-      if(par != nullptr) //removing the node itself
-        par->childRemove(newFile->getName());
-      delete newFile;//this will recursively call destructor of all kids
-      newFile = nullptr;
 	    return;
 	  }
+
 	  newFile->unlockDelete();
 	  offset += iStream->gcount();
 	}
