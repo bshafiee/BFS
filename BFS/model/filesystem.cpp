@@ -10,6 +10,7 @@
 #include <vector>
 #include <iostream>
 #include <Poco/StringTokenizer.h>
+#include <Poco/RegularExpression.h>
 #include "../log.h"
 #include "UploadQueue.h"
 #include "DownloadQueue.h"
@@ -305,6 +306,10 @@ std::string FileSystem::printFileSystem() {
   }
   log_msg("%s\n\n",output.c_str());
   return output;
+}
+
+bool FileSystem::nameValidator(const std::string& _name) {
+  return RegularExpression::match(_name,"^[a-zA-Z0-9äöüÄÖÜ\\.\\-_@!#\\$%\\^\\&\\*\\)\\(\\+\\|\\?<>\\[\\]\\{\\}:;'\",~]*$");
 }
 
 } // namespace

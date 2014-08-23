@@ -82,6 +82,12 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
 
   if (S_ISREG(mode)) {
     string pathStr(path, strlen(path));
+    string name = FileSystem::getInstance().getFileNameFromPath(path);
+    if(!FileSystem::getInstance().nameValidator(name)) {
+      if(DEBUG_MKNOD)
+        log_msg("\nbb_mknod can't create file: invalid name:\"%s\"\n", path);
+      return EBFONT;
+    }
     FileNode *newFile = FileSystem::getInstance().mkFile(pathStr);
     if (newFile == nullptr) {
       retstat = ENOENT;
@@ -118,6 +124,12 @@ int swift_mkdir(const char* path, mode_t mode) {
 
   if (S_ISDIR(mode)) {
     string pathStr(path, strlen(path));
+    string name = FileSystem::getInstance().getFileNameFromPath(path);
+    if(!FileSystem::getInstance().nameValidator(name)) {
+      if(DEBUG_MKDIR)
+        log_msg("\nbb_mkdir can't create directory: invalid name:\"%s\"\n", path);
+      return EBFONT;
+    }
     FileNode *newDir = FileSystem::getInstance().mkDirectory(pathStr);
     if (newDir == nullptr){
       retstat = ENOENT;
@@ -186,9 +198,18 @@ int swift_symlink(const char* from, const char* to) {
 int swift_rename(const char* from, const char* to) {
   if(DEBUG_RENAME)
     log_msg("\nbb_rename(fpath=\"%s\", newpath=\"%s\")\n", from, to);
-
+  //Disabling rename
+  return -ENOENT;
+/*
   string oldPath(from, strlen(from));
   string newPath(to, strlen(to));
+  string newName = FileSystem::getInstance().getFileNameFromPath(newPath);
+  if(!FileSystem::getInstance().nameValidator(newName)) {
+    if(DEBUG_RENAME)
+      log_msg("\nbb_rename can't rename file: invalid name:\"%s\"\n", to);
+    return EBFONT;
+  }
+
   if(!FileSystem::getInstance().tryRename(oldPath,newPath)) {
     log_msg("\nbb_rename failed.\n");
     return -ENOENT;
@@ -196,10 +217,11 @@ int swift_rename(const char* from, const char* to) {
   else {
     if(DEBUG_RENAME)
       log_msg("bb_rename successful.\n");
-    /*FileNode* node = FileSystem::getInstance().getNode(newPath);
-    log_msg("bb_rename MD5:%s\n",node->getMD5().c_str());*/
+    //FileNode* node = FileSystem::getInstance().getNode(newPath);
+    //log_msg("bb_rename MD5:%s\n",node->getMD5().c_str());
     return 0;
   }
+*/
 }
 
 /*int swift_link(const char* from, const char* to) {

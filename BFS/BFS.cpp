@@ -163,7 +163,6 @@ int main(int argc, char *argv[]) {
   swiftBackend.initialize(&info);
   BackendManager::registerBackend(&swiftBackend);
 
-
   //Get Physical Memory amount
   cout <<"Total Physical Memory:"<<MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024<<" MB"<<endl;
 

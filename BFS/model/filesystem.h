@@ -57,6 +57,10 @@ public:
    */
   FileNode* createHierarchy(const std::string &_path);
   std::string printFileSystem();
+  /**
+   * checks if the input name is valid
+   */
+  bool nameValidator(const std::string &_name);
 };
 
 } /* namespace FUSESwift */
