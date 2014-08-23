@@ -102,7 +102,7 @@ static struct fuse_operations xmp_oper = {
   .fallocate = NULL
 };
 
-void bb_usage()
+void bfs_usage()
 {
     fprintf(stderr, "usage:  bbfs [FUSE and mount options] rootDir mountPoint\n");
     abort();
@@ -156,64 +156,13 @@ int main(int argc, char *argv[]) {
   // mountpoint whose name starts with a hyphen, but so
   // will a zillion other programs)
   if (argc < 1)
-    bb_usage();
-
-  /*
-  long len = 1000;
-  char buff[len];
-  memset(buff,'*',len);
-
-  FUSESwift::FileNode* myFile = new FileNode("F1",false);
-  long offset = 0;
-  for(int i=0;i<100000;i++) {
-    myFile->write(buff,offset,len);
-    offset += len;
-  }
-
-  FUSESwift::FileNode* f1 = new FileNode("F1",false);
-  FUSESwift::FileNode* f2 = new FileNode("F2",false);
-  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::RENAME,f1));
-  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::RENAME,f1));
-  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,f1));
-  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,f2));
-  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_METADATA,f1));
-  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::DELETE,f2));
-  SyncQueue::getInstance()->push(new SyncEvent(SyncEventType::UPDATE_CONTENT,f2));
-
-  while(SyncQueue::getInstance()->size())
-    cout<<SyncQueue::getInstance()->pop()->print()<<endl;
-  */
+    bfs_usage();
 
 
   SwiftBackend swiftBackend;
   swiftBackend.initialize(&info);
   BackendManager::registerBackend(&swiftBackend);
 
-
-  /*FUSESwift::FileNode* f1 = new FileNode("F1",false,nullptr);
-  long len = 5000;
-  char buff[len];
-  memset(buff,'*',len);
-  //for(int i=0;i<5000;i++)
-  f1->write(buff,f1->getSize(),len);
-  cout<<"MD5:"<<f1->getMD5()<<"\tSize:"<<f1->getSize()<<endl;
-  char buff2[4000];
-  memset(buff2,'*',4000);
-  f1->write(buff2,4500,4000);
-  cout<<"MD5:"<<f1->getMD5()<<"\tSize:"<<f1->getSize()<<endl;
-
-  f1->truncate(5000);
-  cout<<"MD5:"<<f1->getMD5()<<"\tSize:"<<f1->getSize()<<endl;*/
-/*
-  SyncQueue::push(new SyncEvent(SyncEventType::UPDATE_CONTENT,f1,f1->getFullPath()));
-  SyncQueue::startSyncThread();
-
-  FileNode* root = nullptr;
-  this_thread::sleep_for(chrono::milliseconds(5000));
-  SyncQueue::push(new SyncEvent(SyncEventType::DELETE,f1,f1->getFullPath()));*/
-
-  //swift_init(nullptr);
-  //DownloadQueue::getInstance()->startSynchronization();
 
   //Get Physical Memory amount
   cout <<"Total Physical Memory:"<<MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024<<" MB"<<endl;

@@ -30,7 +30,7 @@ bool SwiftBackend::initialize(Swift::AuthenticationInfo* _authInfo) {
     return false;
   SwiftResult<Account*>* res = Account::authenticate(*_authInfo,true);
   if(res->getError().code != SwiftError::SWIFT_OK) {
-    log_msg("SwiftError: %s\n",res->getError().msg.c_str());
+    log_msg("SwiftError: %s\n",res->getError().toString().c_str());
     return false;
   }
 
@@ -41,7 +41,7 @@ bool SwiftBackend::initialize(Swift::AuthenticationInfo* _authInfo) {
 bool SwiftBackend::initDefaultContainer() {
   SwiftResult<vector<Container>*>* res = account->swiftGetContainers(true);
   if(res->getError().code != SwiftError::SWIFT_OK) {
-      log_msg("SwiftError: %s\n",res->getError().msg.c_str());
+      log_msg("SwiftError: %s\n",res->getError().toString().c_str());
       return false;
   }
   for(auto it = res->getPayload()->begin(); it != res->getPayload()->end();it++)
@@ -51,7 +51,7 @@ bool SwiftBackend::initDefaultContainer() {
     return true;
   //create default container
   defaultContainer = new Container(account,DEFAULT_CONTAINER_NAME);
-  SwiftResult<void*>* resCreateContainer = defaultContainer->swiftCreateContainer();
+  SwiftResult<int*>* resCreateContainer = defaultContainer->swiftCreateContainer();
   if(resCreateContainer->getError().code == SwiftError::SWIFT_OK)
     return true;
   else
@@ -208,8 +208,10 @@ std::vector<std::pair<std::string,size_t>>* FUSESwift::SwiftBackend::list() {
 	if(account == nullptr || defaultContainer == nullptr)
 		return nullptr;
 	SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
-	if(res->getError().code != SwiftError::SWIFT_OK)
+	if(res->getError().code != SwiftError::SWIFT_OK) {
+	  log_msg("Error in getting list of files in Swiftbackend:%s\n",res->getError().toString().c_str());
 		return nullptr;
+	}
 	vector<pair<string,size_t>>* listFiles = new vector<pair<string,size_t>>();
 	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
 	  //Check if this object already is downloaded
@@ -235,7 +237,7 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
       _removeEvent->fullPathBuffer.c_str(),obj.getName().c_str(),
       delResult->getResponse()->getReason().c_str());
   if(delResult->getError().code != SwiftError::SWIFT_OK) {
-    log_msg("Error in swift delete: %s\n",delResult->getError().msg.c_str());
+    log_msg("Error in swift delete: %s\n",delResult->getError().toString().c_str());
     return false;
   }
   else
@@ -250,7 +252,7 @@ istream* SwiftBackend::get(const SyncEvent* _getEvent) {
   Object obj(defaultContainer,convertToSwiftName(_getEvent->fullPathBuffer));
   SwiftResult<std::istream*>* res = obj.swiftGetObjectContent();
   if(res->getError().code != SwiftError::SWIFT_OK) {
-    log_msg("Swift Error: Downloading obj:%s\n",res->getError().msg.c_str());
+    log_msg("Swift Error: Downloading obj:%s\n",res->getError().toString().c_str());
     return nullptr;
   }
   else

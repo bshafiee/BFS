@@ -1,9 +1,21 @@
-/*
- * Account.h
- *
- *  Created on: 2014-05-28
- *      Author: Behrooz Shafiee Sarjaz
- */
+/**************************************************************************
+    This is a general SDK for OpenStack Swift API written in C++
+    Copyright (C) <2014>  <Behrooz Shafiee Sarjaz>
+    This program comes with ABSOLUTELY NO WARRANTY;
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+**************************************************************************/
 
 #ifndef ACCOUNT_H_
 #define ACCOUNT_H_
@@ -94,6 +106,8 @@ public:
   static SwiftResult<Account*>* authenticate(
       const AuthenticationInfo &_authInfo, bool _allowReauthenticate = true);
 
+  bool reAuthenticate();
+
   /**
    * The number of bytes stored by the StoredObjects in all Containers in the Account.
    * @return number of bytes
@@ -160,27 +174,74 @@ public:
   /** API Functions **/
 
   /**
-   * Get All Containers
+   * Returns all the containers under this account
+   * @return
+   *  a vector of Containers
+   * _newest
+   *  If set to True, Object Storage queries all replicas
+   *  to return the most recent one. If you omit this header,
+   *  Object Storage responds faster after it finds one valid
+   *  replica. Because setting this header to True is more
+   *  expensive for the back end, use it only when it is
+   *  absolutely needed.
    */
   SwiftResult<std::vector<Container>*>* swiftGetContainers(bool _newest = false);
 
+  /**
+   * Shows details for this account
+   * @return
+   *  An stream containing details of this account
+   * _formatHeader
+   *  Specifies format of returned information
+   * _reqMap
+   *  You can add additional query parameters to this request. Please refer
+   *  the Swift API documentations to see available query parameters.
+   *  http://docs.openstack.org/api/openstack-object-storage/1.0/content/index.html
+   */
   SwiftResult<std::istream*>* swiftAccountDetails(HTTPHeader &_formatHeader =
       HEADER_FORMAT_APPLICATION_JSON,
       std::vector<HTTPHeader> *_reqMap = nullptr, bool _newest = false);
 
-  SwiftResult<void*>* swiftCreateMetadata(
+  /**
+   * Adds metadata to this account
+   * @return
+   *  Nothing
+   * _metaData
+   *  A vector of string pairs (key,value)
+   */
+  SwiftResult<int*>* swiftCreateMetadata(
       std::vector<std::pair<std::string, std::string>> &_metaData,
       std::vector<HTTPHeader> *_reqMap = nullptr);
 
-  SwiftResult<void*>* swiftUpdateMetadata(
+  /**
+   * Updates existing metadata for this account
+   * @return
+   *  Nothing
+   * _metaData
+   *  A vector of string pairs (key,value)
+   */
+  SwiftResult<int*>* swiftUpdateMetadata(
       std::vector<std::pair<std::string, std::string>> &_metaData,
       std::vector<HTTPHeader> *_reqMap = nullptr);
 
-  SwiftResult<void*>* swiftDeleteMetadata(
+  /**
+   * Removes specified metadata (with key) from this account
+   * @return
+   *  Nothing
+   * _metaDataKeys
+   *  A vector containing keys of metadata which should be removed.
+   */
+  SwiftResult<int*>* swiftDeleteMetadata(
       std::vector<std::string> &_metaDataKeys,
       std::vector<HTTPHeader> *_reqMap = nullptr);
 
-  SwiftResult<void*>* swiftShowMetadata(bool _newest = false);
+  /**
+   * Gets the existing metadata for this account
+   * @return
+   *  Nothing. The payload is nullptr; however, the returned metadata are
+   *  part of httpresponse. For example, getResponse()->write(cout);
+   */
+  SwiftResult<int*>* swiftShowMetadata(bool _newest = false);
 };
 
 } /* namespace Swift */

@@ -1,14 +1,25 @@
-/*
- * SwiftResult.h
- *
- *  Created on: 2014-05-28
- *      Author: Behrooz Shafiee Sarjaz
- */
+/**************************************************************************
+    This is a general SDK for OpenStack Swift API written in C++
+    Copyright (C) <2014>  <Behrooz Shafiee Sarjaz>
+    This program comes with ABSOLUTELY NO WARRANTY;
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+**************************************************************************/
 
 #ifndef SWIFTRESULT_H_
 #define SWIFTRESULT_H_
 
-//#include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <iostream>
@@ -44,14 +55,12 @@ public:
       //Istream is part of session which is being deleted in the next statement
       if (!std::is_same<T, std::istream*>::value &&
           !std::is_same<T, Poco::Net::HTTPClientSession*>::value)//session as paylod
-        delete static_cast<T>(payload);
+          delete static_cast<T>(payload);
       payload = nullptr;
     }
-
-    //std::cout <<"DESTRUCTOR SWIFTRESULT"<<std::endl;
   }
 
-  const SwiftError& getError() const {
+  SwiftError getError() const {
     return error;
   }
 
