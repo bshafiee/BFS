@@ -86,7 +86,7 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
     if(!FileSystem::getInstance().nameValidator(name)) {
       if(DEBUG_MKNOD)
         log_msg("\nbb_mknod can't create file: invalid name:\"%s\"\n", path);
-      return EBFONT;
+      return EINVAL;
     }
     FileNode *newFile = FileSystem::getInstance().mkFile(pathStr);
     if (newFile == nullptr) {
@@ -128,7 +128,7 @@ int swift_mkdir(const char* path, mode_t mode) {
     if(!FileSystem::getInstance().nameValidator(name)) {
       if(DEBUG_MKDIR)
         log_msg("\nbb_mkdir can't create directory: invalid name:\"%s\"\n", path);
-      return EBFONT;
+      return EINVAL;
     }
     FileNode *newDir = FileSystem::getInstance().mkDirectory(pathStr);
     if (newDir == nullptr){
