@@ -25,7 +25,7 @@ protected:
   atomic<bool> running;
   vector<SyncEvent*> list;
   //Mutex to protect queue
-  std::mutex mutex;
+  std::mutex queueMutex;
   //Thread to run syncLoop
   std::thread *syncThread;
   //Private constructor

@@ -97,4 +97,8 @@ size_t MemoryContorller::getTotalSystemMemory() {
   return pages * page_size;
 }
 
+size_t MemoryContorller::getAvailableMemory() {
+  return max_allowed - total;
+}
+
 } //end of namespace FUSESWIFT

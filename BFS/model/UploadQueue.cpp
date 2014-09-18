@@ -105,7 +105,7 @@ void UploadQueue::syncLoop() {
 }
 
 bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
-  lock_guard<std::mutex> lock(mutex);
+  lock_guard<std::mutex> lock(queueMutex);
   switch (_event.type) {
     case SyncEventType::DELETE:
       return true;

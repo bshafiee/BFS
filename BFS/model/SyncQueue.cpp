@@ -8,6 +8,7 @@
 #include "SyncQueue.h"
 #include "../log.h"
 #include <cstdio>
+#include <mutex>
 #include "BackendManager.h"
 
 namespace FUSESwift {
@@ -15,12 +16,14 @@ namespace FUSESwift {
 SyncQueue::SyncQueue():syncThread(nullptr) {}
 
 SyncQueue::~SyncQueue() {
-  mutex.lock();
+  queueMutex.lock();
   list.clear();
-  mutex.unlock();
+  queueMutex.unlock();
 }
 
 bool SyncQueue::push(SyncEvent* _event) {
+	lock_guard<std::mutex> lock(queueMutex);
+
   if(_event == nullptr)
     return false;
 
@@ -30,23 +33,20 @@ bool SyncQueue::push(SyncEvent* _event) {
       exist = true;
       break;
     }
-  if(!exist) {
-    mutex.lock();
+  if(!exist)
     list.push_back(_event);
-    mutex.unlock();
-  }
   return true;
 }
 
 SyncEvent* SyncQueue::pop() {
   if(list.size() == 0)
     return nullptr;
-  mutex.lock();
+  queueMutex.lock();
   //First element
   SyncEvent* firstElem = list.front();
   //Now we can remove front element
   list.erase(list.begin());
-  mutex.unlock();
+  queueMutex.unlock();
   return firstElem;
 }
 

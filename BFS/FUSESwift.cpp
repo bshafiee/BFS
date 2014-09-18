@@ -80,6 +80,16 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
   if(DEBUG_MKNOD)
     log_msg("\nbb_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n", path, mode, rdev);
 
+  //Check if already exist! if yes truncate it!
+	string pathStr(path, strlen(path));
+	FileNode* node = FileSystem::getInstance().getNode(pathStr);
+	if (node != nullptr)
+	{
+		printf("\n Existin file! truncating to 0!");
+		return swift_ftruncate(path,0,nullptr);
+	}
+
+	//Not existing
   if (S_ISREG(mode)) {
     string pathStr(path, strlen(path));
     string name = FileSystem::getInstance().getFileNameFromPath(path);
@@ -316,11 +326,17 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     return written;
   }
   else {
+  	log_msg("\nswift_write: error in writing to:%s\n",node->getName().c_str());
+
     //Not Enough space left on the disk!
     if(written == -1)
-      return ENOSPC;
+    {
+    	log_msg("\nswift_write: Not enough space! filesize: %lld  AvailMem:%lld WriteRequest: size=%d, offset=%lld  name:%s\n",
+    			node->getSize(),MemoryContorller::getInstance().getAvailableMemory(), size,offset, node->getName().c_str());
+    	return ENOSPC;
+    }
 
-    log_msg("\nswift_write: error in writing to:%s\n",node->getName().c_str());
+
     return -EIO;
   }
 }
@@ -522,7 +538,7 @@ int swift_access(const char* path, int mask) {
 }*/
 
 int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
-  log_msg("\nbb_ftruncate(path=\"%s\", fi:%p newsize:%zu )\n", path,fi,size);
+  log_msg("\nswift_ftruncate(path=\"%s\", fi:%p newsize:%zu )\n", path,fi,size);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().getNode(pathStr);
@@ -546,7 +562,7 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   }
   else {
     //Update Memory Info
-    if(diff > 0)
+    if(diff != 0)
       MemoryContorller::getInstance().requestMemory(diff);
     else
       MemoryContorller::getInstance().releaseMemory(diff);

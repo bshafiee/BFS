@@ -38,6 +38,8 @@ class FileNode: public Node {
   std::mutex deleteMutex;
   //Read/Write Lock
   std::mutex ioMutex;
+  //Metadata Lock
+	std::mutex metadataMutex;
 public:
   FileNode(std::string _name,bool _isDir, FileNode* _parent);
   virtual ~FileNode();
@@ -59,8 +61,6 @@ public:
   void setMode(mode_t _mode);
   bool getNeedSync();
   void setNeedSync(bool _need);
-  metadataDictionary::iterator metadataBegin();
-  metadataDictionary::iterator metadataEnd();
   std::string getName();
   std::string getMD5();
   FileNode* getParent();

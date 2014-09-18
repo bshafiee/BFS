@@ -15,6 +15,7 @@
 // writing, the most current API version is 26
 #define FUSE_USE_VERSION 29
 
+
 #include "params.h"
 #include <stdio.h>
 #include <string.h>

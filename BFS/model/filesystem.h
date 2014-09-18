@@ -25,7 +25,7 @@ class FileSystem: public Tree {
   FileNode* traversePathToParent(const std::string &_path);
 public:
   //Constants
-  static const size_t blockSize = 1024*64;
+  static const size_t blockSize = 1024*512;
   static std::string delimiter;
   //Functions
   void initialize(FileNode* _root);

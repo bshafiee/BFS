@@ -50,6 +50,7 @@ FileNode* FileNode::getParent() {
 }
 
 void FileNode::metadataAdd(std::string _key, std::string _value) {
+	lock_guard<mutex> lock(metadataMutex);
   auto it = metadata.find(_key);
   if(it == metadata.end())
     metadata.insert(make_pair(_key,_value));
@@ -58,20 +59,14 @@ void FileNode::metadataAdd(std::string _key, std::string _value) {
 }
 
 void FileNode::metadataRemove(std::string _key) {
+	//Acquire lock
+	lock_guard<mutex> lock(metadataMutex);
   metadata.erase(_key);
 }
 
 string FileNode::metadataGet(string _key) {
   auto it = metadata.find(_key);
   return (it == metadata.end())? "": it->second;
-}
-
-metadataDictionary::iterator FileNode::metadataBegin() {
-  return metadata.begin();
-}
-
-metadataDictionary::iterator FileNode::metadataEnd() {
-  return metadata.end();
 }
 
 long FileNode::write(const char* _data, size_t _size) {
@@ -143,7 +138,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   lock_guard<mutex> lock(ioMutex);
 
   //Check Storage space Availability
-  size_t newReqMemSize = _offset+_size - size;
+  size_t newReqMemSize = (_offset+_size > size) ? _offset+_size - size : 0;
   if(newReqMemSize > 0)
     if(!MemoryContorller::getInstance().requestMemory(newReqMemSize))
       return -1;
@@ -272,16 +267,12 @@ unsigned long FileNode::getGID() {
 }
 
 void FileNode::setUID(unsigned long _uid) {
-  //Acquire lock
-  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _uid;
   metadataAdd(uidKey,ss.str());
 }
 
 void FileNode::setGID(unsigned long _gid) {
-  //Acquire lock
-  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _gid;
   metadataAdd(gidKey,ss.str());
@@ -304,16 +295,16 @@ unsigned long FileNode::getCTime() {
 }
 
 void FileNode::setMTime(unsigned long _mtime) {
-  //Acquire lock
-  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _mtime;
-  metadataAdd(mtimeKey,ss.str());
+  /**
+   * Somehow enabling this line causes segfault in Fuse
+   * multithread mode!
+   */
+  //metadataAdd(mtimeKey,ss.str());
 }
 
 void FileNode::setCTime(unsigned long _ctime) {
-  //Acquire lock
-  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _ctime;
   metadataAdd(ctimeKey,ss.str());
@@ -328,8 +319,6 @@ mode_t FileNode::getMode() {
 }
 
 void FileNode::setMode(mode_t _mode) {
-  //Acquire lock
-  lock_guard<mutex> lock(ioMutex);
   stringstream ss;
   ss << _mode;
   metadataAdd(modeKey,ss.str());
