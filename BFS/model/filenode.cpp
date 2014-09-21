@@ -210,8 +210,6 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 }
 
 bool FUSESwift::FileNode::truncate(size_t _size) {
-  //Acquire lock
-  lock_guard<mutex> lock(ioMutex);
   if(_size == size)
     return true;
   else if(_size > size) { //Expand
@@ -228,6 +226,8 @@ bool FUSESwift::FileNode::truncate(size_t _size) {
     }
   }
   else {//Shrink
+  	//Acquire lock
+  	lock_guard<mutex> lock(ioMutex);
     size_t diff = size-_size;
     while(diff > 0) {
       if(blockIndex >= diff) {

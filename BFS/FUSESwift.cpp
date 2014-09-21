@@ -553,8 +553,10 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   //Checking Space availability
   size_t diff = size - node->getSize();
   if(diff > 0)
-    if(!MemoryContorller::getInstance().checkPossibility(diff))
+    if(!MemoryContorller::getInstance().checkPossibility(diff)) {
+      log_msg("error swift_ftruncate: truncate failed(not enough space): %s newSize:%zu\n", path,node->getSize());
       return ENOSPC;
+    }
 
   if(!node->truncate(size)) {
     log_msg("error swift_ftruncate: truncate failed: %s newSize:%zu\n", path,node->getSize());
