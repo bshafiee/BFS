@@ -43,3 +43,7 @@ string LeaderOffer::toString() {
 					<< " }";
 	return stream.str();
 }
+
+void LeaderOffer::setId(long id) {
+  this->id = id;
+}

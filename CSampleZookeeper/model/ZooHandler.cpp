@@ -8,9 +8,22 @@
 #include "ZooHandler.h"
 #include <unistd.h>
 #include <cstring>
+#include <sstream>
+#include <vector>
+#include <algorithm>    // std::sort
 #include "LeaderOffer.h"
 
 using namespace std;
+
+static vector<string> split(const string &s, char delim) {
+  vector<string> elems;
+  stringstream ss(s);
+  string item;
+  while (getline(ss, item, delim)) {
+      elems.push_back(item);
+  }
+  return elems;
+}
 
 ZooHandler::ZooHandler() :
 		zh(nullptr), sessionState(ZOO_EXPIRED_SESSION_STATE),
@@ -191,23 +204,21 @@ bool ZooHandler::makeOffer() {
 
 	//Create an ephemeral sequential node
 	string hostName = getHostName();
-	struct ACL _OPEN_ACL_UNSAFE_ACL[] = {{0x1f, {"world", "anyone"}}};
-	struct ACL_vector ZOO_OPEN_ACL_UNSAFE = { 1, _OPEN_ACL_UNSAFE_ACL};
+	//struct ACL _OPEN_ACL_UNSAFE_ACL[] = {{0x1f, {"world", "anyone"}}};
+	//struct ACL_vector ZOO_OPEN_ACL_UNSAFE = { 1, _OPEN_ACL_UNSAFE_ACL};
 	char newNodePath[1000];
-	int newNodePathLen = -1;
-
 	/* Create Election Base node
 	 * zoo_create(zh,(electionZNode).c_str(),"Election Offers",
 				strlen("Election Offers"),&ZOO_OPEN_ACL_UNSAFE ,0,newNodePath,newNodePathLen);*/
 
 	int result = zoo_create(zh,(electionZNode + "/" + "n_").c_str(),hostName.c_str(),
-			hostName.length(),&ZOO_OPEN_ACL_UNSAFE ,ZOO_EPHEMERAL|ZOO_SEQUENCE,newNodePath,newNodePathLen);
+			hostName.length(),&ZOO_OPEN_ACL_UNSAFE ,ZOO_EPHEMERAL|ZOO_SEQUENCE,newNodePath,sizeof(newNodePath));
 	if(result != ZOK) {
 		printf("makeOffer(): zoo_create failed:%s\n",zerror(result));
 		return false;
 	}
 
-	LeaderOffer leaderOffer(string(newNodePath),hostName);
+	leaderOffer = LeaderOffer(string(newNodePath),hostName);
 
 	printf("Created leader offer %s\n", leaderOffer.toString().c_str());
 
@@ -216,14 +227,27 @@ bool ZooHandler::makeOffer() {
 
 bool ZooHandler::determineElectionStatus() {
   electionState = ElectionState::DETERMINE;
-/*
-  String[] components = leaderOffer.getNodePath().split("/");
 
-  leaderOffer.setId(Integer.valueOf(components[components.length - 1]
-      .substring("n_".length())));
+  vector<string> components = split(leaderOffer.getNodePath(),nodeDelimitter);
 
-  List<LeaderOffer> leaderOffers = toLeaderOffers(zooKeeper.getChildren(
-      rootNodeName, false));
+  //Extract Id from nodepath
+  string sequenceNum = components[components.size() - 1];
+  int id = std::stoi(sequenceNum.substr(strlen("n_")));
+  leaderOffer.setId(id);
+
+
+  //Get List of children of /BFSElection
+  String_vector children;
+  int callResult = zoo_get_children(zh,electionZNode.c_str(),1,&children);
+  if(callResult != ZOK) {
+    printf("determineElectionStatus(): zoo_get_children:%s\n",zerror(callResult));
+    return false;
+  }
+  vector<string>childrenVector;
+  for(int i=0;i<children.count;i++)
+    childrenVector.push_back(string(children.data[i]));
+
+  vector<LeaderOffer> leaderOffers = toLeaderOffers(childrenVector);
 
   /*
    * For each leader offer, find out where we fit in. If we're first, we
@@ -231,27 +255,113 @@ bool ZooHandler::determineElectionStatus() {
    * offer just less than us. If they exist, watch for their failure, but if
    * they don't, become the leader.
    */
-  /*
-  for (int i = 0; i < leaderOffers.size(); i++) {
-    LeaderOffer leaderOffer = leaderOffers.get(i);
 
-    if (leaderOffer.getId().equals(this.leaderOffer.getId())) {
-      logger.debug("There are {} leader offers. I am {} in line.",
+  for (unsigned int i = 0; i < leaderOffers.size(); i++) {
+    LeaderOffer leaderOffer = leaderOffers[i];
+
+    if (leaderOffer.getId() == this->leaderOffer.getId()) {
+      printf("There are %lu leader offers. I am %u in line.",
           leaderOffers.size(), i);
-
-      dispatchEvent(EventType.DETERMINE_COMPLETE);
 
       if (i == 0) {
         becomeLeader();
       } else {
-        becomeReady(leaderOffers.get(i - 1));
+        becomeReady(leaderOffers[i - 1]);
       }
 
       // Once we've figured out where we are, we're done.
       break;
     }
   }
-	return true;*/
+	return true;
 }
 
 
+vector<LeaderOffer> ZooHandler::toLeaderOffers(const vector<string> &children) {
+  vector<LeaderOffer> leaderOffers;
+
+  /*
+   * Turn each child of rootNodeName into a leader offer. This is a tuple of
+   * the sequence number and the node name.
+   */
+  for (string offer : children) {
+    char buffer [1000];
+    int len = -1;
+    int callResult = zoo_get(zh,(electionZNode+"/"+offer).c_str(),0,
+                            buffer,&len,nullptr);
+    if(callResult != ZOK) {
+      printf("toLeaderOffers(): zoo_get:%s\n",zerror(callResult));
+      continue;
+    }
+
+    buffer[len-1] = '\0';
+    string hostName = string(buffer);
+    int id = std::stoi(offer.substr(strlen("n_")));
+    leaderOffers.push_back(LeaderOffer(id, electionZNode + "/" + offer, hostName));
+  }
+
+  /*
+   * We sort leader offers by sequence number (which may not be zero-based or
+   * contiguous) and keep their paths handy for setting watches.
+   */
+  std::sort(leaderOffers.begin(),leaderOffers.end(),LeaderOffer::Comparator);
+
+  /*
+   * test them
+    for(LeaderOffer offer:leaderOffers)
+      printf("%ld\n",offer.getId());
+  */
+
+  return leaderOffers;
+}
+
+
+void ZooHandler::becomeLeader() {
+  electionState = ElectionState::LEADER;
+
+  printf("Becoming leader with node:%s\n", leaderOffer.toString().c_str());
+  //TODO
+}
+
+void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {
+  printf("%s not elected leader. Watching node:%s\n",
+          leaderOffer.getNodePath().c_str(),
+          neighborLeaderOffer.getNodePath().c_str());
+
+  /*
+   * Make sure to pass an explicit Watcher because we could be sharing this
+   * zooKeeper instance with someone else.
+   */
+  struct Stat stat;
+  int callResult = zoo_wexists(zh,neighborLeaderOffer.getNodePath().c_str(),
+                                neighbourWatcher,nullptr,&stat);
+  if(callResult != ZOK) {
+    electionState = ElectionState::FAILED;
+
+    /*
+     * If the stat fails, the node has gone missing between the call to
+     * getChildren() and exists(). We need to try and become the leader.
+     */
+    printf("We were behind %s but it looks like they died. Back to determination.\n",
+            neighborLeaderOffer.getNodePath().c_str());
+    determineElectionStatus();
+    return;
+  }
+
+  //Finally if everything went ok we become ready
+  electionState = ElectionState::READY;
+}
+
+void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
+    const char* path, void* context) {
+  if (type == ZOO_DELETED_EVENT) {
+    string pathStr(path);
+    if (pathStr != getInstance().leaderOffer.getNodePath()
+        && getInstance().electionState != ElectionState::STOP) {
+      printf("Node %s deleted. Need to run through the election process.\n",path);
+
+      if(!getInstance().determineElectionStatus())
+        getInstance().electionState = ElectionState::FAILED;
+    }
+  }
+}

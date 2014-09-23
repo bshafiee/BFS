@@ -23,6 +23,12 @@ public:
 	std::string getHostName() const;
 	long getId() const;
 	std::string getNodePath() const;
+  void setId(long id);
+  /** Comparator for sorting **/
+  static bool Comparator (const LeaderOffer& lhs, const LeaderOffer& rhs) {
+    return lhs.id < rhs.id;
+  }
+
 };
 
 #endif /* LEADEROFFER_H_ */

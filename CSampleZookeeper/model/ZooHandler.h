@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <vector>
 #include <unistd.h>
+#include "LeaderOffer.h"
 
 /**
  * The internal state of the election support service.
@@ -29,10 +30,13 @@ private:
 	zhandle_t *zh;
 	clientid_t myid;
 	int sessionState;
-	const std::string hostPort = "10.42.0.62:2181,10.42.0.62:2182,10.42.0.62:2183";
+	//const std::string hostPort = "10.42.0.62:2181,10.42.0.62:2182,10.42.0.62:2183";
+	const std::string hostPort = "127.0.0.1:2181";
 	const int connectionTimeout = 5000*1000;//wait up to 5 seconds for connection
 	const std::string electionZNode = "/BFSElection";
+	const char nodeDelimitter = '/';
 	ElectionState electionState;
+	LeaderOffer leaderOffer;
 	//Private Constructor
 	ZooHandler();
 	/** Election private helpers **/
@@ -41,6 +45,10 @@ private:
 	bool blockingConnect();
 	bool makeOffer();
 	bool determineElectionStatus();
+	std::vector<LeaderOffer> toLeaderOffers(const std::vector<std::string> &children);
+	void becomeLeader();
+  void becomeReady(LeaderOffer neighborLeaderOffer);
+  static void neighbourWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 public:
 	static ZooHandler& getInstance();
 	virtual ~ZooHandler();
