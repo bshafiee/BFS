@@ -10,6 +10,8 @@
 
 using namespace std;
 
+namespace FUSESwift {
+
 LeaderOffer::LeaderOffer (long _id, std::string _nodePath,
 		std::string _hostName):id(_id),nodePath(_nodePath),hostName(_hostName) {
 }
@@ -47,3 +49,5 @@ string LeaderOffer::toString() {
 void LeaderOffer::setId(long id) {
   this->id = id;
 }
+
+}//Namespace

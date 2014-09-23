@@ -18,7 +18,6 @@ Backend* BackendManager::currentBackend = nullptr;
 BackendManager::BackendManager() {}
 
 BackendManager::~BackendManager() {
-  // TODO Auto-generated destructor stub
 }
 
 void BackendManager::registerBackend(Backend* _backend) {

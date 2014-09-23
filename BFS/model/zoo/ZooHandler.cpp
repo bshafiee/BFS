@@ -15,6 +15,8 @@
 
 using namespace std;
 
+namespace FUSESwift {
+
 static vector<string> split(const string &s, char delim) {
   vector<string> elems;
   stringstream ss(s);
@@ -337,7 +339,6 @@ void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {
                                 neighbourWatcher,nullptr,&stat);
   if(callResult != ZOK) {
     electionState = ElectionState::FAILED;
-
     /*
      * If the stat fails, the node has gone missing between the call to
      * getChildren() and exists(). We need to try and become the leader.
@@ -365,3 +366,5 @@ void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
     }
   }
 }
+
+}//Namespace

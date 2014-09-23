@@ -9,6 +9,8 @@
 #define LEADEROFFER_H_
 #include <string>
 
+namespace FUSESwift {
+
 class LeaderOffer {
 private:
   long id;
@@ -30,5 +32,5 @@ public:
   }
 
 };
-
+}//Namespace
 #endif /* LEADEROFFER_H_ */
