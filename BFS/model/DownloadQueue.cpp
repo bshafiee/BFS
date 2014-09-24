@@ -27,13 +27,13 @@ DownloadQueue::DownloadQueue():SyncQueue() {
 DownloadQueue::~DownloadQueue() {
 }
 
-bool DownloadQueue::shouldDownload(pair<string,size_t> item) {
+bool DownloadQueue::shouldDownload(BackendItem item) {
   for(string toBeDelete:deletedFiles)
-    if(toBeDelete == item.first)
+    if(toBeDelete == item.name)
       return false;
   //Check Size
-  if(!MemoryContorller::getInstance().checkPossibility(item.second)){
-    log_msg("Can't download %s, due to lack of space.\n",item.first.c_str());
+  if(!MemoryContorller::getInstance().checkPossibility(item.length)){
+    log_msg("Can't download %s, due to lack of space.\n",item.name.c_str());
     return false;
   }
   return true;
@@ -48,7 +48,7 @@ void DownloadQueue::updateFromBackend() {
 		deletedFiles.clear();
 		return;
 	}
-	vector<pair<string,size_t>>* listFiles = backend->list();
+	vector<BackendItem>* listFiles = backend->list();
 	//Get lock for deleted files
 	lock_guard<std::mutex> lock(deletedFilesMutex);
 	if(listFiles == nullptr || listFiles->size() == 0) {
@@ -60,16 +60,16 @@ void DownloadQueue::updateFromBackend() {
 	for(auto it=listFiles->begin();it!=listFiles->end();it++) {
 	  if(!shouldDownload(*it))
 	    continue;
-		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,it->first));
-		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,it->first));
+		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,it->name));
+		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,it->name));
 		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
 	log_msg("DOWNLOAD QUEUE: Num of Events: %zu .\n",list.size());
 	//Update list of files that were actually deleted
 	for(auto it=deletedFiles.begin();it!=deletedFiles.end();) {
     bool exist = false;
-    for(pair<string,size_t> fileItem:*listFiles) {
-      if(fileItem.first == *it)
+    for(BackendItem fileItem:*listFiles) {
+      if(fileItem.name == *it)
         exist = true;
     }
     if(!exist)

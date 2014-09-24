@@ -8,13 +8,18 @@
 #ifndef MASTERHANDLER_H_
 #define MASTERHANDLER_H_
 
-//#include "ZooHandler.h"
+#include <atomic>
+#include <vector>
+#include "../BackendManager.h"
 
 namespace FUSESwift {
 
+#define UPDATE_INTERVAL 1000//MICROSECONDS
+
 class MasterHandler {
 private:
-  static bool isRunning;
+  static std::atomic<bool> isRunning;
+  static std::vector<BackendItem> *fileList;
   MasterHandler();
   static void leadershipLoop();
 public:

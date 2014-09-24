@@ -173,9 +173,10 @@ int main(int argc, char *argv[]) {
   std::set_terminate(systemErrorHandler);
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
-  fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
+  //fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
+  ZooHandler::getInstance().startElection();
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-  //while(1) {}
+  while(1) {}
 
   //Log Close
   log_close();

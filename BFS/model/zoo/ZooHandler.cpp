@@ -320,9 +320,8 @@ vector<LeaderOffer> ZooHandler::toLeaderOffers(const vector<string> &children) {
 
 void ZooHandler::becomeLeader() {
   electionState = ElectionState::LEADER;
-
   printf("Becoming leader with node:%s\n", leaderOffer.toString().c_str());
-  //TODO
+  MasterHandler::startLeadership();
 }
 
 void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {

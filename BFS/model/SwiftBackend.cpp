@@ -204,7 +204,7 @@ std::string FUSESwift::SwiftBackend::convertFromSwiftName(
 		return FileSystem::delimiter+swiftPath;
 }
 
-std::vector<std::pair<std::string,size_t>>* FUSESwift::SwiftBackend::list() {
+std::vector<BackendItem>* FUSESwift::SwiftBackend::list() {
 	if(account == nullptr || defaultContainer == nullptr)
 		return nullptr;
 	SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
@@ -212,7 +212,7 @@ std::vector<std::pair<std::string,size_t>>* FUSESwift::SwiftBackend::list() {
 	  log_msg("Error in getting list of files in Swiftbackend:%s\n",res->getError().toString().c_str());
 		return nullptr;
 	}
-	vector<pair<string,size_t>>* listFiles = new vector<pair<string,size_t>>();
+	vector<BackendItem>* listFiles = new vector<BackendItem>();
 	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
 	  //Check if this object already is downloaded
 	  FileNode* node =
@@ -221,8 +221,10 @@ std::vector<std::pair<std::string,size_t>>* FUSESwift::SwiftBackend::list() {
 	  //if(node!=nullptr && node->getMD5() == (*it)->getHash())
 	  if(node!=nullptr)
 	    continue;//existing node
-	  else
-	    listFiles->push_back(make_pair(convertFromSwiftName((*it).getName()),it->getLength()));
+	  else {
+	    BackendItem item(convertFromSwiftName(it->getName()),it->getLength(),it->getHash(),it->getLastModified());
+	    listFiles->push_back(item);
+	  }
 	}
 	return listFiles;
 }

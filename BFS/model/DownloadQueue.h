@@ -8,6 +8,7 @@
 #ifndef DOWNLOADQUEUE_H_
 #define DOWNLOADQUEUE_H_
 #include "SyncQueue.h"
+#include "Backend.h"
 
 namespace FUSESwift {
 
@@ -22,7 +23,7 @@ class DownloadQueue: public SyncQueue{
   //Delete files
   std::mutex deletedFilesMutex;
   std::vector<std::string> deletedFiles;
-  bool shouldDownload(std::pair<std::string,size_t>);
+  bool shouldDownload(BackendItem item);
   //Private constructor
   DownloadQueue();
 public:

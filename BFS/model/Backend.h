@@ -16,6 +16,20 @@ namespace FUSESwift {
 
 enum class BackendType {SWIFT, AMAZON_S3, HARDDISK, NULLDISK, SSH};
 
+struct BackendItem {
+  BackendItem (std::string _name, long _length,
+               std::string _hash, std::string _last_modified) {
+    name = _name;
+    length = _length;
+    hash = _hash;
+    last_modified = _last_modified;
+  }
+  std::string name;
+  long length;
+  std::string hash;
+  std::string last_modified;
+};
+
 class Backend {
   BackendType type;
 public:
@@ -25,7 +39,7 @@ public:
    * Virtual list of methods that each
    * Backend implementation should provide
    * **/
-  virtual std::vector<std::pair<std::string,size_t>>* list() = 0;
+  virtual std::vector<BackendItem>* list() = 0;
   virtual std::istream* get(const SyncEvent *_getEvent) = 0;
   virtual std::vector<std::pair<std::string,std::string> >* get_metadata(const SyncEvent *_getMetaEvent) = 0;
   virtual bool put(const SyncEvent *_putEvent) = 0;

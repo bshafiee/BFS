@@ -11,6 +11,7 @@
 #include "Backend.h"
 #include <Authentication.h>
 #include <Account.h>
+#include <tuple>
 
 namespace FUSESwift {
 
@@ -27,7 +28,7 @@ public:
 
   bool initialize(Swift::AuthenticationInfo* _authInfo);
   //Implement backend interface
-  std::vector<std::pair<std::string,size_t>>* list();
+  std::vector<BackendItem>* list();
   std::istream* get(const SyncEvent *_getEvent);
   std::vector<std::pair<std::string,std::string> >* get_metadata(const SyncEvent *_getMetaEvent);
   bool put(const SyncEvent *_putEvent);
