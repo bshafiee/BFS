@@ -37,6 +37,8 @@ void MasterHandler::leadershipLoop() {
     if(backend == nullptr) {
       printf("leadershipLoop(): No active backend!\n");
       interval *= 10;
+      if(interval > maxSleep)
+      	interval = maxSleep;
       usleep(interval);
     }
     vector<BackendItem> *newList = backend->list();

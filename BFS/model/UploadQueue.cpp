@@ -88,7 +88,7 @@ void UploadQueue::syncLoop() {
       delay *= 2;
       if(delay > maxDelay)
         delay = maxDelay;
-      cout << "TOTAL USED: "<<MemoryContorller::getInstance().getTotal()/1024/1024 << " MB" << endl;
+      //cout << "TOTAL USED: "<<MemoryContorller::getInstance().getTotal()/1024/1024 << " MB" << endl;
       continue;
     }
     //pop the first element and process it
@@ -100,7 +100,7 @@ void UploadQueue::syncLoop() {
     event = nullptr;
     //reset delay
     delay = minDelay;
-    cout << "TOTAL USED: "<<MemoryContorller::getInstance().getTotal()/1024/1024 << " MB" << endl;
+    //cout << "TOTAL USED: "<<MemoryContorller::getInstance().getTotal()/1024/1024 << " MB" << endl;
   }
 }
 

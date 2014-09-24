@@ -12,24 +12,28 @@
 #include <vector>
 #include <algorithm>    // std::sort
 #include "LeaderOffer.h"
+#include "ZooNode.h"
+#include "../MemoryController.h"
+#include "../filesystem.h"
+#include "string.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
 static vector<string> split(const string &s, char delim) {
-  vector<string> elems;
-  stringstream ss(s);
-  string item;
-  while (getline(ss, item, delim)) {
-      elems.push_back(item);
-  }
-  return elems;
+	vector<string> elems;
+	stringstream ss(s);
+	string item;
+	while (getline(ss, item, delim)) {
+		elems.push_back(item);
+	}
+	return elems;
 }
 
 ZooHandler::ZooHandler() :
-		zh(nullptr), sessionState(ZOO_EXPIRED_SESSION_STATE),
-		electionState(ElectionState::FAILED){
+		zh(nullptr), sessionState(ZOO_EXPIRED_SESSION_STATE), electionState(
+		    ElectionState::FAILED) {
 	//Set Debug info
 	zoo_set_log_stream(stdout);
 	zoo_set_debug_level(ZOO_LOG_LEVEL_WARN);
@@ -94,17 +98,16 @@ void ZooHandler::dumpStat(const struct Stat *stat) {
 			"\tmtime=%s\tmzxid=%llx\n"
 			"\tversion=%x\taversion=%x\n"
 			"\tephemeralOwner = %llx\n", tctimes, (long long) stat->czxid, tmtimes,
-			(long long) stat->mzxid, (unsigned int) stat->version,
-			(unsigned int) stat->aversion,
-			(long long) stat->ephemeralOwner);
+	    (long long) stat->mzxid, (unsigned int) stat->version,
+	    (unsigned int) stat->aversion, (long long) stat->ephemeralOwner);
 }
 
 void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
-  const char *path, void* context) {
-/* Be careful using zh here rather than zzh - as this may be mt code
- * the client lib may call the watcher before zookeeper_init returns */
+    const char *path, void* context) {
+	/* Be careful using zh here rather than zzh - as this may be mt code
+	 * the client lib may call the watcher before zookeeper_init returns */
 	fprintf(stderr, "Watcher %s state = %s", zooEventType2String(type).c_str(),
-			sessiontState2String(state).c_str());
+	    sessiontState2String(state).c_str());
 	if (path && strlen(path) > 0) {
 		fprintf(stderr, " for path %s", path);
 	}
@@ -116,15 +119,17 @@ void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
 			const clientid_t *id = zoo_client_id(zzh);
 			getInstance().myid = *id;
 			fprintf(stderr, "Connected Successfully. session id: 0x%llx\n",
-					(long long) getInstance().myid.client_id);
+			    (long long) getInstance().myid.client_id);
 		} else if (state == ZOO_AUTH_FAILED_STATE) {
 			fprintf(stderr, "Authentication failure. Shutting down...\n");
 			zookeeper_close(zzh);
 			getInstance().zh = nullptr;
 		} else if (state == ZOO_EXPIRED_SESSION_STATE) {
-			fprintf(stderr, "Session expired. Shutting down...\n");
+			fprintf(stderr,
+			    "Session expired. Shutting down...! Going to redo election!\n");
 			zookeeper_close(zzh);
 			getInstance().zh = nullptr;
+			getInstance().startElection();
 		}
 	}
 }
@@ -135,6 +140,9 @@ bool ZooHandler::connect() {
 		return false;
 	}
 
+	//Now we can start watching other nodes!
+	updateGlobalView();
+
 	return true;
 }
 
@@ -142,28 +150,27 @@ int ZooHandler::getSessionState() {
 	return sessionState;
 }
 
-
 ZooHandler& ZooHandler::getInstance() {
 	static ZooHandler instance;
 	return instance;
 }
 
 bool ZooHandler::blockingConnect() {
-	if(!this->connect())
+	if (!this->connect())
 		return false;
-  struct timeval start, now;
-  gettimeofday(&now, NULL);
-  start = now;
-  while(sessionState != ZOO_CONNECTED_STATE &&
-  		(now.tv_usec-start.tv_usec) <= connectionTimeout ) {
-  	gettimeofday(&now, NULL);
-  	usleep(10);
-  }
+	struct timeval start, now;
+	gettimeofday(&now, NULL);
+	start = now;
+	while (sessionState != ZOO_CONNECTED_STATE
+	    && (now.tv_usec - start.tv_usec) <= connectionTimeout) {
+		gettimeofday(&now, NULL);
+		usleep(10);
+	}
 
-  if(sessionState == ZOO_CONNECTED_STATE)
-  	return true;
-  else
-  	return false;
+	if (sessionState == ZOO_CONNECTED_STATE)
+		return true;
+	else
+		return false;
 }
 
 ElectionState ZooHandler::getElectionState() {
@@ -172,7 +179,7 @@ ElectionState ZooHandler::getElectionState() {
 
 std::string ZooHandler::getHostName() {
 	char buff[100];
-	gethostname(buff,sizeof(buff));
+	gethostname(buff, sizeof(buff));
 	return string(buff);
 }
 
@@ -183,16 +190,16 @@ void ZooHandler::startElection() {
 	printf("Starting leader election\n");
 
 	//Connect to the zoo
-	if(!blockingConnect()) {
+	if (!blockingConnect()) {
 		printf("Bootstrapping into the zoo failed. SessionState:%s\n",
-				sessiontState2String(sessionState).c_str());
+		    sessiontState2String(sessionState).c_str());
 		electionState = ElectionState::FAILED;
 		return;
 	}
 
 	//Offer leadership
 	bool offerResult = makeOffer();
-	if(!offerResult) {
+	if (!offerResult) {
 		electionState = ElectionState::FAILED;
 		return;
 	}
@@ -204,23 +211,28 @@ void ZooHandler::startElection() {
 bool ZooHandler::makeOffer() {
 	electionState = ElectionState::OFFER;
 
-	//Create an ephemeral sequential node
-	string hostName = getHostName();
 	//struct ACL _OPEN_ACL_UNSAFE_ACL[] = {{0x1f, {"world", "anyone"}}};
 	//struct ACL_vector ZOO_OPEN_ACL_UNSAFE = { 1, _OPEN_ACL_UNSAFE_ACL};
 	char newNodePath[1000];
 	/* Create Election Base node
 	 * zoo_create(zh,(electionZNode).c_str(),"Election Offers",
-				strlen("Election Offers"),&ZOO_OPEN_ACL_UNSAFE ,0,newNodePath,newNodePathLen);*/
-
-	int result = zoo_create(zh,(electionZNode + "/" + "n_").c_str(),hostName.c_str(),
-			hostName.length(),&ZOO_OPEN_ACL_UNSAFE ,ZOO_EPHEMERAL|ZOO_SEQUENCE,newNodePath,sizeof(newNodePath));
-	if(result != ZOK) {
-		printf("makeOffer(): zoo_create failed:%s\n",zerror(result));
+	 strlen("Election Offers"),&ZOO_OPEN_ACL_UNSAFE ,0,newNodePath,newNodePathLen);*/
+	//ZooNode
+	vector<string> *listOfFiles = FileSystem::getInstance().listFileSystem();
+	//Create a ZooNode
+	ZooNode zooNode(getHostName(),
+	    MemoryContorller::getInstance().getAvailableMemory(), *listOfFiles);
+	//Send data
+	string str = zooNode.toString();
+	int result = zoo_create(zh, (electionZNode + "/" + "n_").c_str(), str.c_str(),
+	    str.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE,
+	    newNodePath, sizeof(newNodePath));
+	if (result != ZOK) {
+		printf("makeOffer(): zoo_create failed:%s\n", zerror(result));
 		return false;
 	}
 
-	leaderOffer = LeaderOffer(string(newNodePath),hostName);
+	leaderOffer = LeaderOffer(string(newNodePath), getHostName());
 
 	printf("Created leader offer %s\n", leaderOffer.toString().c_str());
 
@@ -228,142 +240,273 @@ bool ZooHandler::makeOffer() {
 }
 
 bool ZooHandler::determineElectionStatus() {
-  electionState = ElectionState::DETERMINE;
+	electionState = ElectionState::DETERMINE;
 
-  vector<string> components = split(leaderOffer.getNodePath(),nodeDelimitter);
+	vector<string> components = split(leaderOffer.getNodePath(), nodeDelimitter);
 
-  //Extract Id from nodepath
-  string sequenceNum = components[components.size() - 1];
-  int id = std::stoi(sequenceNum.substr(strlen("n_")));
-  leaderOffer.setId(id);
+	//Extract Id from nodepath
+	string sequenceNum = components[components.size() - 1];
+	int id = std::stoi(sequenceNum.substr(strlen("n_")));
+	leaderOffer.setId(id);
 
+	//Get List of children of /BFSElection
+	String_vector children;
+	int callResult = zoo_get_children(zh, electionZNode.c_str(), 1, &children);
+	if (callResult != ZOK) {
+		printf("determineElectionStatus(): zoo_get_children failed:%s\n",
+		    zerror(callResult));
+		return false;
+	}
+	vector<string> childrenVector;
+	for (int i = 0; i < children.count; i++)
+		childrenVector.push_back(string(children.data[i]));
 
-  //Get List of children of /BFSElection
-  String_vector children;
-  int callResult = zoo_get_children(zh,electionZNode.c_str(),1,&children);
-  if(callResult != ZOK) {
-    printf("determineElectionStatus(): zoo_get_children:%s\n",zerror(callResult));
-    return false;
-  }
-  vector<string>childrenVector;
-  for(int i=0;i<children.count;i++)
-    childrenVector.push_back(string(children.data[i]));
+	vector<LeaderOffer> leaderOffers = toLeaderOffers(childrenVector);
 
-  vector<LeaderOffer> leaderOffers = toLeaderOffers(childrenVector);
+	/*
+	 * For each leader offer, find out where we fit in. If we're first, we
+	 * become the leader. If we're not elected the leader, attempt to stat the
+	 * offer just less than us. If they exist, watch for their failure, but if
+	 * they don't, become the leader.
+	 */
 
-  /*
-   * For each leader offer, find out where we fit in. If we're first, we
-   * become the leader. If we're not elected the leader, attempt to stat the
-   * offer just less than us. If they exist, watch for their failure, but if
-   * they don't, become the leader.
-   */
+	for (unsigned int i = 0; i < leaderOffers.size(); i++) {
+		LeaderOffer leaderOffer = leaderOffers[i];
 
-  for (unsigned int i = 0; i < leaderOffers.size(); i++) {
-    LeaderOffer leaderOffer = leaderOffers[i];
+		if (leaderOffer.getId() == this->leaderOffer.getId()) {
+			printf("There are %lu leader offers. I am %u in line.",
+			    leaderOffers.size(), i);
 
-    if (leaderOffer.getId() == this->leaderOffer.getId()) {
-      printf("There are %lu leader offers. I am %u in line.",
-          leaderOffers.size(), i);
+			if (i == 0) {
+				becomeLeader();
+			} else {
+				becomeReady(leaderOffers[i - 1]);
+			}
 
-      if (i == 0) {
-        becomeLeader();
-      } else {
-        becomeReady(leaderOffers[i - 1]);
-      }
+			//Update global View
+			updateGlobalView();
 
-      // Once we've figured out where we are, we're done.
-      break;
-    }
-  }
+			// Once we've figured out where we are, we're done.
+			break;
+		}
+	}
 	return true;
 }
 
-
 vector<LeaderOffer> ZooHandler::toLeaderOffers(const vector<string> &children) {
-  vector<LeaderOffer> leaderOffers;
+	vector<LeaderOffer> leaderOffers;
 
-  /*
-   * Turn each child of rootNodeName into a leader offer. This is a tuple of
-   * the sequence number and the node name.
-   */
-  for (string offer : children) {
-    char buffer [1000];
-    int len = -1;
-    int callResult = zoo_get(zh,(electionZNode+"/"+offer).c_str(),0,
-                            buffer,&len,nullptr);
-    if(callResult != ZOK) {
-      printf("toLeaderOffers(): zoo_get:%s\n",zerror(callResult));
-      continue;
-    }
+	/*
+	 * Turn each child of rootNodeName into a leader offer. This is a tuple of
+	 * the sequence number and the node name.
+	 */
+	for (string offer : children) {
+		char buffer[1000];
+		int len = -1;
+		int callResult = zoo_get(zh, (electionZNode + "/" + offer).c_str(), 0,
+		    buffer, &len, nullptr);
+		if (callResult != ZOK) {
+			printf("toLeaderOffers(): zoo_get:%s\n", zerror(callResult));
+			continue;
+		}
 
-    buffer[len-1] = '\0';
-    string hostName = string(buffer);
-    int id = std::stoi(offer.substr(strlen("n_")));
-    leaderOffers.push_back(LeaderOffer(id, electionZNode + "/" + offer, hostName));
-  }
+		buffer[len - 1] = '\0';
+		string hostName = string(buffer);
+		int id = std::stoi(offer.substr(strlen("n_")));
+		leaderOffers.push_back(
+		    LeaderOffer(id, electionZNode + "/" + offer, hostName));
+	}
 
-  /*
-   * We sort leader offers by sequence number (which may not be zero-based or
-   * contiguous) and keep their paths handy for setting watches.
-   */
-  std::sort(leaderOffers.begin(),leaderOffers.end(),LeaderOffer::Comparator);
+	/*
+	 * We sort leader offers by sequence number (which may not be zero-based or
+	 * contiguous) and keep their paths handy for setting watches.
+	 */
+	std::sort(leaderOffers.begin(), leaderOffers.end(), LeaderOffer::Comparator);
 
-  /*
-   * test them
-    for(LeaderOffer offer:leaderOffers)
-      printf("%ld\n",offer.getId());
-  */
+	/*
+	 * test them
+	 for(LeaderOffer offer:leaderOffers)
+	 printf("%ld\n",offer.getId());
+	 */
 
-  return leaderOffers;
+	return leaderOffers;
 }
 
-
 void ZooHandler::becomeLeader() {
-  electionState = ElectionState::LEADER;
-  printf("Becoming leader with node:%s\n", leaderOffer.toString().c_str());
-  MasterHandler::startLeadership();
+	electionState = ElectionState::LEADER;
+	printf("Becoming leader with node:%s\n", leaderOffer.toString().c_str());
+	MasterHandler::startLeadership();
+	//Commit a publish command!(no matter leader or ready!)
+	publishListOfFiles();
 }
 
 void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {
-  printf("%s not elected leader. Watching node:%s\n",
-          leaderOffer.getNodePath().c_str(),
-          neighborLeaderOffer.getNodePath().c_str());
+	printf("%s not elected leader. Watching node:%s\n",
+	    leaderOffer.getNodePath().c_str(),
+	    neighborLeaderOffer.getNodePath().c_str());
 
-  /*
-   * Make sure to pass an explicit Watcher because we could be sharing this
-   * zooKeeper instance with someone else.
-   */
-  struct Stat stat;
-  int callResult = zoo_wexists(zh,neighborLeaderOffer.getNodePath().c_str(),
-                                neighbourWatcher,nullptr,&stat);
-  if(callResult != ZOK) {
-    electionState = ElectionState::FAILED;
-    /*
-     * If the stat fails, the node has gone missing between the call to
-     * getChildren() and exists(). We need to try and become the leader.
-     */
-    printf("We were behind %s but it looks like they died. Back to determination.\n",
-            neighborLeaderOffer.getNodePath().c_str());
-    determineElectionStatus();
-    return;
-  }
+	/*
+	 * Make sure to pass an explicit Watcher because we could be sharing this
+	 * zooKeeper instance with someone else.
+	 */
+	struct Stat stat;
+	int callResult = zoo_wexists(zh, neighborLeaderOffer.getNodePath().c_str(),
+	    neighbourWatcher, nullptr, &stat);
+	if (callResult != ZOK) {
+		electionState = ElectionState::FAILED;
+		/*
+		 * If the stat fails, the node has gone missing between the call to
+		 * getChildren() and exists(). We need to try and become the leader.
+		 */
+		printf(
+		    "We were behind %s but it looks like they died. Back to determination.\n",
+		    neighborLeaderOffer.getNodePath().c_str());
+		determineElectionStatus();
+		return;
+	}
 
-  //Finally if everything went ok we become ready
-  electionState = ElectionState::READY;
+	//Finally if everything went ok we become ready
+	electionState = ElectionState::READY;
+	//Commit a publish command!(no matter leader or ready!)
+	publishListOfFiles();
 }
 
 void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
-  if (type == ZOO_DELETED_EVENT) {
-    string pathStr(path);
-    if (pathStr != getInstance().leaderOffer.getNodePath()
-        && getInstance().electionState != ElectionState::STOP) {
-      printf("Node %s deleted. Need to run through the election process.\n",path);
+	if (type == ZOO_DELETED_EVENT) {
+		string pathStr(path);
+		if (pathStr != getInstance().leaderOffer.getNodePath()
+		    && getInstance().electionState != ElectionState::STOP) {
+			printf("Node %s deleted. Need to run through the election process.\n",
+			    path);
 
-      if(!getInstance().determineElectionStatus())
-        getInstance().electionState = ElectionState::FAILED;
-    }
-  }
+			if (!getInstance().determineElectionStatus())
+				getInstance().electionState = ElectionState::FAILED;
+		}
+	}
 }
 
-}//Namespace
+void ZooHandler::publishListOfFiles() {
+	if (sessionState != ZOO_CONNECTED_STATE
+	    || (electionState != ElectionState::LEADER
+	        && electionState != ElectionState::READY)) {
+		printf("publishListOfFiles(): invalid sessionstate or electionstate\n");
+		return;
+	}
+
+	vector<string> *listOfFiles = FileSystem::getInstance().listFileSystem();
+	//Traverse FileSystem Hierarchies
+
+	//Create a ZooNode
+	ZooNode zooNode(getHostName(),
+	    MemoryContorller::getInstance().getAvailableMemory(), *listOfFiles);
+	//Send data
+	string str = zooNode.toString();
+	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
+	    str.length(), -1);
+	//first Release memory!
+	listOfFiles->clear();
+	delete listOfFiles;
+	listOfFiles = nullptr;
+	if (callRes != ZOK) {
+		printf("publishListOfFiles(): zoo_set failed:%s\n", zerror(callRes));
+		return;
+	}
+
+	printf("publishListOfFiles successfully!\n");
+}
+
+const std::vector<ZooNode> & ZooHandler::getGlobalView() {
+	return globalView;
+}
+
+/**
+ * 1)get list of electionznode(/BFSElection) children
+ * 2)get content of each node and set watch on them
+ * 3)parse nodes content to znode
+ * 4)update globalView
+ * 5)add watch on electionznode to watch new nodes
+ **/
+void ZooHandler::updateGlobalView() {
+	if (sessionState != ZOO_CONNECTED_STATE
+	    || (electionState != ElectionState::LEADER
+	        && electionState != ElectionState::READY)) {
+		printf("updateGlobalView(): invalid sessionstate or electionstate\n");
+		return;
+	}
+
+	//Invalidate previous globaView!
+	globalView.clear();
+	//1)get list of (electionznode)/BFSElection children
+	String_vector children;
+	int callResult = zoo_get_children(zh, electionZNode.c_str(), 1, &children);
+	if (callResult != ZOK) {
+		printf("updateGlobalView(): zoo_get_children failed:%s\n",
+		    zerror(callResult));
+		return;
+	}
+	//2)get content of each node and set watch on them
+	for (int i = 0; i < children.count; i++) {
+		string node(children.data[i]);
+		//Allocate 1MB data
+		int len = 1024 * 1024;
+		char *buffer = new char[len];
+		int callResult = zoo_wget(zh, (electionZNode + "/" + node).c_str(),
+		    nodeWatcher, nullptr, buffer, &len, nullptr);
+		if (callResult != ZOK) {
+			printf("updateGlobalView(): zoo_get:%s\n", zerror(callResult));
+			delete[] buffer;
+			buffer = nullptr;
+			continue;
+		}
+
+		//3)parse node content to a znode
+		vector<string> nodeFiles;
+		char *tok = strtok(buffer, "\n");
+		if (tok == NULL) {
+			printf("updateGlobalView(): strtok failed. Malform data at:%s\n",
+			    node.c_str());
+			delete[] buffer;
+			buffer = nullptr;
+			continue;
+		}
+		string hostName(tok);
+		tok = strtok(NULL, "\n");
+		if (tok == NULL) {
+			printf("updateGlobalView(): strtok failed. Malform data at:%s\n",
+			    node.c_str());
+			delete[] buffer;
+			buffer = nullptr;
+			continue;
+		}
+		string freeSize(tok);
+		tok = strtok(NULL, "\n");
+		while (tok != NULL) {
+			string file(tok);
+			nodeFiles.push_back(file);
+			tok = strtok(NULL, " ,.-");
+		}
+		//4)update globalView
+		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles);
+		globalView.push_back(zoonode);
+		delete[] buffer;
+		buffer = nullptr;
+	}
+
+	//5)add watch on electionznode to watch new nodes
+}
+
+void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
+    const char* path, void* context) {
+	if (type == ZOO_CHANGED_EVENT) {
+		string pathStr(path);
+		printf("Node %s changed! updating globalview...\n", path);
+		getInstance().updateGlobalView();
+	}
+}
+
+void ZooHandler::electionFolderWatcher(zhandle_t* zzh, int type, int state,
+    const char* path, void* context) {
+}
+
+}	//Namespace

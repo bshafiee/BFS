@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include "LeaderOffer.h"
 #include "MasterHandler.h"
+#include "ZooNode.h"
 
 
 namespace FUSESwift {
@@ -41,6 +42,8 @@ private:
 	const char nodeDelimitter = '/';
 	ElectionState electionState;
 	LeaderOffer leaderOffer;
+	//A hashmap too keep track of which file is at which node!<nodeaddress,list of files>
+	std::vector<ZooNode> globalView;
 	//Private Constructor
 	ZooHandler();
 	/** Election private helpers **/
@@ -53,6 +56,12 @@ private:
 	void becomeLeader();
   void becomeReady(LeaderOffer neighborLeaderOffer);
   static void neighbourWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
+  /** Updates Global View of files at each node **/
+  void updateGlobalView();
+  /** Keeps an eye on the nodes, to see if there is a change in their file list **/
+  static void nodeWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
+  /** Keeps an eye on the BFSElection znode to see if a new client joins. **/
+  static void electionFolderWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 public:
 	static ZooHandler& getInstance();
 	virtual ~ZooHandler();
@@ -64,6 +73,8 @@ public:
 	/** Zoo Operations **/
 	int getSessionState();
 	ElectionState getElectionState();
+	void publishListOfFiles();
+	const std::vector<ZooNode> & getGlobalView();
 	void startElection();
 };
 

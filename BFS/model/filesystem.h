@@ -9,7 +9,7 @@
 #define FILESYSTEM_H_
 
 #include "tree.h"
-//#include "filenode.h"
+#include <vector>
 
 namespace FUSESwift {
 
@@ -57,6 +57,10 @@ public:
    */
   FileNode* createHierarchy(const std::string &_path);
   std::string printFileSystem();
+  /**
+   * Caller's responisbility to call delete on returned list
+   */
+  std::vector<std::string>* listFileSystem();
   /**
    * checks if the input name is valid
    */

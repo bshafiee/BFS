@@ -14,6 +14,7 @@
 #include "../log.h"
 #include "UploadQueue.h"
 #include "DownloadQueue.h"
+#include "zoo/ZooHandler.h"
 
 using namespace std;
 using namespace Poco;
@@ -46,8 +47,11 @@ FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name) {
     return nullptr;
   FileNode *dir = new FileNode(_name, false, _parent);
   auto res = _parent->childAdd(dir);
-  if (res.second)
+  if (res.second) {
+  	//Inform ZooHandler about new file
+		ZooHandler::getInstance().publishListOfFiles();
     return (FileNode*) (res.first->second);
+  }
   else
     return nullptr;
 }
@@ -305,6 +309,33 @@ std::string FileSystem::printFileSystem() {
     }
   }
   log_msg("%s\n\n",output.c_str());
+  return output;
+}
+
+std::vector<std::string>* FileSystem::listFileSystem() {
+	vector<string> *output = new vector<string>();
+  //Recursive removing is dangerous, because we might run out of memory.
+  vector<FileNode*> childrenQueue;
+  FileNode* start = root;
+  while (start != nullptr) {
+    //add children to queue
+    auto childIterator = start->childrendBegin();
+    for (; childIterator != start->childrenEnd(); childIterator++)
+      childrenQueue.push_back((FileNode*) childIterator->second);
+    //Now we can release start node
+    if(start->getName()!="/")
+    	output->push_back(start->getFullPath());
+
+    if (childrenQueue.size() == 0)
+      start = nullptr;
+    else {
+      //Now assign start to a new node in queue
+      auto frontIt = childrenQueue.begin();
+      start = *frontIt;
+      childrenQueue.erase(frontIt);
+    }
+  }
+
   return output;
 }
 
