@@ -28,6 +28,14 @@ struct BackendItem {
   long length;
   std::string hash;
   std::string last_modified;
+
+  static bool CompBySizeAsc (const BackendItem& lhs, const BackendItem& rhs) {
+		return lhs.length < rhs.length;
+	}
+
+	static bool CompBySizeDes (const BackendItem& lhs, const BackendItem& rhs) {
+		return lhs.length > rhs.length;
+	}
 };
 
 class Backend {

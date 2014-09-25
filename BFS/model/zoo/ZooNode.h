@@ -38,6 +38,14 @@ struct ZooNode {
 		}
   	return output.str();
   }
+
+  static bool CompByFreeSpaceAsc (const ZooNode& lhs, const ZooNode& rhs) {
+  	return lhs.freeSpace < rhs.freeSpace;
+  }
+
+  static bool CompByFreeSpaceDes (const ZooNode& lhs, const ZooNode& rhs) {
+		return lhs.freeSpace > rhs.freeSpace;
+	}
 };
 }//namespace
 #endif /* ZOONODE_H_ */

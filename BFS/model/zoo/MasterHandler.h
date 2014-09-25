@@ -22,6 +22,7 @@ private:
   static std::vector<BackendItem> *fileList;
   MasterHandler();
   static void leadershipLoop();
+  static void divideTaskAmongNodes();
 public:
   virtual ~MasterHandler();
   static void startLeadership();

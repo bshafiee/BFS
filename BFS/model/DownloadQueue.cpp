@@ -53,6 +53,10 @@ void DownloadQueue::updateFromBackend() {
 	lock_guard<std::mutex> lock(deletedFilesMutex);
 	if(listFiles == nullptr || listFiles->size() == 0) {
 	  deletedFiles.clear();
+	  if(listFiles!=nullptr){
+	  	delete listFiles;
+	  	listFiles = nullptr;
+	  }
 		return;
 	}
 
@@ -77,6 +81,11 @@ void DownloadQueue::updateFromBackend() {
     else
       ++it;
   }
+	//Release memory
+	if(listFiles!=nullptr){
+		delete listFiles;
+		listFiles = nullptr;
+	}
 }
 
 void DownloadQueue::processDownloadContent(const SyncEvent* _event) {

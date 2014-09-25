@@ -422,10 +422,10 @@ const std::vector<ZooNode> & ZooHandler::getGlobalView() {
 
 /**
  * 1)get list of electionznode(/BFSElection) children
+ * 	 and set a watch for changes in these folder
  * 2)get content of each node and set watch on them
  * 3)parse nodes content to znode
  * 4)update globalView
- * 5)add watch on electionznode to watch new nodes
  **/
 void ZooHandler::updateGlobalView() {
 	if (sessionState != ZOO_CONNECTED_STATE
@@ -437,9 +437,9 @@ void ZooHandler::updateGlobalView() {
 
 	//Invalidate previous globaView!
 	globalView.clear();
-	//1)get list of (electionznode)/BFSElection children
+	//1)get list of (electionznode)/BFSElection children and set a watch for changes in these folder
 	String_vector children;
-	int callResult = zoo_get_children(zh, electionZNode.c_str(), 1, &children);
+	int callResult = zoo_wget_children(zh, electionZNode.c_str(), electionFolderWatcher,nullptr, &children);
 	if (callResult != ZOK) {
 		printf("updateGlobalView(): zoo_get_children failed:%s\n",
 		    zerror(callResult));
@@ -492,8 +492,6 @@ void ZooHandler::updateGlobalView() {
 		delete[] buffer;
 		buffer = nullptr;
 	}
-
-	//5)add watch on electionznode to watch new nodes
 }
 
 void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
@@ -507,6 +505,11 @@ void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
 
 void ZooHandler::electionFolderWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
+	if (type == ZOO_CHILD_EVENT) {
+		string pathStr(path);
+		printf("Children of Election folder changed: %s . updating globalview...\n", path);
+		getInstance().updateGlobalView();
+	}
 }
 
 }	//Namespace

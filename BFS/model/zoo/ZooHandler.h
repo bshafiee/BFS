@@ -39,6 +39,7 @@ private:
 	//const std::string hostPort = "127.0.0.1:2181";
 	const int connectionTimeout = 5000*1000;//wait up to 5 seconds for connection
 	const std::string electionZNode = "/BFSElection";
+	const std::string assignmentZNode = "/BFSTasks";
 	const char nodeDelimitter = '/';
 	ElectionState electionState;
 	LeaderOffer leaderOffer;
