@@ -165,7 +165,7 @@ bool MasterHandler::divideTaskAmongNodes() {
 			char buffer[100];
 			strcpy(buffer,path.c_str());
 			int createRes = zoo_create(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),
-																 value.length(),&ZOO_OPEN_ACL_UNSAFE,0,buffer,sizeof(buffer));
+																 value.length(),&ZOO_OPEN_ACL_UNSAFE,ZOO_EPHEMERAL,buffer,sizeof(buffer));
 			if(createRes != ZOK)
 				fprintf(stderr, "divideTaskAmongNodes(): zoo_create failed:%s\n",zerror(createRes));
 				continue;
