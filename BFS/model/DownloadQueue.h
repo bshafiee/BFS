@@ -35,6 +35,8 @@ public:
   void stopSynchronization();
   //Inform deleted files, so I won't downlaod them while server is removing them.
   void informDeletedFiles(std::vector<std::string>);
+  //Add Download assignment from zoo
+  void addZooTask(vector<string>assignments);
 };
 
 } /* namespace FUSESwift */

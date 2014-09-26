@@ -63,6 +63,10 @@ private:
   static void nodeWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
   /** Keeps an eye on the BFSElection znode to see if a new client joins. **/
   static void electionFolderWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
+  /** Fetch assignments **/
+	void fetchAssignmets();
+	/** Keeps an eye on the assignment node **/
+	static void assignmentWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 public:
 	static ZooHandler& getInstance();
 	virtual ~ZooHandler();

@@ -15,6 +15,7 @@
 #include "ZooNode.h"
 #include "../MemoryController.h"
 #include "../filesystem.h"
+#include "../DownloadQueue.h"
 #include "string.h"
 
 using namespace std;
@@ -285,6 +286,7 @@ bool ZooHandler::determineElectionStatus() {
 
 			//Update global View
 			updateGlobalView();
+			fetchAssignmets();
 
 			// Once we've figured out where we are, we're done.
 			break;
@@ -441,7 +443,7 @@ void ZooHandler::updateGlobalView() {
 	String_vector children;
 	int callResult = zoo_wget_children(zh, electionZNode.c_str(), electionFolderWatcher,nullptr, &children);
 	if (callResult != ZOK) {
-		printf("updateGlobalView(): zoo_get_children failed:%s\n",
+		printf("updateGlobalView(): zoo_wget_children failed:%s\n",
 		    zerror(callResult));
 		return;
 	}
@@ -449,16 +451,19 @@ void ZooHandler::updateGlobalView() {
 	for (int i = 0; i < children.count; i++) {
 		string node(children.data[i]);
 		//Allocate 1MB data
-		int len = 1024 * 1024;
-		char *buffer = new char[len];
+		const int length = 1024 * 1024;
+		char *buffer = new char[length];
+		int len = length;
 		int callResult = zoo_wget(zh, (electionZNode + "/" + node).c_str(),
 		    nodeWatcher, nullptr, buffer, &len, nullptr);
 		if (callResult != ZOK) {
-			printf("updateGlobalView(): zoo_get:%s\n", zerror(callResult));
+			printf("updateGlobalView(): zoo_wget:%s\n", zerror(callResult));
 			delete[] buffer;
 			buffer = nullptr;
 			continue;
 		}
+		if(len >= 0 && len <= length-1)
+			buffer[len] = '\0';
 
 		//3)parse node content to a znode
 		vector<string> nodeFiles;
@@ -484,7 +489,7 @@ void ZooHandler::updateGlobalView() {
 		while (tok != NULL) {
 			string file(tok);
 			nodeFiles.push_back(file);
-			tok = strtok(NULL, " ,.-");
+			tok = strtok(NULL, "\n");
 		}
 		//4)update globalView
 		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles);
@@ -512,4 +517,61 @@ void ZooHandler::electionFolderWatcher(zhandle_t* zzh, int type, int state,
 	}
 }
 
+/**
+ * 1)Check election/connection state
+ * 2)determine your host-name and check assignmnetZnode/hostname
+ * 3)fetch content of assignmnetZnode/hostname & set watch on it
+ * 4)Ask DownloadQueue to download them in case we don't have them
+ */
+void ZooHandler::fetchAssignmets() {
+	if (sessionState != ZOO_CONNECTED_STATE
+			|| (electionState != ElectionState::LEADER
+					&& electionState != ElectionState::READY)) {
+		printf("fetchAssignmets(): invalid sessionstate or electionstate\n");
+		return;
+	}
+
+	string path = assignmentZNode+"/"+getHostName();
+	//Allocate 1MB data
+	const int length = 1024 * 1024;
+	char *buffer = new char[length];
+	int len = length;
+	int callResult =
+			zoo_wget(zh, path.c_str(), assignmentWatcher, nullptr, buffer, &len, nullptr);
+	if (callResult != ZOK) {
+		printf("fetchAssignmets(): zoo_wget:%s\n", zerror(callResult));
+		delete[] buffer;
+		buffer = nullptr;
+		return;
+	}
+
+	if(len >= 0 && len <= length-1)
+		buffer[len] = '\0';
+	vector<string> assignments;
+	//Read line by line
+	char *tok = strtok(buffer, "\n");
+	while (tok != NULL) {
+		string file(tok);
+		assignments.push_back(file);
+		tok = strtok(NULL, "\n");
+	}
+	//Release Memory
+	delete[] buffer;
+	buffer = nullptr;
+
+	//Tell DownloadQueue
+	DownloadQueue::getInstance().addZooTask(assignments);
+}
+
+void ZooHandler::assignmentWatcher(zhandle_t* zzh, int type, int state,
+    const char* path, void* context) {
+	if (type == ZOO_CHANGED_EVENT) {
+		string pathStr(path);
+		printf("assignmentWatcher(): Node %s changed! updating assignments...\n", path);
+		getInstance().fetchAssignmets();
+	}
+}
+
 }	//Namespace
+
+

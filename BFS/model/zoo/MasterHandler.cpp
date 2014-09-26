@@ -49,12 +49,16 @@ void MasterHandler::leadershipLoop() {
     }
     fileList  = backend->list();
     //3)Fetch list of avail nodes, their free space
-		divideTaskAmongNodes();
     //4)Divide tasks among nodes
-    //5)Clean all previous assignments
-    //6)Publish assignments
+		//5)Clean all previous assignments
+		//6)Publish assignments
+		bool change = divideTaskAmongNodes();
 
     //Adaptive sleep
+		if(!change)
+			interval *= 10;
+		if(interval > maxSleep)
+			interval = maxSleep;
     usleep(interval);
   }
 }
@@ -80,8 +84,10 @@ void MasterHandler::stopLeadership() {
  * Load per node!
  * Free space on each node
  * popularity of each file
+ *
+ * return true if a new assignment happens
  */
-void MasterHandler::divideTaskAmongNodes() {
+bool MasterHandler::divideTaskAmongNodes() {
 	//1)First check which files already exist in nodes
 	for(auto iter = fileList->begin(); iter != fileList->end();) {
 		bool found = false;
@@ -103,7 +109,7 @@ void MasterHandler::divideTaskAmongNodes() {
 	//Now FileList contains files which don't exist at any node!
 	if(fileList->size() == 0){//Nothing to do :) Bye!
 		//printf("Filelist empty\n");
-		return;
+		return false;
 	}
 
 	//Now make a list of znode without their filelist overhead
@@ -112,7 +118,7 @@ void MasterHandler::divideTaskAmongNodes() {
 	for(ZooNode node:ZooHandler::getInstance().globalView)
 		ourZoo.push_back(ZooNode(node.hostName,node.freeSpace,vector<string>()));
 	if(ourZoo.size() == 0)//Nothing to do if we don't have any node yet!
-		return;
+		return false;
 	//Now sort ourZoo by Free Space descendingly!
 	std::sort(ourZoo.begin(),ourZoo.end(),ZooNode::CompByFreeSpaceDes);
 	//Now sort fileList by their size descendingly!
@@ -168,8 +174,9 @@ void MasterHandler::divideTaskAmongNodes() {
 			continue;
 		}
 
-		printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
+		//printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
 	}
+	return true;
 }
 
 } /* namespace FUSESwift */
