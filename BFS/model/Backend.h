@@ -45,6 +45,11 @@ struct BackendItem {
 		return (a.name == this->name && a.length == this->length &&
 						a.hash == this->hash && a.last_modified == this->last_modified);
 	}
+
+	static bool equality (const BackendItem& lhs,const BackendItem& rhs){
+		return (lhs.name == rhs.name && lhs.length == rhs.length &&
+						lhs.hash == rhs.hash && lhs.last_modified == rhs.last_modified);
+	}
 };
 
 class Backend {

@@ -15,18 +15,19 @@ namespace FUSESwift {
 
 atomic<bool> MasterHandler::isRunning;
 vector<BackendItem> *MasterHandler::oldFiles = nullptr;
+vector<BackendItem> MasterHandler::remainedFiles;
 
 MasterHandler::MasterHandler() {
 }
 
 
-static void removeDuplicates(vector<BackendItem> &newList,vector<BackendItem> &oldList) {
+void MasterHandler::removeDuplicates(vector<BackendItem> &newList,vector<BackendItem> &oldList) {
 	std::sort(newList.begin(),newList.end(),BackendItem::CompByNameAsc);
 	std::sort(oldList.begin(),oldList.end(),BackendItem::CompByNameAsc);
 
 	//Get Intersection
 	vector<BackendItem> intersection;
-	std::set_intersection(newList.begin(),newList.end(),oldList.begin(),oldList.end(),back_inserter(intersection));
+	std::set_intersection(newList.begin(),newList.end(),oldList.begin(),oldList.end(),back_inserter(intersection),BackendItem::equality);
 	//Remove duplicates
 	for(BackendItem item:intersection) {
 		for(auto it=newList.begin();it != newList.end();) {
