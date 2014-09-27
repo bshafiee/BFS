@@ -35,7 +35,7 @@ private:
 	zhandle_t *zh;
 	clientid_t myid;
 	int sessionState;
-	const std::string hostPort = "10.42.0.62:2181,10.42.0.62:2182,10.42.0.62:2183";
+	const std::string hostPort = "10.42.0.62:2181,10.42.0.62:2182,129.97.170.232:2181";
 	//const std::string hostPort = "127.0.0.1:2181";
 	const int connectionTimeout = 5000*1000;//wait up to 5 seconds for connection
 	const std::string electionZNode = "/BFSElection";

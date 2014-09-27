@@ -539,6 +539,8 @@ void ZooHandler::fetchAssignmets() {
 	int callResult =
 			zoo_wget(zh, path.c_str(), assignmentWatcher, nullptr, buffer, &len, nullptr);
 	if (callResult != ZOK) {
+		if(callResult == ZNONODE) //No node! needs to set a watch on create
+			zoo_wexists(zh,path.c_str(),assignmentWatcher,nullptr,nullptr);
 		printf("fetchAssignmets(): zoo_wget:%s\n", zerror(callResult));
 		delete[] buffer;
 		buffer = nullptr;
@@ -565,7 +567,7 @@ void ZooHandler::fetchAssignmets() {
 
 void ZooHandler::assignmentWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
-	if (type == ZOO_CHANGED_EVENT) {
+	if (type == ZOO_CHANGED_EVENT || type == ZOO_CREATED_EVENT) {
 		string pathStr(path);
 		printf("assignmentWatcher(): Node %s changed! updating assignments...\n", path);
 		getInstance().fetchAssignmets();
