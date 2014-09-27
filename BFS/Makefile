@@ -14,7 +14,7 @@ CXXFLAGS+=$(LD)
 LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt
 
 TARGET =	BFS
-CXX=clang++
+#CXX=clang++
 $(TARGET):	$(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
 

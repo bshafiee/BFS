@@ -25,7 +25,7 @@ struct BackendItem {
     last_modified = _last_modified;
   }
   std::string name;
-  long length;
+  unsigned long length;
   std::string hash;
   std::string last_modified;
 

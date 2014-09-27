@@ -9,6 +9,7 @@
 #include "ZooHandler.h"
 #include <thread>
 #include <algorithm>
+#include <iostream>
 using namespace std;
 
 namespace FUSESwift {
@@ -20,26 +21,35 @@ vector<BackendItem> MasterHandler::remainedFiles;
 MasterHandler::MasterHandler() {
 }
 
+/*static void printVector(vector<string> vec) {
+	cerr<<"{";
+	for(int i=0;i<vec.size();i++)
+		if(i<vec.size()-1)
+			cerr<<vec[i]<<",";
+		else
+			cerr<<vec[i]<<"}"<<endl;;
+}
+
+static void printVector(vector<BackendItem> vec) {
+	cerr<<"{";
+	for(int i=0;i<vec.size();i++)
+		if(i<vec.size()-1)
+			cerr<<vec[i].name<<",";
+		else
+			cerr<<vec[i].name<<"}"<<endl;;
+}*/
 
 void MasterHandler::removeDuplicates(vector<BackendItem> &newList,vector<BackendItem> &oldList) {
-	std::sort(newList.begin(),newList.end(),BackendItem::CompByNameAsc);
-	std::sort(oldList.begin(),oldList.end(),BackendItem::CompByNameAsc);
-
-	//Get Intersection
-	vector<BackendItem> intersection;
-	std::set_intersection(newList.begin(),newList.end(),oldList.begin(),oldList.end(),back_inserter(intersection),BackendItem::equality);
-	//Remove duplicates
-	for(BackendItem item:intersection) {
-		for(auto it=newList.begin();it != newList.end();) {
-			if(item == *it){
-				it = newList.erase(it);
-				break;
-			}
-			else
-				it++;
-		}
+	for(auto iter=newList.begin();iter!=newList.end();) {
+		bool found = false;
+		for(BackendItem item:oldList)
+			if(item == *iter)
+				found = true;
+		if(found)
+			iter = newList.erase(iter);
+		else
+			iter++;
 	}
-
 }
 
 void MasterHandler::leadershipLoop() {
@@ -74,10 +84,8 @@ void MasterHandler::leadershipLoop() {
 			usleep(interval);
 			continue;
     }
-
     vector<BackendItem> *backup = new vector<BackendItem>();
     for(BackendItem item:*newList)
-
     	backup->push_back(item);
     //2)Check if there is any new change
     if(oldFiles!=nullptr) {
@@ -172,10 +180,10 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 	//No Compute Average freespace, total free space and total amount of required
 	unsigned long totalFree = 0;
 	unsigned long totalRequired = 0;
-	unsigned long avgFree = 0;
+	//unsigned long avgFree = 0;
 	for(ZooNode node:ourZoo)
 		totalFree += node.freeSpace;
-	avgFree = totalFree / ourZoo.size();
+	//avgFree = totalFree / ourZoo.size();
 	for(BackendItem bItem: *listFiles)
 		totalRequired += bItem.length;
 	//Where to keep results <node,list of assignments>
