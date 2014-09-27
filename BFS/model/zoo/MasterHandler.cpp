@@ -236,6 +236,8 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 		totalRequired += bItem.length;
 	//Where to keep results <node,list of assignments>
 	vector<pair<string,vector<string> > > assignments;
+	//A flag to indicate if we could assign anything new
+	bool couldAssign = false;
 	for(ZooNode node:globalView) {
 		pair<string,vector<string> > task;
 		task.first = node.hostName;
@@ -244,6 +246,7 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 				node.freeSpace -= iter->length;
 				task.second.push_back(iter->name);
 				iter = listFiles->erase(iter);
+				couldAssign = true;//an assignment happened :)
 			}
 			else
 				iter++;
@@ -280,7 +283,7 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 
 		printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
 	}
-	return true;
+	return couldAssign;
 }
 
 } /* namespace FUSESwift */
