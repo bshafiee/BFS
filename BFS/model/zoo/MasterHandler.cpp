@@ -193,7 +193,7 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 	}
 
 	//Append remaining files in the fileList to the remainedList
-	for(BackendItem item:fileList)
+	for(BackendItem item:*listFiles)
 		remainedFiles.push_back(item);
 	//having all task determined we need to publish them!
 	for(pair<string,vector<string>> item: assignments) {
