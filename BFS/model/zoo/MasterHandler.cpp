@@ -39,13 +39,17 @@ static void printVector(vector<BackendItem> vec) {
 			cerr<<vec[i].name<<"}"<<endl;;
 }*/
 
+template<typename T>
+static bool contains(const vector<T> &vec,const T &item) {
+	for(T elem:vec)
+		if(elem == item)
+			return true;
+	return false;
+}
+
 void MasterHandler::removeDuplicates(vector<BackendItem> &newList,vector<BackendItem> &oldList) {
 	for(auto iter=newList.begin();iter!=newList.end();) {
-		bool found = false;
-		for(BackendItem item:oldList)
-			if(item == *iter)
-				found = true;
-		if(found)
+		if(contains(oldList,*iter))
 			iter = newList.erase(iter);
 		else
 			iter++;
@@ -92,7 +96,8 @@ void MasterHandler::leadershipLoop() {
     	removeDuplicates(*newList,*oldFiles);
     	//Add Remained files which were not assigned last time
 			for(BackendItem remained:remainedFiles)
-				newList->push_back(remained);//TODO only those who exist in backup list as well!(not deleted)
+				if(contains(*backup,remained))
+					newList->push_back(remained);
     }
 
     if(oldFiles != nullptr) {
@@ -234,7 +239,6 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 		}
 
 		printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
-		fprintf(stderr,"Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
 	}
 	return true;
 }
