@@ -79,7 +79,7 @@ public:
 	int getSessionState();
 	ElectionState getElectionState();
 	void publishListOfFiles();
-	const std::vector<ZooNode> & getGlobalView();
+	std::vector<ZooNode> getGlobalView();
 	void startElection();
 };
 

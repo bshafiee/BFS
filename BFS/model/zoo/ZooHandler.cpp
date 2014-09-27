@@ -418,7 +418,7 @@ void ZooHandler::publishListOfFiles() {
 	printf("publishListOfFiles successfully!\n");
 }
 
-const std::vector<ZooNode> & ZooHandler::getGlobalView() {
+std::vector<ZooNode> ZooHandler::getGlobalView() {
 	return globalView;
 }
 

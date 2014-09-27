@@ -148,9 +148,10 @@ void MasterHandler::stopLeadership() {
  */
 bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 	//1)First check which files already exist in nodes
+	vector<ZooNode> globalView = ZooHandler::getInstance().getGlobalView();
 	for(auto iter = listFiles->begin(); iter != listFiles->end();) {
 		bool found = false;
-		for(ZooNode node : ZooHandler::getInstance().globalView) {
+		for(ZooNode node : globalView) {
 			for(string file:node.containedFiles)
 				if(file == iter->name) {
 					found = true;
@@ -171,29 +172,28 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 		return false;
 	}
 
-	//Now make a list of znode without their filelist overhead
-	//to figureout what to assign to which node
-	vector<ZooNode> ourZoo;
-	for(ZooNode node:ZooHandler::getInstance().globalView)
-		ourZoo.push_back(ZooNode(node.hostName,node.freeSpace,vector<string>()));
-	if(ourZoo.size() == 0)//Nothing to do if we don't have any node yet!
+	if(globalView.size() == 0)//Nothing to do if we don't have any node yet!
 		return false;
+	//Now get rid of filelist overhead in global view
+	//to figureout what to assign to which node
+	for(ZooNode node:globalView)
+		node.containedFiles.clear();
 	//Now sort ourZoo by Free Space descendingly!
-	std::sort(ourZoo.begin(),ourZoo.end(),ZooNode::CompByFreeSpaceDes);
+	std::sort(globalView.begin(),globalView.end(),ZooNode::CompByFreeSpaceDes);
 	//Now sort fileList by their size descendingly!
 	std::sort(listFiles->begin(),listFiles->end(),BackendItem::CompBySizeDes);
 	//No Compute Average freespace, total free space and total amount of required
 	unsigned long totalFree = 0;
 	unsigned long totalRequired = 0;
 	//unsigned long avgFree = 0;
-	for(ZooNode node:ourZoo)
+	for(ZooNode node:globalView)
 		totalFree += node.freeSpace;
 	//avgFree = totalFree / ourZoo.size();
 	for(BackendItem bItem: *listFiles)
 		totalRequired += bItem.length;
 	//Where to keep results <node,list of assignments>
 	vector<pair<string,vector<string> > > assignments;
-	for(ZooNode node:ourZoo) {
+	for(ZooNode node:globalView) {
 		pair<string,vector<string> > task;
 		task.first = node.hostName;
 		for(auto iter=listFiles->begin();iter != listFiles->end();) {
