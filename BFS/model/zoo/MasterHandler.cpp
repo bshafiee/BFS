@@ -15,15 +15,14 @@ using namespace std;
 namespace FUSESwift {
 
 atomic<bool> MasterHandler::isRunning;
-vector<BackendItem> *MasterHandler::oldFiles = nullptr;
-vector<BackendItem> MasterHandler::remainedFiles;
 
 MasterHandler::MasterHandler() {
 }
 
-/*static void printVector(vector<string> vec) {
+/*
+static void printVector(vector<string> vec) {
 	cerr<<"{";
-	for(int i=0;i<vec.size();i++)
+	for(unsigned int i=0;i<vec.size();i++)
 		if(i<vec.size()-1)
 			cerr<<vec[i]<<",";
 		else
@@ -32,7 +31,7 @@ MasterHandler::MasterHandler() {
 
 static void printVector(vector<BackendItem> vec) {
 	cerr<<"{";
-	for(int i=0;i<vec.size();i++)
+	for(unsigned int i=0;i<vec.size();i++)
 		if(i<vec.size()-1)
 			cerr<<vec[i].name<<",";
 		else
@@ -49,11 +48,65 @@ static bool contains(const vector<T> &vec,const T &item) {
 
 void MasterHandler::removeDuplicates(vector<BackendItem> &newList,vector<BackendItem> &oldList) {
 	for(auto iter=newList.begin();iter!=newList.end();) {
-		if(contains(oldList,*iter))
+		bool found = false;
+		for(BackendItem item:oldList)
+			if(iter->name == item.name)
+				found = true;
+		if(found)
 			iter = newList.erase(iter);
 		else
 			iter++;
 	}
+}
+
+vector<BackendItem> MasterHandler::getExistingAssignments() {
+	vector<BackendItem> result;
+	if (ZooHandler::getInstance().sessionState != ZOO_CONNECTED_STATE) {
+		printf("getExistingAssignments(): invalid sessionstate \n");
+		return result;
+	}
+
+	//1)get list of (assignmentznode)/BFSElection children and set a watch for changes in these folder
+	String_vector children;
+	int callResult = zoo_get_children(ZooHandler::getInstance().zh, ZooHandler::getInstance().assignmentZNode.c_str(),0, &children);
+	if (callResult != ZOK) {
+		printf("getExistingAssignments(): zoo_get_children failed:%s\n",
+				zerror(callResult));
+		return result;
+	}
+	//2)get content of each node
+	for (int i = 0; i < children.count; i++) {
+		string node(children.data[i]);
+		//Allocate 1MB data
+		const int length = 1024 * 1024;
+		char *buffer = new char[length];
+		int len = length;
+		int callResult =
+					zoo_get(ZooHandler::getInstance().zh,
+						(ZooHandler::getInstance().assignmentZNode + "/" + node).c_str(),
+						0, buffer, &len, nullptr);
+		if (callResult != ZOK) {
+			printf("getExistingAssignments(): zoo_get:%s\n", zerror(callResult));
+			delete[] buffer;
+			buffer = nullptr;
+			continue;
+		}
+		if(len >= 0 && len <= length-1)
+			buffer[len] = '\0';
+
+		//3)parse node content to a znode
+		char *tok = strtok(buffer, "\n");
+		while (tok != NULL) {
+			string file(tok);
+			result.push_back(BackendItem(file,-1l,"",""));
+			tok = strtok(NULL, "\n");
+		}
+		//Release memory
+		delete[] buffer;
+		buffer = nullptr;
+	}
+
+	return result;
 }
 
 void MasterHandler::leadershipLoop() {
@@ -79,9 +132,9 @@ void MasterHandler::leadershipLoop() {
       usleep(interval);
       continue;
     }
-    vector<BackendItem> *newList  = backend->list();
-    if(newList == nullptr) {
-    	printf("leadershipLoop(): listofFile is null!\n");
+    vector<BackendItem> *backendList = backend->list();
+    if(backendList == nullptr) {
+    	printf("leadershipLoop(): backendList is null!\n");
 			interval *= 10;
 			if(interval > maxSleep)
 				interval = maxSleep;
@@ -89,27 +142,21 @@ void MasterHandler::leadershipLoop() {
 			continue;
     }
     vector<BackendItem> *backup = new vector<BackendItem>();
-    for(BackendItem item:*newList)
+    for(BackendItem item:*backendList)
     	backup->push_back(item);
     //2)Check if there is any new change
-    if(oldFiles!=nullptr) {
-    	removeDuplicates(*newList,*oldFiles);
-    	//Add Remained files which were not assigned last time
-			for(BackendItem remained:remainedFiles)
-				if(contains(*backup,remained))
-					newList->push_back(remained);
-    }
-
-    if(oldFiles != nullptr) {
-      delete oldFiles;
-      oldFiles = nullptr;
-    }
-    oldFiles = backup;
+    vector<BackendItem> oldAssignments = getExistingAssignments();
+    //cerr<<"oldAssignments:";printVector(oldAssignments);
+    if(oldAssignments.size() > 0)
+    	removeDuplicates(*backendList,oldAssignments);
     //3)Fetch list of avail nodes, their free space
     //4)Divide tasks among nodes
 		//5)Clean all previous assignments
 		//6)Publish assignments
-		bool change = divideTaskAmongNodes(newList);
+
+		bool change = false;
+		if(backendList->size())
+			change = divideTaskAmongNodes(backendList);
 
     //Adaptive sleep
 		if(!change)
@@ -121,10 +168,6 @@ void MasterHandler::leadershipLoop() {
 }
 
 MasterHandler::~MasterHandler() {
-	if(oldFiles != nullptr) {
-		delete oldFiles;
-		oldFiles = nullptr;
-	}
 }
 
 void MasterHandler::startLeadership() {
@@ -208,9 +251,6 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 		assignments.push_back(task);
 	}
 
-	//Append remaining files in the fileList to the remainedList
-	for(BackendItem item:*listFiles)
-		remainedFiles.push_back(item);
 	//having all task determined we need to publish them!
 	for(pair<string,vector<string>> item: assignments) {
 		string path = ZooHandler::getInstance().assignmentZNode+"/"+item.first;
