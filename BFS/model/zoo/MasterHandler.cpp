@@ -84,7 +84,7 @@ void MasterHandler::leadershipLoop() {
     	removeDuplicates(*newList,*oldFiles);
     	//Add Remained files which were not assigned last time
 			for(BackendItem remained:remainedFiles)
-				newList->push_back(remained);
+				newList->push_back(remained);//TODO only those who exist in backup list as well!(not deleted)
     }
 
     if(oldFiles != nullptr) {
@@ -115,6 +115,8 @@ MasterHandler::~MasterHandler() {
 }
 
 void MasterHandler::startLeadership() {
+	if(isRunning)
+		return;
   isRunning = true;
   new thread(leadershipLoop);
 }
@@ -214,15 +216,17 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 			strcpy(buffer,path.c_str());
 			int createRes = zoo_create(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),
 																 value.length(),&ZOO_OPEN_ACL_UNSAFE,ZOO_EPHEMERAL,buffer,sizeof(buffer));
-			if(createRes != ZOK)
+			if(createRes != ZOK){
 				fprintf(stderr, "divideTaskAmongNodes(): zoo_create failed:%s\n",zerror(createRes));
 				continue;
+			}
 		} else if(callRes != ZOK) {
 			fprintf(stderr, "divideTaskAmongNodes(): zoo_set failed:%s\n",zerror(callRes));
 			continue;
 		}
 
-		//printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
+		printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
+		fprintf(stderr,"Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
 	}
 	return true;
 }

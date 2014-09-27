@@ -515,6 +515,7 @@ void ZooHandler::electionFolderWatcher(zhandle_t* zzh, int type, int state,
 		printf("Children of Election folder changed: %s . updating globalview...\n", path);
 		getInstance().updateGlobalView();
 	}
+	getInstance().determineElectionStatus();
 }
 
 /**
