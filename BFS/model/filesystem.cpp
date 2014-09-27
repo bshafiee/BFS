@@ -132,6 +132,8 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   delete _node;//this will recursively call destructor of all kids
   _node = nullptr;
 
+  //Inform ZooHandler about new file
+	ZooHandler::getInstance().publishListOfFiles();
   return fullPathStack.size();
 }
 
