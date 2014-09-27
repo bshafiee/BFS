@@ -36,6 +36,15 @@ struct BackendItem {
 	static bool CompBySizeDes (const BackendItem& lhs, const BackendItem& rhs) {
 		return lhs.length > rhs.length;
 	}
+
+	static bool CompByNameAsc (const BackendItem& lhs, const BackendItem& rhs) {
+		return lhs.name < rhs.name;
+	}
+
+	bool operator == (const BackendItem& a) const {
+		return (a.name == this->name && a.length == this->length &&
+						a.hash == this->hash && a.last_modified == this->last_modified);
+	}
 };
 
 class Backend {

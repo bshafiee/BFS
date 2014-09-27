@@ -19,10 +19,13 @@ namespace FUSESwift {
 class MasterHandler {
 private:
   static std::atomic<bool> isRunning;
-  static std::vector<BackendItem> *fileList;
+  //Remained files to be assigned to nodes
+  static std::vector<BackendItem> remainedFiles;
+  static std::vector<BackendItem> *oldFiles;
   MasterHandler();
   static void leadershipLoop();
-  static bool divideTaskAmongNodes();
+  static bool divideTaskAmongNodes(std::vector<BackendItem> *listFiles);
+  static void removeDuplicates(std::vector<BackendItem> &newList,std::vector<BackendItem> &oldList);
 public:
   virtual ~MasterHandler();
   static void startLeadership();

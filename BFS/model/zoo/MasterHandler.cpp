@@ -14,9 +14,31 @@ using namespace std;
 namespace FUSESwift {
 
 atomic<bool> MasterHandler::isRunning;
-vector<BackendItem> *MasterHandler::fileList = nullptr;
+vector<BackendItem> *MasterHandler::oldFiles = nullptr;
 
 MasterHandler::MasterHandler() {
+}
+
+
+static void removeDuplicates(vector<BackendItem> &newList,vector<BackendItem> &oldList) {
+	std::sort(newList.begin(),newList.end(),BackendItem::CompByNameAsc);
+	std::sort(oldList.begin(),oldList.end(),BackendItem::CompByNameAsc);
+
+	//Get Intersection
+	vector<BackendItem> intersection;
+	std::set_intersection(newList.begin(),newList.end(),oldList.begin(),oldList.end(),back_inserter(intersection));
+	//Remove duplicates
+	for(BackendItem item:intersection) {
+		for(auto it=newList.begin();it != newList.end();) {
+			if(item == *it){
+				it = newList.erase(it);
+				break;
+			}
+			else
+				it++;
+		}
+	}
+
 }
 
 void MasterHandler::leadershipLoop() {
@@ -40,19 +62,40 @@ void MasterHandler::leadershipLoop() {
       if(interval > maxSleep)
       	interval = maxSleep;
       usleep(interval);
+      continue;
     }
+    vector<BackendItem> *newList  = backend->list();
+    if(newList == nullptr) {
+    	printf("leadershipLoop(): listofFile is null!\n");
+			interval *= 10;
+			if(interval > maxSleep)
+				interval = maxSleep;
+			usleep(interval);
+			continue;
+    }
+
+    vector<BackendItem> *backup = new vector<BackendItem>();
+    for(BackendItem item:*newList)
+
+    	backup->push_back(item);
     //2)Check if there is any new change
-    //TODO implement this...
-    if(fileList != nullptr) {
-      delete fileList;
-      fileList = nullptr;
+    if(oldFiles!=nullptr) {
+    	removeDuplicates(*newList,*oldFiles);
+    	//Add Remained files which were not assigned last time
+			for(BackendItem remained:remainedFiles)
+				newList->push_back(remained);
     }
-    fileList  = backend->list();
+
+    if(oldFiles != nullptr) {
+      delete oldFiles;
+      oldFiles = nullptr;
+    }
+    oldFiles = backup;
     //3)Fetch list of avail nodes, their free space
     //4)Divide tasks among nodes
 		//5)Clean all previous assignments
 		//6)Publish assignments
-		bool change = divideTaskAmongNodes();
+		bool change = divideTaskAmongNodes(newList);
 
     //Adaptive sleep
 		if(!change)
@@ -64,9 +107,9 @@ void MasterHandler::leadershipLoop() {
 }
 
 MasterHandler::~MasterHandler() {
-	if(fileList != nullptr) {
-		delete fileList;
-		fileList = nullptr;
+	if(oldFiles != nullptr) {
+		delete oldFiles;
+		oldFiles = nullptr;
 	}
 }
 
@@ -87,9 +130,9 @@ void MasterHandler::stopLeadership() {
  *
  * return true if a new assignment happens
  */
-bool MasterHandler::divideTaskAmongNodes() {
+bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 	//1)First check which files already exist in nodes
-	for(auto iter = fileList->begin(); iter != fileList->end();) {
+	for(auto iter = listFiles->begin(); iter != listFiles->end();) {
 		bool found = false;
 		for(ZooNode node : ZooHandler::getInstance().globalView) {
 			for(string file:node.containedFiles)
@@ -102,12 +145,12 @@ bool MasterHandler::divideTaskAmongNodes() {
 		}
 		//Remove the file from list of files if already found in any of nodes
 		if(found)
-			iter = fileList->erase(iter);
+			iter = listFiles->erase(iter);
 		else
 			++iter;
 	}
 	//Now FileList contains files which don't exist at any node!
-	if(fileList->size() == 0){//Nothing to do :) Bye!
+	if(listFiles->size() == 0){//Nothing to do :) Bye!
 		//printf("Filelist empty\n");
 		return false;
 	}
@@ -122,7 +165,7 @@ bool MasterHandler::divideTaskAmongNodes() {
 	//Now sort ourZoo by Free Space descendingly!
 	std::sort(ourZoo.begin(),ourZoo.end(),ZooNode::CompByFreeSpaceDes);
 	//Now sort fileList by their size descendingly!
-	std::sort(fileList->begin(),fileList->end(),BackendItem::CompBySizeDes);
+	std::sort(listFiles->begin(),listFiles->end(),BackendItem::CompBySizeDes);
 	//No Compute Average freespace, total free space and total amount of required
 	unsigned long totalFree = 0;
 	unsigned long totalRequired = 0;
@@ -130,24 +173,28 @@ bool MasterHandler::divideTaskAmongNodes() {
 	for(ZooNode node:ourZoo)
 		totalFree += node.freeSpace;
 	avgFree = totalFree / ourZoo.size();
-	for(BackendItem bItem: *fileList)
+	for(BackendItem bItem: *listFiles)
 		totalRequired += bItem.length;
 	//Where to keep results <node,list of assignments>
 	vector<pair<string,vector<string> > > assignments;
 	for(ZooNode node:ourZoo) {
 		pair<string,vector<string> > task;
 		task.first = node.hostName;
-		for(auto iter=fileList->begin();iter != fileList->end();) {
+		for(auto iter=listFiles->begin();iter != listFiles->end();) {
 			if(iter->length < node.freeSpace) {
 				node.freeSpace -= iter->length;
 				task.second.push_back(iter->name);
-				iter = fileList->erase(iter);
+				iter = listFiles->erase(iter);
 			}
 			else
 				iter++;
 		}
 		assignments.push_back(task);
 	}
+
+	//Append remaining files in the fileList to the remainedList
+	for(BackendItem item:fileList)
+		remainedFiles.push_back(item);
 	//having all task determined we need to publish them!
 	for(pair<string,vector<string>> item: assignments) {
 		string path = ZooHandler::getInstance().assignmentZNode+"/"+item.first;
