@@ -46,6 +46,7 @@
 #include "model/DownloadQueue.h"
 #include "model/MemoryController.h"
 #include "model/zoo/ZooHandler.h"
+#include "model/SettingManager.h"
 
 
 using namespace Swift;

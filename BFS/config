@@ -1,0 +1,9 @@
+#Mode determines wether to operate in DISTRIBUTED or STANDALONE mode 
+mode = DISTRIBUTED
+#Swift Authentication info
+username = behrooz
+password = behrooz
+authUrl = http://10.42.0.83:5000/v2.0/tokens
+tenantName = kos
+#Zookeeper configuration
+zooserver = 10.42.0.62:2181,10.42.0.62:2182,129.97.170.232:2181
