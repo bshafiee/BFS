@@ -30,7 +30,7 @@ struct bb_state {
 #define DEBUG_MKNOD      0
 #define DEBUG_MKDIR      0
 #define DEBUG_RMDIR      0
-#define DEBUG_RENAME     0
+#define DEBUG_RENAME     1
 #define DEBUG_OPEN       0
 #define DEBUG_READ       0
 #define DEBUG_WRITE      0

@@ -213,9 +213,15 @@ int swift_rmdir(const char* path) {
 int swift_symlink(const char* from, const char* to) {
 }*/
 
+/**
+ * TODO:
+ * XXX: causes some applications like gedit to fail!
+ * They depend on writing on a tempfile and then rename it to
+ * the original file.
+ */
 int swift_rename(const char* from, const char* to) {
   if(DEBUG_RENAME)
-    log_msg("\nbb_rename(fpath=\"%s\", newpath=\"%s\")\n", from, to);
+    log_msg("\nNOT IMPLEMENTED: bb_rename(fpath=\"%s\", newpath=\"%s\")\n", from, to);
   //Disabling rename
   return -ENOENT;
 /*
@@ -380,12 +386,11 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   node->setMTime(time(0));
   //Node might get deleted after close! so no reference to it anymore!
   //Debug info backup
-  bool isOpen = node->isOpen();
   string pathStr = node->getFullPath();
   //Now we can safetly close it!
   node->close();
   if(DEBUG_RELEASE) {
-    log_msg("\nbb_release(name=\"%s\", fi=0x%08x) isStillOpen?%d \n", pathStr.c_str(), fi, isOpen);
+    log_msg("\nbb_release(name=\"%s\", fi=0x%08x) \n", pathStr.c_str(), fi);
     log_fi(fi);
   }
   return retstat;

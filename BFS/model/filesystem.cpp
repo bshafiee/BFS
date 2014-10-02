@@ -342,7 +342,8 @@ std::vector<std::string>* FileSystem::listFileSystem() {
 }
 
 bool FileSystem::nameValidator(const std::string& _name) {
-  return RegularExpression::match(_name,"^[a-zA-Z0-9äöüÄÖÜ\\.\\-_@!#\\$%\\^\\&\\*\\)\\(\\+\\|\\?<>\\[\\]\\{\\}:;'\",~]*$");
+  return RegularExpression::match(_name,"^[a-zA-Z0-9äöüÄÖÜ\\.\\-_@!#\\$%\\^\\&\\*\\)\\(\\+\\|\\?<>\\[\\]\\{\\}:;'\",~ ]*$");
+	//return true;
 }
 
 } // namespace
