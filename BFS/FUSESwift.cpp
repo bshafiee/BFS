@@ -174,10 +174,18 @@ int swift_unlink(const char* path) {
     return -ENOENT;
   }
 
-  FileNode* parent = FileSystem::getInstance().findParent(path);
-  size_t remNodes = FileSystem::getInstance().rmNode(parent, node);
+
+  if(node->isOpen())
+  	node->signalDelete();
+  else {
+		FileNode* parent = FileSystem::getInstance().findParent(path);
+		//size_t remNodes = FileSystem::getInstance().rmNode(parent, node);
+		FileSystem::getInstance().rmNode(parent, node);
+  }
+
   if(DEBUG_UNLINK)
-    log_msg("Removed %d nodes from %s file.\n", remNodes, path);
+    //log_msg("Removed %d nodes from %s file.\n", remNodes, path);
+  	log_msg("Removed %s file.\n", path);
 
   return 0;
 }
@@ -370,9 +378,14 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   FileNode* node = (FileNode*)fi->fh;
   //Update modification time
   node->setMTime(time(0));
+  //Node might get deleted after close! so no reference to it anymore!
+  //Debug info backup
+  bool isOpen = node->isOpen();
+  string pathStr = node->getFullPath();
+  //Now we can safetly close it!
   node->close();
   if(DEBUG_RELEASE) {
-    log_msg("\nbb_release(name=\"%s\", fi=0x%08x) isStillOpen?%d \n", node->getFullPath().c_str(), fi, node->isOpen());
+    log_msg("\nbb_release(name=\"%s\", fi=0x%08x) isStillOpen?%d \n", pathStr.c_str(), fi, isOpen);
     log_fi(fi);
   }
   return retstat;

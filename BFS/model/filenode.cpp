@@ -19,7 +19,7 @@ using namespace std;
 namespace FUSESwift {
 
 FileNode::FileNode(string _name,bool _isDir, FileNode* _parent):Node(_name,_parent),
-    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false) {
+    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),mustDeleted(false) {
 }
 
 FileNode::~FileNode() {
@@ -360,9 +360,18 @@ void FileNode::close() {
    * add event to sync queue if all the refrences to this file
    * are closed and it actually needs updating!
    */
-  if(refCount == 0 && needSync) {
-    if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this,this->getFullPath())))
-      this->setNeedSync(false);
+  if(refCount == 0) {
+  	if(needSync)
+  		if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this,this->getFullPath())))
+  			this->setNeedSync(false);
+
+  	//If all refrences to this files are deleted so it can be deleted
+  	if(mustDeleted) {
+  		string path = this->getFullPath();
+  		FileNode* parent = FileSystem::getInstance().findParent(path);
+  		FileNode* thisNode = FileSystem::getInstance().getNode(path);
+  		FileSystem::getInstance().rmNode(parent,thisNode);
+  	}
   }
   else {
     /*int refs = refCount;
@@ -414,4 +423,9 @@ void FileNode::unlockDelete() {
   deleteMutex.unlock();
 }
 
+void FileNode::signalDelete() {
+	mustDeleted = true;
+}
+
 } //namespace
+

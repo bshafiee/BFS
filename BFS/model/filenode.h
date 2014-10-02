@@ -34,6 +34,7 @@ class FileNode: public Node {
   std::vector<char*> dataList;
   unsigned int blockIndex;
   std::atomic<bool> needSync;
+  std::atomic<bool> mustDeleted;//To indicate this file should be deleted after being closed
   //Delete Lock
   std::mutex deleteMutex;
   //Read/Write Lock
@@ -109,6 +110,12 @@ public:
   bool isOpen();
   void lockDelete();
   void unlockDelete();
+  /**
+   * When a file is being removed it might be open yet!
+   * therefore, we indicate this file should be removed after all
+   * the references to it being closed!
+   */
+  void signalDelete();
 };
 
 } /* namespace FUSESwift */
