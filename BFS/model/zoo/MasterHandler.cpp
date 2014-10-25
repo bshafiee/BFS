@@ -5,11 +5,12 @@
  *      Author: behrooz
  */
 
-#include "MasterHandler.h"
-#include "ZooHandler.h"
 #include <thread>
 #include <algorithm>
 #include <iostream>
+#include "MasterHandler.h"
+#include "ZooHandler.h"
+
 using namespace std;
 
 namespace FUSESwift {

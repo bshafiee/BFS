@@ -7,6 +7,7 @@
 
 #ifndef ZOOHANDLER_H_
 #define ZOOHANDLER_H_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <zookeeper.h>
@@ -19,6 +20,7 @@
 #include "LeaderOffer.h"
 #include "MasterHandler.h"
 #include "ZooNode.h"
+#include "../znet/BFSNetwork.h"
 
 
 namespace FUSESwift {
@@ -67,6 +69,8 @@ private:
 	void fetchAssignmets();
 	/** Keeps an eye on the assignment node **/
 	static void assignmentWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
+	/** This will be called to update list of remote files in our file system **/
+	void updateRemoteFilesInFS();
 public:
 	static ZooHandler& getInstance();
 	virtual ~ZooHandler();

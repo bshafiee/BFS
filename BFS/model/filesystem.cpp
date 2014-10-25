@@ -42,24 +42,25 @@ FileSystem& FileSystem::getInstance() {
   return mInstance;
 }
 
-FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name) {
+FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _isRemote) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *dir = new FileNode(_name, false, _parent);
+  FileNode *dir = new FileNode(_name, false, _parent, _isRemote);
   auto res = _parent->childAdd(dir);
   if (res.second) {
-  	//Inform ZooHandler about new file
-		ZooHandler::getInstance().publishListOfFiles();
+  	//Inform ZooHandler about new file if not remote
+  	if(!_isRemote)
+  		ZooHandler::getInstance().publishListOfFiles();
     return (FileNode*) (res.first->second);
   }
   else
     return nullptr;
 }
 
-FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name) {
+FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *dir = new FileNode(_name, true, _parent);
+  FileNode *dir = new FileNode(_name, true, _parent,_isRemote);
   auto res = _parent->childAdd(dir);
   if (res.second)
     return (FileNode*) (res.first->second);
@@ -129,11 +130,13 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   if(_parent != nullptr) //removing the node itself
     _parent->childRemove(_node->getName());
 
+  bool isRemote = _node->isRemote();
   delete _node;//this will recursively call destructor of all kids
   _node = nullptr;
 
   //Inform ZooHandler about new file
-	ZooHandler::getInstance().publishListOfFiles();
+  if(!isRemote)
+  	ZooHandler::getInstance().publishListOfFiles();
   return fullPathStack.size();
 }
 
@@ -181,7 +184,7 @@ FileNode* FileSystem::createHierarchy(const std::string &_path) {
       continue;
     Node* node = start->childFind(tokenizer[i]);
     if(node == nullptr)
-      start = mkDirectory(start,tokenizer[i]);
+      start = mkDirectory(start,tokenizer[i],false);
     else
       start = (FileNode*) node;
   }
@@ -194,18 +197,18 @@ string getNameFromPath(const string &_path) {
   return tokenizer[tokenizer.count() - 1];
 }
 
-FileNode* FileSystem::mkFile(const string &_path) {
+FileNode* FileSystem::mkFile(const string &_path,bool _isRemote) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
-  return mkFile(parent, name);
+  return mkFile(parent, name, _isRemote);
 }
 
-FileNode* FileSystem::mkDirectory(const std::string &_path) {
+FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
-  return mkDirectory(parent, name);
+  return mkDirectory(parent, name,_isRemote);
 }
 
 FileNode* FileSystem::getNode(const std::string &_path) {
@@ -314,19 +317,22 @@ std::string FileSystem::printFileSystem() {
   return output;
 }
 
-std::vector<std::string>* FileSystem::listFileSystem() {
-	vector<string> *output = new vector<string>();
-  //Recursive removing is dangerous, because we might run out of memory.
+std::vector<std::string> FileSystem::listLocalFileSystem() {
+	vector<string> output;
+  //Recursive is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
   FileNode* start = root;
   while (start != nullptr) {
     //add children to queue
     auto childIterator = start->childrendBegin();
-    for (; childIterator != start->childrenEnd(); childIterator++)
-      childrenQueue.push_back((FileNode*) childIterator->second);
+    for (; childIterator != start->childrenEnd(); childIterator++){
+    	FileNode* fileNode = (FileNode*) childIterator->second;
+      if(!fileNode->isRemote())//If not remove we will claim we have this File
+				childrenQueue.push_back(fileNode);
+    }
     //Now we can release start node
-    if(start->getName()!="/")
-    	output->push_back(start->getFullPath());
+    if(start->getName()!="/" && !start->isDirectory())//if not a directory
+    	output.push_back(start->getFullPath());
 
     if (childrenQueue.size() == 0)
       start = nullptr;

@@ -146,7 +146,7 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	//handle directories
 	FileNode* parent = FileSystem::getInstance().createHierarchy(_event->fullPathBuffer);
 	string fileName = FileSystem::getInstance().getFileNameFromPath(_event->fullPathBuffer);
-	FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName);
+	FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName,false);
 	newFile->lockDelete();
 	newFile->open();
 	newFile->unlockDelete();

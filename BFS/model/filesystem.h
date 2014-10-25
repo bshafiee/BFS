@@ -31,10 +31,10 @@ public:
   void initialize(FileNode* _root);
   static FileSystem& getInstance();
   virtual ~FileSystem();
-  FileNode* mkFile(FileNode* _parent, const std::string &_name);
-  FileNode* mkDirectory(FileNode* _parent, const std::string &_name);
-  FileNode* mkFile(const std::string &_path);
-  FileNode* mkDirectory(const std::string &_path);
+  FileNode* mkFile(FileNode* _parent, const std::string &_name,bool _isRemote);
+  FileNode* mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote);
+  FileNode* mkFile(const std::string &_path,bool _isRemote);
+  FileNode* mkDirectory(const std::string &_path,bool _isRemote);
   size_t rmNode(FileNode* &_parent,FileNode* &_node);
   FileNode* searchFile(FileNode* _parent, const std::string &_name);
   FileNode* searchDir(FileNode* _parent, const std::string &_name);
@@ -60,7 +60,7 @@ public:
   /**
    * Caller's responisbility to call delete on returned list
    */
-  std::vector<std::string>* listFileSystem();
+  std::vector<std::string> listLocalFileSystem();
   /**
    * checks if the input name is valid
    */

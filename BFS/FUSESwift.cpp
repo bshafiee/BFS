@@ -15,35 +15,18 @@
 #include "model/UploadQueue.h"
 #include "model/DownloadQueue.h"
 #include "model/MemoryController.h"
+#include "model/zoo/ZooHandler.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
 FileNode* createRootNode() {
-  FileNode *node = new FileNode(FileSystem::delimiter, true, nullptr);
+  FileNode *node = new FileNode(FileSystem::delimiter, true, nullptr,false);
   unsigned long now = time(0);
   node->setCTime(now);
   node->setCTime(now);
   return node;
-}
-
-void fillStat(struct stat *stbuff, FileNode* node) {
-  memset(stbuff, 0, sizeof(struct stat));
-  //Fill Stat struct
-  stbuff->st_dev = 0;
-  stbuff->st_ino = 0;
-  stbuff->st_mode = node->isDirectory() ? S_IFDIR : S_IFREG;
-  stbuff->st_nlink = 1;
-  stbuff->st_uid = node->getUID();
-  stbuff->st_gid = node->getGID();
-  stbuff->st_rdev = 0;
-  stbuff->st_size = node->getSize();
-  stbuff->st_blksize = FileSystem::blockSize;
-  stbuff->st_blocks = node->getSize() / FileSystem::blockSize;
-  stbuff->st_atime = 0x00000000;
-  stbuff->st_mtime = node->getMTime();
-  stbuff->st_ctime = node->getCTime();
 }
 
 int swift_getattr(const char *path, struct stat *stbuff) {
@@ -58,11 +41,12 @@ int swift_getattr(const char *path, struct stat *stbuff) {
     return -ENOENT;
   }
   //Fill Stat struct
-  memset(stbuff, 0, sizeof(struct stat));
-  fillStat(stbuff, node);
   if(DEBUG_GET_ATTRIB)
     log_stat(stbuff);
-  return 0;
+  if(node->getStat(stbuff))
+  	return 0;
+  else
+  	return -1;
 }
 
 int swift_readlink(const char* path, char* buf, size_t size) {
@@ -98,7 +82,7 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
         log_msg("\nbb_mknod can't create file: invalid name:\"%s\"\n", path);
       return EINVAL;
     }
-    FileNode *newFile = FileSystem::getInstance().mkFile(pathStr);
+    FileNode *newFile = FileSystem::getInstance().mkFile(pathStr,false);
     if (newFile == nullptr) {
       retstat = ENOENT;
       log_msg("bb_mknod mkFile (newFile is nullptr)\n");
@@ -140,7 +124,7 @@ int swift_mkdir(const char* path, mode_t mode) {
         log_msg("\nbb_mkdir can't create directory: invalid name:\"%s\"\n", path);
       return EINVAL;
     }
-    FileNode *newDir = FileSystem::getInstance().mkDirectory(pathStr);
+    FileNode *newDir = FileSystem::getInstance().mkDirectory(pathStr,false);
     if (newDir == nullptr){
       retstat = ENOENT;
       log_msg("bb_mkdir mkFile (newFile is nullptr)\n");
@@ -276,9 +260,13 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
     fi->fh = 0;
     return -ENOENT;
   }
-  node->open();
-  fi->fh = (intptr_t)node;
-  return 0;
+  bool res = node->open();
+  if(res) {
+		fi->fh = (intptr_t)node;
+		return 0;
+  }
+  else
+  	return -1;
 }
 
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
@@ -295,16 +283,20 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
   //Get associated FileNode*
   FileNode* node = (FileNode*)fi->fh;
   //Empty file
-  if(node->getSize() == 0)
-  {
+  if((!node->isRemote()&&node->getSize() == 0)||size == 0) {
     if(DEBUG_READ)
-      log_msg("bb_read successful from:%s size=%d, offset=%lld EOF\n",node->getName().c_str(),0,offset);
+      log_msg("swift_read from:%s size=%d, offset=%lld EOF\n",node->getName().c_str(),0,offset);
     return 0;
   }
-  long readBytes = node->read(buf,offset,size);
+  long readBytes = 0;
+  if(node->isRemote())
+  	readBytes = node->readRemote(buf,offset,size);
+  else
+  	readBytes = node->read(buf,offset,size);
+
   if(readBytes >= 0) {
     if(DEBUG_READ)
-      log_msg("bb_read successful from:%s size=%d, offset=%lld\n",node->getName().c_str(),readBytes,offset);
+      log_msg("swift_read successful from:%s size=%d, offset=%lld\n",node->getName().c_str(),readBytes,offset);
     return readBytes;
   }
   else {
@@ -471,7 +463,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
      * void *buf, const char *name,
      const struct stat *stbuf, off_t off
      */
-    fillStat(&st,entry);
+    entry->getStat(&st);
     if (filler(buf, entry->getName().c_str(), &st, 0)) {
       log_msg("swift_readdir filler error\n");
       return EIO;
@@ -518,6 +510,7 @@ void* swift_init(struct fuse_conn_info* conn) {
   struct fuse_context fuseContext = *fuse_get_context();
   rootNode->setGID(fuseContext.gid);
   rootNode->setUID(fuseContext.uid);
+  conn->max_readahead = 4294967295U;
   //Log
   if(DEBUG_INIT) {
     log_msg("\nbb_init()\n");
@@ -530,6 +523,9 @@ void* swift_init(struct fuse_conn_info* conn) {
   UploadQueue::getInstance().startSynchronization();
   DownloadQueue::getInstance().startSynchronization();
   log_msg("\nSyncThreads running...\n");
+  //Start Zoo Election
+	ZooHandler::getInstance().startElection();
+	log_msg("\nZooHandler running...\n");
 
   return nullptr;
 }

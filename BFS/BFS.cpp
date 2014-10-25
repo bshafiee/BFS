@@ -15,7 +15,7 @@
 // writing, the most current API version is 26
 #define FUSE_USE_VERSION 29
 
-
+#include <signal.h>
 #include "params.h"
 #include <stdio.h>
 #include <string.h>
@@ -45,8 +45,8 @@
 #include "string.h"
 #include "model/DownloadQueue.h"
 #include "model/MemoryController.h"
-#include "model/zoo/ZooHandler.h"
 #include "model/SettingManager.h"
+#include "model/znet/BFSNetwork.h"
 
 
 using namespace Swift;
@@ -107,7 +107,7 @@ static struct fuse_operations xmp_oper = {
 
 void bfs_usage()
 {
-    fprintf(stderr, "usage:  bbfs [FUSE and mount options] rootDir mountPoint\n");
+    fprintf(stderr, "usage:  bbfs [FUSE and mount options] mountPoint\n");
     abort();
 }
 
@@ -125,7 +125,22 @@ void systemErrorHandler()
     std::abort();
 }
 
+void sigproc(int sig) {
+	fprintf(stdout, "Leaving...\n");
+	FUSESwift::BFSNetwork::stopNetwork();
+	exit(0);
+}
+
 int main(int argc, char *argv[]) {
+
+	//Set signal handlers
+	signal(SIGINT, sigproc);
+	signal(SIGTERM, sigproc);
+	signal(SIGINT, sigproc);
+  //set the new_handler
+  std::set_new_handler(outOfMemHandler);
+  std::set_terminate(systemErrorHandler);
+
   AuthenticationInfo info;
   info.username = "behrooz";
   info.password = "behrooz";
@@ -138,7 +153,7 @@ int main(int argc, char *argv[]) {
   //make ready log file
   log_open();
 
-  // bbfs doesn't do any access checking on its own (the comment
+  // BFS doesn't do any access checking on its own (the comment
   // blocks in fuse.h mention some of the functions that need
   // accesses checked -- but note there are other functions, like
   // chown(), that also need checking!).  Since running bbfs as root
@@ -169,12 +184,9 @@ int main(int argc, char *argv[]) {
   //Get Physical Memory amount
   cout <<"Total Physical Memory:"<<MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024<<" MB"<<endl;
 
-  //Start Zoo Election
-  ZooHandler::getInstance().startElection();
+  //Start BFS Network(before zoo, zoo uses mac info from this package)
+	BFSNetwork::startNetwork();
 
-  //set the new_handler
-  std::set_new_handler(outOfMemHandler);
-  std::set_terminate(systemErrorHandler);
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
   fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
@@ -183,5 +195,6 @@ int main(int argc, char *argv[]) {
 
   //Log Close
   log_close();
+  BFSNetwork::stopNetwork();
   return fuse_stat;
 }

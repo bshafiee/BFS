@@ -17,7 +17,7 @@
 namespace FUSESwift {
 
 class MemoryContorller {
-  const double MAX_MEM_COEF = 0.8;
+  const double MAX_MEM_COEF = 0.5;
   long long total;
   unsigned long long max_allowed;
   MemoryContorller();

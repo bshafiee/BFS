@@ -1,5 +1,5 @@
-#CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++11
-CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++11
+#CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
+CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
 CXXSOURCES = $(wildcard *.cpp model/*.cpp model/*/*.cpp)
 OBJS =		$(CXXSOURCES:%.cpp=%.o)
 
@@ -11,7 +11,7 @@ CXXFLAGS+= $(LFLAGS)
 LD = -Llib/poco/lib -Llib/libSwift/lib -L/usr/local/lib -Llib/zookeeper/lib
 CXXFLAGS+=$(LD)
 
-LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt
+LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma
 
 TARGET =	BFS
 #CXX=clang++

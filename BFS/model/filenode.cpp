@@ -13,13 +13,14 @@
 #include <Poco/MD5Engine.h>
 #include "UploadQueue.h"
 #include "MemoryController.h"
+#include "znet/BFSNetwork.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
-FileNode::FileNode(string _name,bool _isDir, FileNode* _parent):Node(_name,_parent),
-    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),mustDeleted(false) {
+FileNode::FileNode(string _name,bool _isDir, FileNode* _parent, bool _isRemote):Node(_name,_parent),
+    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),mustDeleted(false), isRem(_isRemote) {
 }
 
 FileNode::~FileNode() {
@@ -425,6 +426,50 @@ void FileNode::unlockDelete() {
 
 void FileNode::signalDelete() {
 	mustDeleted = true;
+}
+
+bool FileNode::isRemote() {
+	return isRem;
+}
+const unsigned char* FileNode::getRemoteHostMAC() {
+	return this->remoteHostMAC;
+}
+
+void FileNode::setRemoteHostMAC(const unsigned char *_mac) {
+	memcpy(this->remoteHostMAC,_mac,6*sizeof(char));
+}
+
+bool FileNode::getStat(struct stat *stbuff) {
+
+	if(!isRem){
+		memset(stbuff, 0, sizeof(struct stat));
+		//Fill Stat struct
+		stbuff->st_dev = 0;
+		stbuff->st_ino = 0;
+		stbuff->st_mode = this->isDirectory() ? S_IFDIR : S_IFREG;
+		stbuff->st_nlink = 1;
+		stbuff->st_uid = this->getUID();
+		stbuff->st_gid = this->getGID();
+		stbuff->st_rdev = 0;
+		stbuff->st_size = this->getSize();
+		stbuff->st_blksize = FileSystem::blockSize;
+		stbuff->st_blocks = this->getSize() / FileSystem::blockSize;
+		stbuff->st_atime = 0x00000000;
+		stbuff->st_mtime = this->getMTime();
+		stbuff->st_ctime = this->getCTime();
+		return true;
+	}
+	else{
+		bool res = BFSNetwork::readRemoteFileAttrib(stbuff,this->getFullPath(),remoteHostMAC);
+		if(!res)
+			fprintf(stderr,"GetRemoteAttrib failed for:%s\n",this->getFullPath().c_str());
+		return res;
+	}
+}
+
+long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
+	fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
+	return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
 }
 
 } //namespace

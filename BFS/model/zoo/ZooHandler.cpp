@@ -17,6 +17,7 @@
 #include "../filesystem.h"
 #include "../DownloadQueue.h"
 #include "string.h"
+#include "../znet/ZeroNetwork.h"
 
 using namespace std;
 
@@ -219,10 +220,10 @@ bool ZooHandler::makeOffer() {
 	 * zoo_create(zh,(electionZNode).c_str(),"Election Offers",
 	 strlen("Election Offers"),&ZOO_OPEN_ACL_UNSAFE ,0,newNodePath,newNodePathLen);*/
 	//ZooNode
-	vector<string> *listOfFiles = FileSystem::getInstance().listFileSystem();
+	vector<string> listOfFiles = FileSystem::getInstance().listLocalFileSystem();
 	//Create a ZooNode
 	ZooNode zooNode(getHostName(),
-	    MemoryContorller::getInstance().getAvailableMemory(), *listOfFiles);
+	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC());
 	//Send data
 	string str = zooNode.toString();
 	int result = zoo_create(zh, (electionZNode + "/" + "n_").c_str(), str.c_str(),
@@ -396,20 +397,16 @@ void ZooHandler::publishListOfFiles() {
 		return;
 	}
 
-	vector<string> *listOfFiles = FileSystem::getInstance().listFileSystem();
+	vector<string> listOfFiles = FileSystem::getInstance().listLocalFileSystem();
 	//Traverse FileSystem Hierarchies
 
 	//Create a ZooNode
 	ZooNode zooNode(getHostName(),
-	    MemoryContorller::getInstance().getAvailableMemory(), *listOfFiles);
+	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC());
 	//Send data
 	string str = zooNode.toString();
 	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
 	    str.length(), -1);
-	//first Release memory!
-	listOfFiles->clear();
-	delete listOfFiles;
-	listOfFiles = nullptr;
 	if (callRes != ZOK) {
 		printf("publishListOfFiles(): zoo_set failed:%s\n", zerror(callRes));
 		return;
@@ -476,6 +473,20 @@ void ZooHandler::updateGlobalView() {
 			continue;
 		}
 		string hostName(tok);
+
+		tok = strtok(NULL, "\n");
+		if (tok == NULL) {
+			printf("updateGlobalView(): strtok failed. Malform data at:%s\n",
+					node.c_str());
+			delete[] buffer;
+			buffer = nullptr;
+			continue;
+		}
+		unsigned char mac[6];
+		//Parse MAC String
+		sscanf(tok, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2],
+				&mac[3], &mac[4], &mac[5]);
+
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
 			printf("updateGlobalView(): strtok failed. Malform data at:%s\n",
@@ -492,10 +503,55 @@ void ZooHandler::updateGlobalView() {
 			tok = strtok(NULL, "\n");
 		}
 		//4)update globalView
-		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles);
+		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles,mac);
 		globalView.push_back(zoonode);
 		delete[] buffer;
 		buffer = nullptr;
+	}
+	//Now we have a fresh globalView! So update list of remote files if our FS!
+	updateRemoteFilesInFS();
+}
+
+void ZooHandler::updateRemoteFilesInFS() {
+	vector<pair<string,ZooNode>> newRemoteFiles;
+	vector<string>localFiles = FileSystem::getInstance().listLocalFileSystem();
+	for(ZooNode node:globalView){
+		//We should not include ourself in this
+		const unsigned char* myMAC = BFSNetwork::getMAC();
+		bool isMe = true;
+		for(int i=0;i<6;i++)
+			if(node.MAC[i]!=myMAC[i]){
+				isMe = false;
+				break;
+			}
+		if(isMe)
+			continue;
+		for(string remoteFile:node.containedFiles){
+			bool exist = false;
+			for(string localFile: localFiles)
+				if(localFile == remoteFile){
+					exist = true;
+					break;
+				}
+			if(!exist)
+				newRemoteFiles.push_back(make_pair(remoteFile,node));
+		}
+	}
+
+	for(pair<string,ZooNode> item: newRemoteFiles){
+		FileNode* fileNode = FileSystem::getInstance().getNode(item.first);
+		//If File exist then we won't create it!
+		if(fileNode!=nullptr)
+			continue;
+		//Now create a file in FS
+		FileNode* parent = FileSystem::getInstance().createHierarchy(item.first);
+		string fileName = FileSystem::getInstance().getFileNameFromPath(item.first);
+		FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName,true);
+		newFile->setRemoteHostMAC(item.second.MAC);
+		printf("created:%s hostName:%s MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+				item.first.c_str(),item.second.hostName.c_str(),item.second.MAC[0],
+				item.second.MAC[1],item.second.MAC[2],item.second.MAC[3],
+				item.second.MAC[4],item.second.MAC[5]);
 	}
 }
 

@@ -13,6 +13,7 @@
 #include <atomic>
 #include <vector>
 #include <mutex>
+#include <sys/stat.h>
 
 
 namespace FUSESwift {
@@ -35,6 +36,8 @@ class FileNode: public Node {
   unsigned int blockIndex;
   std::atomic<bool> needSync;
   std::atomic<bool> mustDeleted;//To indicate this file should be deleted after being closed
+  bool isRem;//indicates whether this node exist on the local RAM or on a remote machine
+  unsigned char remoteHostMAC[6];
   //Delete Lock
   std::mutex deleteMutex;
   //Read/Write Lock
@@ -42,7 +45,7 @@ class FileNode: public Node {
   //Metadata Lock
 	std::mutex metadataMutex;
 public:
-  FileNode(std::string _name,bool _isDir, FileNode* _parent);
+  FileNode(std::string _name,bool _isDir, FileNode* _parent,bool _isRemote);
   virtual ~FileNode();
   /**
    * if an element with key '_key' exist this will override it
@@ -67,6 +70,9 @@ public:
   FileNode* getParent();
   std::string getFullPath();
   size_t getSize();
+  bool isRemote();
+  const unsigned char* getRemoteHostMAC();
+  void setRemoteHostMAC(const unsigned char *_mac);
   /**
    * tries to rename input child
    * @return
@@ -116,6 +122,9 @@ public:
    * the references to it being closed!
    */
   void signalDelete();
+  //Remote File Operation
+  bool getStat(struct stat *stbuff);
+  long readRemote(char* _data, size_t _offset, size_t _size);
 };
 
 } /* namespace FUSESwift */
