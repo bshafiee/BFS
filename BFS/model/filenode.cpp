@@ -21,11 +21,16 @@ namespace FUSESwift {
 
 FileNode::FileNode(string _name,bool _isDir, FileNode* _parent, bool _isRemote):Node(_name,_parent),
     isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),mustDeleted(false), isRem(_isRemote) {
+	if(_isRemote)
+		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);
 }
 
 FileNode::~FileNode() {
   //We need Delete lock before releasing this document.
   lockDelete();
+
+  //Release readbuffer
+  delete readBuffer;
 
   for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
@@ -467,9 +472,71 @@ bool FileNode::getStat(struct stat *stbuff) {
 	}
 }
 
+ReadBuffer::ReadBuffer(uint64_t _capacity):capacity(_capacity),
+		offset(0),size(0),reachedEOF(false) {
+	buffer = new unsigned char[_capacity];
+}
+ReadBuffer::~ReadBuffer(){
+	delete []buffer;
+}
+bool inline ReadBuffer::contains(uint64_t _reqOffset,uint64_t _reqSize) {
+	if(_reqOffset >= this->offset)
+		if(reachedEOF)
+			return true;
+		else
+			if(_reqOffset+_reqSize<=this->offset+this->size)
+				return true;
+			else
+				return false;
+	else
+		return false;
+}
+
+long ReadBuffer::readBuffered(void* _dstBuff,uint64_t _reqOffset,uint64_t _reqSize){
+	uint64_t start = _reqOffset - this->offset;
+
+	if(reachedEOF){
+		uint64_t howMuch = 0;
+		if(_reqSize+_reqOffset <= offset+size)
+			howMuch = _reqSize;
+		else
+			howMuch = size - _reqOffset;
+
+		memcpy(_dstBuff,this->buffer+start,howMuch);
+		return howMuch;
+	}
+	else {
+		memcpy(_dstBuff,this->buffer+start,_reqSize);
+		return _reqSize;
+	}
+}
+
 long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
-	fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
-	return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
+	//XXX we assume _size is always smaller than buffer size...
+	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
+	if(readBuffer->contains(_offset,_size))
+		return readBuffer->readBuffered(_data,_offset,_size);
+	else {
+		//Fill buffer!
+		long res = BFSNetwork::readRemoteFile(readBuffer->buffer,readBuffer->capacity,_offset,this->getFullPath(),remoteHostMAC);
+		if(res <= 0) {//error
+			return res;
+		}
+		else if((unsigned long)res == readBuffer->capacity) {//NOT EOF
+			readBuffer->reachedEOF = false;
+			readBuffer->offset = _offset;
+			readBuffer->size = readBuffer->capacity;
+			return readBuffer->readBuffered(_data,_offset,_size);
+		}
+		else {//EOF
+			readBuffer->reachedEOF = true;
+			readBuffer->offset = _offset;
+			readBuffer->size = res;
+			return readBuffer->readBuffered(_data,_offset,_size);
+		}
+	}
+
+	//return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
 }
 
 } //namespace

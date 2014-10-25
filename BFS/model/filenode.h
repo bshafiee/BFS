@@ -20,12 +20,27 @@ namespace FUSESwift {
 
 typedef std::map<std::string,std::string> metadataDictionary;
 
+struct ReadBuffer {
+	unsigned char* buffer;
+	uint64_t capacity;
+	//of a file
+	uint64_t offset;
+	uint64_t size;
+	bool reachedEOF;
+	//
+	ReadBuffer(uint64_t _capacity);
+	~ReadBuffer();
+	bool inline contains(uint64_t _reqOffset,uint64_t _reqSize);
+	long readBuffered(void* _dstBuff,uint64_t _reqOffset,uint64_t _reqSize);
+};
+
 class FileNode: public Node {
   const std::string uidKey   = "uid";//User ID
   const std::string gidKey   = "gid";//Group ID
   const std::string mtimeKey = "mtime";//Last modified time
   const std::string ctimeKey = "ctime";//Create Time
   const std::string modeKey = "mode";//File mode
+  static const uint64_t READ_BUFFER_SIZE = 1024*1024*10; //10MB buffer
 
   //Private Members
   metadataDictionary metadata;
@@ -44,6 +59,8 @@ class FileNode: public Node {
   std::mutex ioMutex;
   //Metadata Lock
 	std::mutex metadataMutex;
+	//Buffer
+	ReadBuffer* readBuffer;
 public:
   FileNode(std::string _name,bool _isDir, FileNode* _parent,bool _isRemote);
   virtual ~FileNode();
