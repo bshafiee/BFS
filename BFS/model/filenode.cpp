@@ -468,6 +468,20 @@ bool FileNode::getStat(struct stat *stbuff) {
 		bool res = BFSNetwork::readRemoteFileAttrib(stbuff,this->getFullPath(),remoteHostMAC);
 		if(!res)
 			fprintf(stderr,"GetRemoteAttrib failed for:%s\n",this->getFullPath().c_str());
+		else {//update local info!
+			//get io mutex to update size
+			ioMutex.lock();
+			this->size = stbuff->st_size;
+			ioMutex.unlock();
+
+			//Update meta info
+			stbuff->st_blksize = FileSystem::blockSize;
+			this->setCTime(stbuff->st_ctim.tv_sec);
+			this->setMTime(stbuff->st_mtim.tv_sec);
+			this->setUID(stbuff->st_uid);
+			this->setGID(stbuff->st_gid);
+		}
+
 		return res;
 	}
 }
@@ -500,7 +514,7 @@ long ReadBuffer::readBuffered(void* _dstBuff,uint64_t _reqOffset,uint64_t _reqSi
 		if(_reqSize+_reqOffset <= offset+size)
 			howMuch = _reqSize;
 		else
-			howMuch = size - _reqOffset;
+			howMuch = size - start;
 
 		memcpy(_dstBuff,this->buffer+start,howMuch);
 		return howMuch;
@@ -514,6 +528,10 @@ long ReadBuffer::readBuffered(void* _dstBuff,uint64_t _reqOffset,uint64_t _reqSi
 long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 	//XXX we assume _size is always smaller than buffer size...
 	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
+	//Check offset
+	if(_offset >= this->size)
+		return 0;
+
 	if(readBuffer->contains(_offset,_size))
 		return readBuffer->readBuffered(_data,_offset,_size);
 	else {
