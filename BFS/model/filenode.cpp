@@ -141,76 +141,76 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
 
 long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   //Acquire lock
-  lock_guard<mutex> lock(ioMutex);
+  lock_guard < mutex > lock(ioMutex);
 
   //Check Storage space Availability
-  size_t newReqMemSize = (_offset+_size > size) ? _offset+_size - size : 0;
-  if(newReqMemSize > 0)
-    if(!MemoryContorller::getInstance().requestMemory(newReqMemSize))
+  size_t newReqMemSize = (_offset + _size > size) ? _offset + _size - size : 0;
+  if (newReqMemSize > 0)
+    if (!MemoryContorller::getInstance().requestMemory(newReqMemSize))
       return -1;
 
   size_t retValue = 0;
   size_t backupSize = _size;
-  if(_offset < size) { //update existing (unlikely)
-	//Find correspondent block
-	size_t blockNo = _offset / FileSystem::blockSize;
-	unsigned int index = _offset - blockNo*FileSystem::blockSize;
+  if (_offset < size) { //update existing (unlikely)
+    //Find correspondent block
+    size_t blockNo = _offset / FileSystem::blockSize;
+    unsigned int index = _offset - blockNo * FileSystem::blockSize;
 
-	char* block = dataList[blockNo];
+    char* block = dataList[blockNo];
 
-	//Start filling
-	while(_size > 0) {
-		size_t left = FileSystem::blockSize - index;//Left bytes in the last block
-		size_t howMuch = (_size <= left)? _size:left;
-		memcpy(block+index,_data+(backupSize-_size),howMuch);
-		_size -= howMuch;
-		index += howMuch;
-		retValue += howMuch;
-		blockNo++;
-		//Increase size and blockIndex if in the last block
-		if(index > blockIndex && blockNo == dataList.size()) {
-		  size += index-blockIndex;
-		  blockIndex = index;
-		  if(blockIndex >= FileSystem::blockSize)
-		    blockIndex = 0;
-		}
-		if(index >= FileSystem::blockSize && blockNo < dataList.size()) {
-		  block = dataList[blockNo];
-		  index = 0;
-		} else if(index >= FileSystem::blockSize && blockNo >= dataList.size()) {
-		  //We should allocate a new block
-		  char* block = new char[FileSystem::blockSize];
+    //Start filling
+    while (_size > 0) {
+      size_t left = FileSystem::blockSize - index;//Left bytes in the last block
+      size_t howMuch = (_size <= left) ? _size : left;
+      memcpy(block + index, _data + (backupSize - _size), howMuch);
+      _size -= howMuch;
+      index += howMuch;
+      retValue += howMuch;
+      blockNo++;
+      //Increase size and blockIndex if in the last block
+      if (index > blockIndex && blockNo == dataList.size()) {
+        size += index - blockIndex;
+        blockIndex = index;
+        if (blockIndex >= FileSystem::blockSize)
+          blockIndex = 0;
+      }
+      if (index >= FileSystem::blockSize && blockNo < dataList.size()) {
+        block = dataList[blockNo];
+        index = 0;
+      } else if (index >= FileSystem::blockSize && blockNo >= dataList.size()) {
+        //We should allocate a new block
+        char* block = new char[FileSystem::blockSize];
+        dataList.push_back(block);
+        //block index shouuld have alreadey be reset to 0
+        return retValue
+            + this->write(_data + retValue, getSize(), backupSize - retValue);
+      }
+    }
+  } else { //append to the end
+    //first time (unlikely)
+    if (dataList.size() == 0) {
+      char* block = new char[FileSystem::blockSize];
       dataList.push_back(block);
-      //block index shouuld have alreadey be reset to 0
-			return retValue + this->write(_data+retValue,getSize(),backupSize - retValue);
-		}
-	}
-  }
-  else { //append to the end
-	  //first time (unlikely)
-	  if(dataList.size() == 0) {
-		  char* block = new char[FileSystem::blockSize];
-		  dataList.push_back(block);
-		  blockIndex = 0;
-	  }
+      blockIndex = 0;
+    }
 
-	  //Start filling
-	  while(_size > 0) {
-		//Get pointer to the last buffer
-		char* lastBlock = dataList.at(dataList.size()-1);
-		size_t left = FileSystem::blockSize - blockIndex;//Left bytes in the last block
-		size_t howMuch = (_size <= left)? _size:left;
-		memcpy(lastBlock+blockIndex,_data+(backupSize-_size),howMuch);
-		_size -= howMuch;
-		size += howMuch;//increase file size
-		retValue += howMuch;
-		blockIndex += howMuch;
-		if(blockIndex >= FileSystem::blockSize) {
-		  char* block = new char[FileSystem::blockSize];
-		  dataList.push_back(block);
-		  blockIndex = 0;
-		}
-	  }
+    //Start filling
+    while (_size > 0) {
+      //Get pointer to the last buffer
+      char* lastBlock = dataList.at(dataList.size() - 1);
+      size_t left = FileSystem::blockSize - blockIndex;	//Left bytes in the last block
+      size_t howMuch = (_size <= left) ? _size : left;
+      memcpy(lastBlock + blockIndex, _data + (backupSize - _size), howMuch);
+      _size -= howMuch;
+      size += howMuch;	  //increase file size
+      retValue += howMuch;
+      blockIndex += howMuch;
+      if (blockIndex >= FileSystem::blockSize) {
+        char* block = new char[FileSystem::blockSize];
+        dataList.push_back(block);
+        blockIndex = 0;
+      }
+    }
   }
   return retValue;
 }
@@ -391,6 +391,8 @@ bool FUSESwift::FileNode::getNeedSync() {
 }
 
 void FUSESwift::FileNode::setNeedSync(bool _need) {
+  //Acquire lock
+  lock_guard < mutex > lock(ioMutex);
   needSync = _need;
 }
 
@@ -526,13 +528,12 @@ long ReadBuffer::readBuffered(void* _dstBuff,uint64_t _reqOffset,uint64_t _reqSi
 }
 
 long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
-	//XXX we assume _size is always smaller than buffer size...
 	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
 	//Check offset
 	if(_offset >= this->size)
 		return 0;
 
-	if(readBuffer->contains(_offset,_size))
+	/*if(readBuffer->contains(_offset,_size))
 		return readBuffer->readBuffered(_data,_offset,_size);
 	else {
 		//Fill buffer!
@@ -552,9 +553,24 @@ long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 			readBuffer->size = res;
 			return readBuffer->readBuffered(_data,_offset,_size);
 		}
-	}
+	}*/
 
-	//return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
+	return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
+}
+
+long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
+	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
+	//Check offset
+	if(_offset > this->size)
+		return 0;
+	if(_size == 0)
+	  return 0;
+	unsigned long written = BFSNetwork::writeRemoteFile(
+	    _data,_size,_offset,this->getFullPath(),remoteHostMAC);
+	if(written!=_size)
+	  return -2;//ACK error
+	else
+	  return written;
 }
 
 } //namespace

@@ -128,7 +128,7 @@ bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
         if(upcomingEvent->type == SyncEventType::DELETE ||
             upcomingEvent->type == SyncEventType::UPDATE_CONTENT)
           if(upcomingEvent->fullPathBuffer == _event.fullPathBuffer) {
-            printf("SAVED a UPLOAD OPERATION FullBuffer:%s\n",_event.fullPathBuffer.c_str());
+            //printf("SAVED a UPLOAD OPERATION FullBuffer:%s\n",_event.fullPathBuffer.c_str());
             return false;
           }
       }

@@ -142,6 +142,7 @@ public:
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   long readRemote(char* _data, size_t _offset, size_t _size);
+  long writeRemote(const char* _data, size_t _offset, size_t _size);
 };
 
 } /* namespace FUSESwift */

@@ -99,7 +99,7 @@ namespace FUSESwift {
  *
  */
 
-#define ACK_TIMEOUT 5000//microseconds
+#define ACK_TIMEOUT 1000//miliseconds
 #define HEADER_LEN 38
 
 
@@ -191,6 +191,7 @@ struct WriteDataTask {
 	uint32_t fileID;
 	uint64_t offset;
 	uint64_t size;
+	bool failed;
 	unsigned char requestorMac[6];
 };
 
@@ -305,10 +306,10 @@ private:
 	static unsigned char MAC[6];
 	//Variables
 	static std::atomic<bool> isRunning;
-	static taskMap<uint8_t,ReadRcvTask*> readRcvTasks;
-	static taskMap<uint8_t,ReadRcvTask*> attribRcvTasks;
-	static taskMap<uint8_t,WriteDataTask*> writeDataTasks;
-	static taskMap<uint8_t,WriteSndTask*> writeSendTasks;
+	static taskMap<uint32_t,ReadRcvTask*> readRcvTasks;
+	static taskMap<uint32_t,ReadRcvTask*> attribRcvTasks;
+	static taskMap<uint32_t,WriteDataTask> writeDataTasks;
+	static taskMap<uint32_t,WriteSndTask*> writeSendTasks;
 	static Queue<SndTask*> sendQueue;
 	static std::thread *rcvThread;
 	static std::thread *sndThread;
@@ -356,7 +357,7 @@ public:
 	 * into _dstBuffer
 	 * @return
 	 * 	-1 error
-	 * 	number of bytes read
+	 * 	Number of bytes read
 	 * */
 	static long readRemoteFile(void* _dstBuffer,size_t _size,size_t _offset,
 				const std::string &_remoteFile,unsigned char _dstMAC[6]);
@@ -364,10 +365,9 @@ public:
 	 * Writes to _offset, _size bytes to _remoteFile@_dstMAC
 	 * from _srcBuffer
 	 * @return
-	 * 	true success
-	 * 	false failure
+	 * Number of bytes written
 	 * */
-	static bool writeRemoteFile(const void* _srcBuffer,size_t _size,size_t _offset,
+	static long writeRemoteFile(const void* _srcBuffer,size_t _size,size_t _offset,
 				const std::string &_remoteFile,unsigned char _dstMAC[6]);
 
 	static bool readRemoteFileAttrib(struct stat *attBuff,

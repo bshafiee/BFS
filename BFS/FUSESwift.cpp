@@ -307,41 +307,56 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
 
 int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
-  if(DEBUG_WRITE)
-    log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+  if (DEBUG_WRITE)
+    log_msg(
+        "\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
         path, buf, size, offset, fi);
   // no need to get fpath on this one, since I work from fi->fh not the path
-  if(DEBUG_WRITE)
+  if (DEBUG_WRITE)
     log_fi(fi);
 
   //Handle path
-  if(path == nullptr && fi->fh == 0)
-  {
+  if (path == nullptr && fi->fh == 0) {
     log_msg("\nswift_write: fi->fh is null\n");
     return -ENOENT;
   }
   //Get associated FileNode*
-  FileNode* node = (FileNode*)fi->fh;
-  int written = node->write(buf,offset,size);
-  //Needs synchronization with the backend
-  node->setNeedSync(true);
-  if(written == (int)size )
-  {
-    if(DEBUG_WRITE)
-      log_msg("bb_write successful to:%s size=%d, offset=%lld\n",node->getName().c_str(),written,offset);
-    return written;
+  FileNode* node = (FileNode*) fi->fh;
+
+  long written = 0;
+
+  if (node->isRemote()){
+    written = node->writeRemote(buf, offset, size);
   }
   else {
-  	log_msg("\nswift_write: error in writing to:%s\n",node->getName().c_str());
+    written = node->write(buf, offset, size);
+    //Needs synchronization with the backend
+    node->setNeedSync(true);
+  }
+
+  if (written == (int) size) {
+    if (DEBUG_WRITE)
+      log_msg("bb_write successful to:%s size=%d, offset=%lld\n",
+          node->getName().c_str(), written, offset);
+    return written;
+  } else {
+    log_msg("\nswift_write: error in writing to:%s\n", node->getName().c_str());
 
     //Not Enough space left on the disk!
-    if(written == -1)
-    {
-    	log_msg("\nswift_write: Not enough space! filesize: %lld  AvailMem:%lld WriteRequest: size=%d, offset=%lld  name:%s\n",
-    			node->getSize(),MemoryContorller::getInstance().getAvailableMemory(), size,offset, node->getName().c_str());
-    	return ENOSPC;
+    if (written == -1) {
+      log_msg(
+          "\nswift_write: Not enough space! filesize: %lld  AvailMem:%lld WriteRequest: size=%d, offset=%lld  name:%s\n",
+          node->getSize(), MemoryContorller::getInstance().getAvailableMemory(),
+          size, offset, node->getName().c_str());
+      return -ENOSPC;
     }
-
+    else if(written == -2) {
+      log_msg(
+          "\nswift_write: remote write failed! filesize: %lld  AvailMem:%lld WriteRequest: size=%d, offset=%lld  name:%s\n",
+          node->getSize(), MemoryContorller::getInstance().getAvailableMemory(),
+          size, offset, node->getName().c_str());
+      return -EIO;
+    }
 
     return -EIO;
   }
