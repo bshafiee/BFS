@@ -525,7 +525,6 @@ void* swift_init(struct fuse_conn_info* conn) {
   struct fuse_context fuseContext = *fuse_get_context();
   rootNode->setGID(fuseContext.gid);
   rootNode->setUID(fuseContext.uid);
-  conn->max_readahead = 4294967295U;
   //Log
   if(DEBUG_INIT) {
     log_msg("\nbb_init()\n");

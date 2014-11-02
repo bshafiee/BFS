@@ -18,6 +18,7 @@
 #include "../DownloadQueue.h"
 #include "string.h"
 #include "../znet/ZeroNetwork.h"
+#include "../SettingManager.h"
 
 using namespace std;
 
@@ -36,9 +37,20 @@ static vector<string> split(const string &s, char delim) {
 ZooHandler::ZooHandler() :
 		zh(nullptr), sessionState(ZOO_EXPIRED_SESSION_STATE), electionState(
 		    ElectionState::FAILED) {
+	string str = SettingManager::get(CONFIG_KEY_ZOO_ELECTION_ZNODE);
+	if(str.length()>0)
+		electionZNode = str;
+	else
+		fprintf(stderr,"No ZOO_ELECTION_ZNODE specified in the config.\n");
+	str = SettingManager::get(CONFIG_KEY_ZOO_ASSIGNMENT_ZNODE);
+	if(str.length()>0)
+		assignmentZNode = str;
+	else
+		fprintf(stderr,"No ZOO_ASSIGNMENT_ZNODE specified in the config.\n");
 	//Set Debug info
-	zoo_set_log_stream(stdout);
-	zoo_set_debug_level(ZOO_LOG_LEVEL_WARN);
+	zoo_set_log_stream(stderr);
+	zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
+
 }
 
 ZooHandler::~ZooHandler() {
@@ -137,6 +149,11 @@ void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
 }
 
 bool ZooHandler::connect() {
+	string urlZoo = SettingManager::get(CONFIG_KEY_ZOO_SERVER_URL);
+	if(urlZoo.length()>0)
+		hostPort = urlZoo;
+	else
+		fprintf(stderr,"No ZOOKEEPER_SERVER specified in the config.\n");
 	zh = zookeeper_init(hostPort.c_str(), sessionWatcher, 30000, 0, 0, 0);
 	if (!zh) {
 		return false;

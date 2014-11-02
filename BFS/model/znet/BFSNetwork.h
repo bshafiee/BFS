@@ -226,8 +226,7 @@ public:
 
 
 template <typename T>
-class Queue
-{
+class Queue {
 private:
   std::vector<T> queue;
   std::mutex mutex;
@@ -295,7 +294,7 @@ class BFSNetwork : ZeroNetwork{
 private:
 	BFSNetwork();
 	static unsigned int DATA_LENGTH;
-	static const std::string DEVICE;// = "eth0";
+	static std::string DEVICE;// = "eth0";
 	static const int SRC_MAC_INDEX = 6;
 	static const int DST_MAC_INDEX = 0;
 	static const int PROTO_BYTE_INDEX1 = 12;

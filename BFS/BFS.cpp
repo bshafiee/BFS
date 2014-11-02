@@ -44,6 +44,7 @@
 #include "model/BackendManager.h"
 #include "string.h"
 #include "model/DownloadQueue.h"
+#include "model/UploadQueue.h"
 #include "model/MemoryController.h"
 #include "model/SettingManager.h"
 #include "model/znet/BFSNetwork.h"
@@ -54,7 +55,7 @@ using namespace FUSESwift;
 using namespace std;
 using namespace Poco;
 
-static struct fuse_operations xmp_oper = {
+static struct fuse_operations fuse_oper = {
   .getattr = FUSESwift::swift_getattr ,
   .readlink = FUSESwift::swift_readlink ,
   .getdir = NULL ,
@@ -105,33 +106,39 @@ static struct fuse_operations xmp_oper = {
   .fallocate = NULL
 };
 
-void bfs_usage()
-{
-    fprintf(stderr, "usage:  bbfs [FUSE and mount options] mountPoint\n");
-    abort();
-}
-
-// function to call if operator new can't allocate enough memory or error arises
-void outOfMemHandler()
-{
-    std::cerr << "Unable to satisfy request for memory\n";
-    std::abort();
-}
-
-// function to call if operator new can't allocate enough memory or error arises
-void systemErrorHandler()
-{
-    std::cerr << "System Termination Occurred\n";
-    std::abort();
-}
-
-void sigproc(int sig) {
-	fprintf(stdout, "Leaving...\n");
-	FUSESwift::BFSNetwork::stopNetwork();
+void shutdown() {
+	fprintf(stderr, "Leaving...\n");
+	//Log Close
+	log_close();
+	BFSNetwork::stopNetwork();
+	FileSystem::getInstance().destroy();
 	exit(0);
 }
 
+void bfs_usage(){
+	fprintf(stderr, "usage:  BFS [FUSE and mount options] mountPoint\n");
+  shutdown();
+}
+
+void sigproc(int sig) {
+	shutdown();
+}
+
+// function to call if operator new can't allocate enough memory or error arises
+void systemErrorHandler() {
+	fprintf(stderr,"System Termination Occurred\n");
+  shutdown();
+}
+
+// function to call if operator new can't allocate enough memory or error arises
+void outOfMemHandler() {
+	fprintf(stderr,"Unable to satisfy request for memory\n");
+  shutdown();
+}
+
 int main(int argc, char *argv[]) {
+	//Load configs first
+	SettingManager::load("config");
 
 	//Set signal handlers
 	signal(SIGINT, sigproc);
@@ -142,14 +149,12 @@ int main(int argc, char *argv[]) {
   std::set_terminate(systemErrorHandler);
 
   AuthenticationInfo info;
-  info.username = "behrooz";
-  info.password = "behrooz";
-  info.authUrl = "http://10.42.0.83:5000/v2.0/tokens";
-  info.tenantName = "kos";
+  info.username = SettingManager::get(CONFIG_KEY_SWIFT_USERNAME);
+  info.password = SettingManager::get(CONFIG_KEY_SWIFT_PASSWORD);
+  info.authUrl = SettingManager::get(CONFIG_KEY_SWIFT_URL);
+  info.tenantName = SettingManager::get(CONFIG_KEY_SWIFT_TENANT);
   info.method = AuthenticationMethod::KEYSTONE;
 
-  //Start fuse_main
-  int fuse_stat;
   //make ready log file
   log_open();
 
@@ -168,11 +173,7 @@ int main(int argc, char *argv[]) {
     //return 1;
   }
 
-  // Perform some sanity checking on the command line:  make sure
-  // there are enough arguments, and that neither of the last two
-  // start with a hyphen (this will break if you actually have a
-  // mountpoint whose name starts with a hyphen, but so
-  // will a zillion other programs)
+  // Sanity check
   if (argc < 1)
     bfs_usage();
 
@@ -185,16 +186,18 @@ int main(int argc, char *argv[]) {
   cout <<"Total Physical Memory:"<<MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024<<" MB"<<endl;
 
   //Start BFS Network(before zoo, zoo uses mac info from this package)
-	BFSNetwork::startNetwork();
+	if(!BFSNetwork::startNetwork()) {
+		fprintf(stderr, "Cannot initialize ZeroNetworking!\n");
+		shutdown();
+	}
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
-  fuse_stat = fuse_main(argc, argv, &xmp_oper, nullptr);
+  //Start fuse_main
+  int fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
   //while(1) {}
 
-  //Log Close
-  log_close();
-  BFSNetwork::stopNetwork();
+  shutdown();
   return fuse_stat;
 }

@@ -6,6 +6,7 @@
  */
 
 #include "MemoryController.h"
+#include "SettingManager.h"
 
 namespace FUSESwift {
 
@@ -62,7 +63,13 @@ void MemoryContorller::processMemUsage(double& vm_usage,
 }
 
 MemoryContorller::MemoryContorller():total(0),max_allowed(0) {
-  max_allowed = getTotalSystemMemory() * MAX_MEM_COEF;
+  double coef = SettingManager::getDouble(CONFIG_KEY_MAX_MEM_COEF);
+  if(coef > 0 && coef <=1)
+  	MAX_MEM_COEF = coef;
+  else
+  	fprintf(stderr,"Invalid MAX_MEM_COEF:%f\n",coef);
+
+	max_allowed = getTotalSystemMemory() * MAX_MEM_COEF;
   //max_allowed = 512l*1024l*1024l;
 }
 

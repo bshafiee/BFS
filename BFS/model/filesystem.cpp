@@ -28,10 +28,7 @@ FileSystem::FileSystem(FileNode* _root) :
     Tree(_root), root(_root) {
 }
 
-FileSystem::~FileSystem() {
-  //recursively delete
-  destroy();
-}
+FileSystem::~FileSystem() {}
 
 void FileSystem::initialize(FileNode* _root) {
   root = _root;

@@ -17,6 +17,7 @@ extern "C" {
 }
 #include "../filesystem.h"
 #include "../filenode.h"
+#include "../SettingManager.h"
 #include <sys/time.h>
 
 namespace FUSESwift {
@@ -24,7 +25,7 @@ namespace FUSESwift {
 using namespace std;
 
 /** static members **/
-const string BFSNetwork::DEVICE= "eth0";
+string BFSNetwork::DEVICE= "eth0";
 unsigned char BFSNetwork::MAC[6];
 taskMap<uint32_t,ReadRcvTask*> BFSNetwork::readRcvTasks;
 taskMap<uint32_t,WriteDataTask> BFSNetwork::writeDataTasks;
@@ -41,6 +42,11 @@ BFSNetwork::BFSNetwork(){}
 BFSNetwork::~BFSNetwork() {}
 
 bool BFSNetwork::startNetwork() {
+	string devName = SettingManager::get(CONFIG_KEY_ZERO_NETWORK_DEV);
+	if(devName.length() > 0)
+		DEVICE = devName;
+	else
+		fprintf(stderr,"No device specified in the config file!\n");
 	//Get Mac Address
 	int mtu = -1;
 	getMacAndMTU(DEVICE,MAC,mtu);
