@@ -21,8 +21,8 @@ namespace FUSESwift {
 
 FileNode::FileNode(string _name,bool _isDir, FileNode* _parent, bool _isRemote):Node(_name,_parent),
     isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),mustDeleted(false), isRem(_isRemote) {
-	if(_isRemote)
-		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);
+	/*if(_isRemote)
+		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
 
 FileNode::~FileNode() {
@@ -30,7 +30,7 @@ FileNode::~FileNode() {
   lockDelete();
 
   //Release readbuffer
-  delete readBuffer;
+  //delete readBuffer;
 
   for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
@@ -554,6 +554,7 @@ long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 			return readBuffer->readBuffered(_data,_offset,_size);
 		}
 	}*/
+	//fprintf(stderr,"RemtoeRead Req!\n");
 
 	return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
 }

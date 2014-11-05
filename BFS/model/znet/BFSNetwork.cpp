@@ -36,6 +36,7 @@ thread * BFSNetwork::rcvThread = nullptr;
 thread * BFSNetwork::sndThread = nullptr;
 uint32_t BFSNetwork::fileIDCounter = 0;
 unsigned int BFSNetwork::DATA_LENGTH = -1;
+mutex BFSNetwork::fileIDCounterMutex;
 
 BFSNetwork::BFSNetwork(){}
 
@@ -161,6 +162,7 @@ long BFSNetwork::readRemoteFile(void* _dstBuffer, size_t _size, size_t _offset,
 	task.totalRead = 0;//reset total read
 	//task.m = new mutex();
 	//task.cv = new condition_variable();
+	//fprintf(stderr,"ReadRemote:%s fileID:%u\n",_remoteFile.c_str(),task.fileID);
 	//Send file request
 	char buffer[MTU];
 	ReadReqPacket *reqPacket = (ReadReqPacket*)buffer;
@@ -175,10 +177,14 @@ long BFSNetwork::readRemoteFile(void* _dstBuffer, size_t _size, size_t _offset,
 		return result;
 	}
 
+  /*static uint64_t count = 0;
+  fprintf(stderr,"SENT, size:%zu\n",++count);*/
+
 	//Now send packet on the wire
 	if(!ZeroNetwork::send(buffer,MTU)) {
 		fprintf(stderr,"Failed to send readReqpacket.\n");
 		result = -1;
+		readRcvTasks.erase(resPair.first);
 		return result;
 	}
 
@@ -197,7 +203,11 @@ long BFSNetwork::readRemoteFile(void* _dstBuffer, size_t _size, size_t _offset,
 
 	//remove it from queue
 	readRcvTasks.erase(resPair.first);
-	//fprintf(stderr,"READREMOTE, size:%lu\n",_size);
+
+  /*static uint64_t counter = 0;
+  fprintf(stderr,"Processed, counter:%zu size:%zu\n",++counter,result);
+  fflush(stderr);*/
+
 	return result;
 }
 
@@ -289,6 +299,8 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
   	localOffset += howMuch;
   	left -= howMuch;
   }
+  //static uint64_t counter = 0;
+  //fprintf(stderr,"Porcessed READ: Counter:%lu\n",++counter);
   //fprintf(stderr,"PROCESSED READ REQ:%s offset:%lu size:%lu\n",_task.localFile.c_str(),_task.offset,total);
   //close file
   fNode->close();
@@ -411,27 +423,35 @@ void FUSESwift::BFSNetwork::onReadResPacket(const u_char* _packet) {
 	resPacket->size = be64toh(resPacket->size);
 	resPacket->fileID = ntohl(resPacket->fileID);
 	//Get RcvTask back using file id!
+	readRcvTasks.lock();
 	auto taskIt = readRcvTasks.find(resPacket->fileID);
 	if(taskIt == readRcvTasks.end()) {
 		fprintf(stderr,"onReadResPacket():No valid Task for this Packet. FileID:%d\n",resPacket->fileID);
 		cerr<<"  Size:"<<readRcvTasks.size()<<endl;
+		readRcvTasks.unlock();
 		return;
 	}
 
 	//Exist! so fill task buffer
 	ReadRcvTask* task = taskIt->second;
-	if(resPacket->size)
-		memcpy((char*)task->dstBuffer+task->totalRead,resPacket->data,resPacket->size);
+
+	if(resPacket->size) {
+	  uint64_t delta = resPacket->offset - task->offset;
+	  if(taskIt->first != task->fileID|| taskIt->first!= resPacket->fileID|| task->fileID!= resPacket->fileID)
+	    fprintf(stderr,"Key:%u elementID:%u  packetID:%u\n",taskIt->first,task->fileID,resPacket->fileID);
+		memcpy((char*)task->dstBuffer+delta,resPacket->data,resPacket->size);
+	}
 	//Check if finished, signal conditional variable!
 	//If total amount of required data was read or a package of size 0 is received!
-	task->totalRead += resPacket->size;
+
 	if(resPacket->offset+resPacket->size == task->offset+task->size ||
 			resPacket->size == 0) {
+	  task->totalRead = resPacket->offset - task->offset + resPacket->size;
     unique_lock<std::mutex> lk(task->m);
     task->ready = true;
     task->cv.notify_one();
 	}
-
+	readRcvTasks.unlock();
 }
 
 /**
@@ -454,7 +474,9 @@ void FUSESwift::BFSNetwork::onReadReqPacket(const u_char* _packet) {
 	task->fileID = ntohl(reqPacket->fileID);
 	memcpy(task->requestorMac,reqPacket->srcMac,6);
 
-	//fprintf(stderr,"GOT READ REQ:%s offset:%lu size:%lu\n",task->localFile.c_str(),task->offset,task->size);
+	//fprintf(stderr,"READ REQ:%s offset:%lu size:%lu\n",task->localFile.c_str(),task->offset,task->size);
+	/*static uint64_t counter = 0;
+	fprintf(stderr,"READ REQ: Counter:%lu\n",++counter);*/
 	//Push it on the Queue
 	sendQueue.push(task);
 }
@@ -655,9 +677,11 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 	uint32_t fileID = ntohl(dataPacket->fileID);
 	//Find task
 	//Get RcvTask back using file id!
+	writeDataTasks.lock();
 	auto taskIt = writeDataTasks.find(fileID);
 	if(taskIt == writeDataTasks.end()) {
 		fprintf(stderr,"onWriteDataPacket:No valid Task found. fileID:%d\n",fileID);
+		writeDataTasks.unlock();
 		return;
 	}
 
@@ -666,6 +690,7 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
   FileNode* fNode = FileSystem::getInstance().getNode(taskIt->second.remoteFile);
   if(fNode == nullptr) {
     fprintf(stderr,"onWriteDataPacket(), File Not foudn:%s!\n",taskIt->second.remoteFile.c_str());
+    writeDataTasks.unlock();
     return;
   }
   //Write data to file
@@ -705,9 +730,12 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 		if(!retry)
 			fprintf(stderr,"(onWriteDataPacket)Failed to send ACKPacket,fileID:%d\n",fileID);
 
+		writeDataTasks.unlock();
 		//printf("SentACK\n");
 		writeDataTasks.erase(taskIt);
+		return;
 	}
+	writeDataTasks.unlock();
 }
 
 void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
@@ -778,6 +806,10 @@ void FUSESwift::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
 	fflush(stderr);
 }
 
+uint32_t BFSNetwork::getNextFileID() {
+  std::lock_guard<std::mutex> lock(fileIDCounterMutex);
+  return fileIDCounter++;
+}
 
 const unsigned char* BFSNetwork::getMAC() {
 	return MAC;
@@ -811,11 +843,12 @@ bool BFSNetwork::readRemoteFileAttrib(struct stat *attBuff,
 	//Now wait for it!
   unique_lock<std::mutex> lk(task.m);
 	while(!task.ready) {
-		task.cv.wait_for(lk,chrono::milliseconds(ACK_TIMEOUT));
+		task.cv.wait(lk);//,chrono::milliseconds(ACK_TIMEOUT));
 		if (!task.ready) {
 			fprintf(stderr,"readRemoteAttrib(), HOLY SHIT! Spurious wake up!\n");
 			attribRcvTasks.erase(resPair.first);
 			return false;
+			//continue;
 		}
 	}
 
@@ -862,15 +895,20 @@ void BFSNetwork::onAttribResPacket(const u_char *_packet) {
 	//attribresPacket->size = be64toh(attribresPacket->size);//Irrelevent here
 	attribresPacket->fileID = ntohl(attribresPacket->fileID);
 	//Get RcvTask back using file id!
+	attribRcvTasks.lock();
 	auto taskIt = attribRcvTasks.find(attribresPacket->fileID);
 	if(taskIt == attribRcvTasks.end()) {
 		fprintf(stderr,"onAttribResPacket():No valid Task for this Packet. FileID:%d\n",
 				attribresPacket->fileID);
+		attribRcvTasks.unlock();
 		return;
 	}
 
 	//Exist! so fill task buffer
 	ReadRcvTask* task = taskIt->second;
+	if(task == nullptr||task->fileID!=attribresPacket->fileID)
+	  fprintf(stderr,"CRAPPPPPPPPPPPPPP PacketFileID:%d taskFileID:%d\n",
+	          attribresPacket->fileID,task->fileID);
 	if(attribresPacket->offset == 1) {//Success
 		task->offset = 1;//Indicate success
 		memcpy((char*)task->dstBuffer,attribresPacket->data,sizeof(struct stat));
@@ -880,6 +918,7 @@ void BFSNetwork::onAttribResPacket(const u_char *_packet) {
 
 	unique_lock<std::mutex> lk(task->m);
 	task->ready = true;
+	attribRcvTasks.unlock();
 	task->cv.notify_one();
 }
 

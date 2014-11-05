@@ -222,6 +222,12 @@ public:
 	auto inline size() {
 		return readRcvTasks.size();
 	}
+	void lock(){
+	  mutex.lock();
+	}
+	void unlock(){
+    mutex.unlock();
+  }
 };
 
 
@@ -314,7 +320,8 @@ private:
 	static std::thread *sndThread;
 	static uint32_t fileIDCounter;
 	/** FileID **/
-	static inline uint32_t getNextFileID() { return fileIDCounter++; }
+	static std::mutex fileIDCounterMutex;
+	static uint32_t getNextFileID();
 	/** packet processing callback **/
 	static void rcvLoop();
 	static void sendLoop();

@@ -46,7 +46,7 @@ int swift_getattr(const char *path, struct stat *stbuff) {
   if(node->getStat(stbuff))
   	return 0;
   else
-  	return -1;
+  	return EAGAIN;
 }
 
 int swift_readlink(const char* path, char* buf, size_t size) {
@@ -249,7 +249,14 @@ int swift_truncate(const char* path, off_t size) {
 /*int swift_utime(const char* path, struct utimbuf* ubuf) {
 }*/
 
+mutex outMutex,errMutex;
+
 int swift_open(const char* path, struct fuse_file_info* fi) {
+  static uint64_t counter = 0;
+  outMutex.lock();
+  fprintf(stdout,"FUSE OPEN, size:%zu\n",++counter);
+  fflush(stdout);
+  outMutex.unlock();
   if(DEBUG_OPEN)
     log_msg("\nbb_open(path=\"%s\", fi=0x%08x fh=0x%08x)\n", path, fi,fi->fh);
   //Get associated FileNode*
@@ -266,11 +273,16 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
 		return 0;
   }
   else
-  	return -1;
+  	return -ENOENT;
 }
 
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
+  errMutex.lock();
+  static uint64_t counter = 0;
+  fprintf(stderr,"FUSE READ, size:%zu\n",++counter);
+  fflush(stderr);
+  errMutex.unlock();
   if(DEBUG_READ)
     log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
         path, buf, size, offset, fi);
@@ -341,7 +353,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     return written;
   } else {
     log_msg("\nswift_write: error in writing to:%s\n", node->getName().c_str());
-
+    fprintf(stderr,"\nswift_write: error in writing to:%s\n", node->getName().c_str());
     //Not Enough space left on the disk!
     if (written == -1) {
       log_msg(

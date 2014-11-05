@@ -60,7 +60,7 @@ class FileNode: public Node {
   //Metadata Lock
 	std::mutex metadataMutex;
 	//Buffer
-	ReadBuffer* readBuffer;
+	//ReadBuffer* readBuffer;
 public:
   FileNode(std::string _name,bool _isDir, FileNode* _parent,bool _isRemote);
   virtual ~FileNode();

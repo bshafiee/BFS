@@ -48,6 +48,7 @@
 #include "model/MemoryController.h"
 #include "model/SettingManager.h"
 #include "model/znet/BFSNetwork.h"
+#include <thread>
 
 
 using namespace Swift;
@@ -135,6 +136,30 @@ void outOfMemHandler() {
 	fprintf(stderr,"Unable to satisfy request for memory\n");
   shutdown();
 }
+atomic<int> global(0);
+
+void readRemote() {
+  size_t len = 1462*10;
+  unsigned char mac[6] = {0x00,0x24,0x8c,0x05,0xee,0xdd};
+  char * buffer = new char[len];
+  long res = BFSNetwork::readRemoteFile((void*)buffer,len,(size_t)0,string("/2G"),mac);
+  global++;
+  int local = global;
+  fprintf(stderr,"READ DONE:%ld %d\n",res,local);
+  fflush(stderr);
+  delete []buffer;
+  buffer = nullptr;
+}
+
+void testRemoteRead() {
+  sleep(1);
+  for(int i=0;i<8000;i++) {
+    //usleep(100);
+    //readRemote();
+    new thread(readRemote);
+  }
+  //readRemote();
+}
 
 int main(int argc, char *argv[]) {
 	//Load configs first
@@ -190,6 +215,8 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Cannot initialize ZeroNetworking!\n");
 		shutdown();
 	}
+
+	testRemoteRead();
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
