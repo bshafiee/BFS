@@ -18,19 +18,19 @@ namespace FUSESwift {
 
 class MemoryContorller {
   double MAX_MEM_COEF = 0;
-  long long total;
-  unsigned long long max_allowed;
+  int64_t total;
+  int64_t max_allowed;
   MemoryContorller();
 public:
   static MemoryContorller& getInstance();
-  bool requestMemory(ulong _size);
-  bool checkPossibility(ulong _size);
-  void releaseMemory(ulong _size);
+  bool requestMemory(int64_t _size);
+  bool checkPossibility(int64_t _size);
+  void releaseMemory(int64_t _size);
   void processMemUsage(double& _vmUsage, double& _residentSet);
-  size_t getTotalSystemMemory();
-  long long getMaxAllowed() const;
-  long long getTotal() const;
-  size_t getAvailableMemory();
+  int64_t getTotalSystemMemory();
+  int64_t getMaxAllowed() const;
+  int64_t getTotal() const;
+  int64_t getAvailableMemory();
 };
 
 } //end of namespace FUSESWIFT

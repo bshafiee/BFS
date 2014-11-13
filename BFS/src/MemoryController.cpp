@@ -73,38 +73,38 @@ MemoryContorller::MemoryContorller():total(0),max_allowed(0) {
   //max_allowed = 512l*1024l*1024l;
 }
 
-bool MemoryContorller::requestMemory(ulong _size) {
+bool MemoryContorller::requestMemory(int64_t _size) {
   if (_size + total > max_allowed)
     return false;
   total += _size;
   return true;
 }
 
-bool MemoryContorller::checkPossibility(ulong _size) {
+bool MemoryContorller::checkPossibility(int64_t _size) {
   if (_size + total > max_allowed)
     return false;
   return true;
 }
 
-void MemoryContorller::releaseMemory(ulong _size) {
+void MemoryContorller::releaseMemory(int64_t _size) {
   total -= _size;
 }
 
-long long MemoryContorller::getMaxAllowed() const {
+int64_t MemoryContorller::getMaxAllowed() const {
   return max_allowed;
 }
 
-long long MemoryContorller::getTotal() const {
+int64_t MemoryContorller::getTotal() const {
   return total;
 }
 
-size_t MemoryContorller::getTotalSystemMemory() {
+int64_t MemoryContorller::getTotalSystemMemory() {
   long pages = sysconf(_SC_PHYS_PAGES);
   long page_size = sysconf(_SC_PAGE_SIZE);
   return pages * page_size;
 }
 
-size_t MemoryContorller::getAvailableMemory() {
+int64_t MemoryContorller::getAvailableMemory() {
   return max_allowed - total;
 }
 

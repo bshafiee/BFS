@@ -240,7 +240,7 @@ int swift_chown(const char* path, uid_t uid, gid_t gid) {
 
 int swift_truncate(const char* path, off_t size) {
   log_msg("\nbb_truncate(path=\"%s\", size=%zu)\n", path, size);
-  return 0;
+  return swift_ftruncate(path,size,nullptr);
 }
 
 /*int swift_utime(const char* path, struct utimbuf* ubuf) {
@@ -581,7 +581,6 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_ftruncate: error swift_ftruncate: Node not found: %s\n", path);
-    fi->fh = 0;
     return -ENOENT;
   }
   else
@@ -595,19 +594,20 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
       return ENOSPC;
     }
 
-  if(!node->truncate(size)) {
+  node->open();
+  bool res;
+  if(node->isRemote())
+    res = node->truncateRemote(size);
+  else
+    res = node->truncate(size);
+  node->close();
+
+  if(!res) {
     log_msg("error swift_ftruncate: truncate failed: %s newSize:%zu\n", path,node->getSize());
     return EIO;
   }
-  else {
-    //Update Memory Info
-    if(diff != 0)
-      MemoryContorller::getInstance().requestMemory(diff);
-    else
-      MemoryContorller::getInstance().releaseMemory(diff);
-
+  else
     return 0;
-  }
 }
 
 /*int swift_fgetattr(const char* path, struct stat* statbuf,

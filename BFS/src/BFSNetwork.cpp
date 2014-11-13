@@ -19,6 +19,7 @@ extern "C" {
 #include "filenode.h"
 #include "SettingManager.h"
 #include <sys/time.h>
+#include "MemoryController.h"
 
 namespace FUSESwift {
 
@@ -31,6 +32,7 @@ taskMap<uint32_t,ReadRcvTask*> BFSNetwork::readRcvTasks(2000);
 taskMap<uint32_t,WriteDataTask> BFSNetwork::writeDataTasks(2000);
 taskMap<uint32_t,ReadRcvTask*> BFSNetwork::attribRcvTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::deleteSendTasks(2000);
+taskMap<uint32_t,WriteSndTask*> BFSNetwork::truncateSendTasks(2000);
 atomic<bool> BFSNetwork::isRunning(true);
 Queue<SndTask*> BFSNetwork::sendQueue;
 thread * BFSNetwork::rcvThread = nullptr;
@@ -324,6 +326,14 @@ static inline BFS_OPERATION toBFSOperation(uint32_t op){
       return BFS_OPERATION::DELETE_REQUEST;
     case 9:
       return BFS_OPERATION::DELETE_RESPONSE;
+    case 10:
+      return BFS_OPERATION::TRUNCATE_REQUEST;
+    case 11:
+      return BFS_OPERATION::TRUNCATE_RESPONSE;
+    case 12:
+      return BFS_OPERATION::CREATE_REQUEST;
+    case 13:
+      return BFS_OPERATION::CREATE_RESPONSE;
 	}
 	return BFS_OPERATION::UNKNOWN;
 }
@@ -425,6 +435,18 @@ void BFSNetwork::rcvLoop() {
         break;
       case BFS_OPERATION::DELETE_RESPONSE:
         onDeleteResPacket(_packet);
+        break;
+      case BFS_OPERATION::TRUNCATE_REQUEST:
+        onTruncateReqPacket(_packet);
+        break;
+      case BFS_OPERATION::TRUNCATE_RESPONSE:
+        onTruncateResPacket(_packet);
+        break;
+      case BFS_OPERATION::CREATE_REQUEST:
+        onCreateReqPacket(_packet);
+        break;
+      case BFS_OPERATION::CREATE_RESPONSE:
+        onCreateResPacket(_packet);
         break;
 
 			default:
@@ -1079,7 +1101,7 @@ bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
   //Put it on the deleteSendTask map!
   auto resPair = deleteSendTasks.insert(task.fileID,&task);
   if(!resPair.second) {
-    fprintf(stderr,"deleteRemoteFile(), error in inserting task to deleteSendTas!size:%lu\n",deleteSendTasks.size());
+    fprintf(stderr,"deleteRemoteFile(), error in inserting task to deleteSendTas! size:%lu\n",deleteSendTasks.size());
     return false;
   }
 
@@ -1122,4 +1144,163 @@ bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
   return task.acked;
 }
 
+void BFSNetwork::onTruncateReqPacket(const u_char* _packet) {
+  WriteReqPacket *reqPacket = (WriteReqPacket*)_packet;
+  //Local file
+  string fileName = string(reqPacket->fileName);
+  uint32_t fileID = ntohl(reqPacket->fileID);
+  uint64_t newSize = be64toh(reqPacket->size);
+
+  //Response Packet
+  char buffer[MTU];
+  WriteDataPacket *truncateAck = (WriteDataPacket *)buffer;
+  fillBFSHeader((char*)truncateAck,reqPacket->srcMac);
+  truncateAck->opCode = htonl((uint32_t)BFS_OPERATION::TRUNCATE_RESPONSE);
+  //set fileID
+  truncateAck->fileID = htonl(fileID);
+  //Size == 0 means failed! if truncate successful size will be newSize
+  truncateAck->size = 0;//zero is zero anyway
+
+
+  //Find file and lock it!
+  FileNode* fNode = FileSystem::getInstance().getNode(fileName);
+  if(fNode == nullptr) {
+    //Now send packet on the wire
+    if(!ZeroNetwork::send(buffer,MTU)) {
+      fprintf(stderr,"Failed to send truncateAckpacket.\n");
+    }
+    fprintf(stderr,"onTrucnateReqPacket(), File Not found:%s!\n",fileName.c_str());
+    return;
+  }
+
+  fprintf(stderr,"AVAILBLE MEMORY BEF: %lld\n",(long long)MemoryContorller::getInstance().getAvailableMemory());
+  fNode->open();
+  bool res = fNode->truncate(newSize);
+  fNode->close();
+
+  if(res)//Success
+    truncateAck->size = htobe64(newSize);
+  fprintf(stderr,"AVAILBLE MEMORY AFT: %lld\n",(long long)MemoryContorller::getInstance().getAvailableMemory());
+  //Send the ack on the wires
+  if(!ZeroNetwork::send(buffer,MTU)) {
+    fprintf(stderr,"Failed to send truncateAckpacket.\n");
+  }
+}
+
+void BFSNetwork::onTruncateResPacket(const u_char* _packet) {
+  WriteDataPacket *resPacket = (WriteDataPacket*)_packet;
+  //Find write sendTask
+  uint32_t fileID = ntohl(resPacket->fileID);
+  uint64_t size = be64toh(resPacket->size);
+
+  auto taskIt = truncateSendTasks.find(fileID);
+  truncateSendTasks.lock();
+  if(taskIt == truncateSendTasks.end()) {
+    fprintf(stderr,"onTruncateResPacket:No valid Task found. fileID:%d\n",fileID);
+    truncateSendTasks.unlock();
+    return;
+  }
+  WriteSndTask* truncateTask = (WriteSndTask*)taskIt->second;
+
+  //Signal
+  unique_lock<mutex> lk(truncateTask->ack_m);
+  if(size == truncateTask->size)
+    truncateTask->acked = true;
+  else
+    truncateTask->acked = false;
+
+  truncateTask->ack_ready = true;
+  lk.unlock();
+  truncateTask->ack_cv.notify_one();
+
+  truncateSendTasks.unlock();
+}
+
+bool BFSNetwork::truncateRemoteFile(const std::string& _remoteFile,
+    size_t _newSize, unsigned char _dstMAC[6]) {
+  if (_remoteFile.length() > DATA_LENGTH) {
+    fprintf(stderr, "Filename too long!\n");
+    return false;
+  }
+
+  //Create a new task
+  WriteSndTask task;
+  task.srcBuffer = nullptr;
+  task.size = _newSize;
+  task.offset = 0;
+  task.fileID = getNextFileID();
+  task.remoteFile = _remoteFile;
+  task.acked = false;
+  memcpy(task.dstMac, _dstMAC, 6);
+  task.ready = false;
+  task.ack_ready = false;
+
+  //First Send a write request
+  char buffer[MTU];
+  WriteReqPacket *truncateReqPkt = (WriteReqPacket*) buffer;
+  fillWriteReqPacket(truncateReqPkt, task.dstMac, task);
+  truncateReqPkt->opCode = htonl((uint32_t) BFS_OPERATION::TRUNCATE_REQUEST);
+
+  //Put it on the truncateSendTask map!
+  auto resPair = truncateSendTasks.insert(task.fileID, &task);
+  if (!resPair.second) {
+    fprintf(stderr,
+        "truncateRemoteFile(), error in inserting task to truncateSendTask!size:%lu\n",
+        truncateSendTasks.size());
+    return false;
+  }
+
+  //Now send packet on the wire
+  if (!ZeroNetwork::send(buffer, MTU)) {
+    fprintf(stderr, "Failed to send truncateReqpacket.\n");
+    truncateSendTasks.erase(resPair.first);
+    return false;
+  }
+
+  //Truncate can be a lengthy operation
+  uint64_t timeout = ACK_TIMEOUT * 10;
+
+  struct timespec bef, after;
+  //Now wait for the ACK!
+  while (!task.ack_ready) {
+    clock_gettime(CLOCK_MONOTONIC, &bef);
+    unique_lock < mutex > ack_lk(task.ack_m);
+    task.ack_cv.wait_for(ack_lk, chrono::milliseconds(ACK_TIMEOUT));
+    ack_lk.unlock();
+    clock_gettime(CLOCK_MONOTONIC, &after);
+    uint64_t nanoDiff = after.tv_nsec - bef.tv_nsec;
+    if (!task.ack_ready && (nanoDiff >= timeout * 1000ll * 1000ll))
+      break;
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &after);
+  if (!task.ack_ready) {
+    fprintf(stderr, "Befor TIME: %zu\n", bef.tv_nsec);
+    fprintf(stderr, "After TIME: %zu\n", after.tv_nsec);
+    uint64_t diff = after.tv_nsec - bef.tv_nsec;
+    fprintf(stderr, "Delta TIME: %zu nanoseconds\n", diff);
+    fflush(stderr);
+  }
+
+  if (!task.ack_ready)
+    printf("TruncateRequest not Acked:%d ACK_Ready:%d\n", task.fileID,
+        task.ack_ready);
+  if (!task.acked && task.size != _newSize)
+    printf("TruncateRequest failed: %s\n", task.remoteFile.c_str());
+
+  truncateSendTasks.erase(resPair.first);
+  return task.acked;
+}
+
+void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
+}
+
+void BFSNetwork::onCreateResPacket(const u_char* _packet) {
+}
+
+bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
+    unsigned char _dstMAC[6]) {
+}
+
 } /* namespace FUSESwift */
+

@@ -216,8 +216,14 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
 }
 
 bool FUSESwift::FileNode::truncate(size_t _size) {
-  if(_size == size)
-    return true;
+  int64_t truncateDiff = _size - getSize();
+
+  if(truncateDiff == 0)
+    return true;//Nothing to do
+
+  //Do we hace enough memory?
+  if(!MemoryContorller::getInstance().checkPossibility(truncateDiff))
+    return false;
   else if(_size > size) { //Expand
     //we just call write with '\0' chars buffers
     size_t diff = _size-size;
@@ -239,7 +245,8 @@ bool FUSESwift::FileNode::truncate(size_t _size) {
       if(blockIndex >= diff) {
         blockIndex -= diff;
         size -= diff;
-        return true;
+        MemoryContorller::getInstance().releaseMemory(truncateDiff*-1);
+        break;
       }
       else {
         //release block by block
@@ -253,6 +260,10 @@ bool FUSESwift::FileNode::truncate(size_t _size) {
       }
     }
   }
+
+  //File size changed so need to be synced with the backend.
+  setNeedSync(true);
+
   return (size == _size);
 }
 
@@ -583,8 +594,12 @@ long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
 	  return written;
 }
 
-bool FUSESwift::FileNode::rmRemote() {
+bool FileNode::rmRemote() {
   return BFSNetwork::deleteRemoteFile(getFullPath(),remoteHostMAC);
+}
+
+bool FileNode::truncateRemote(size_t size) {
+  return BFSNetwork::truncateRemoteFile(getFullPath(),size, remoteHostMAC);
 }
 
 } //namespace

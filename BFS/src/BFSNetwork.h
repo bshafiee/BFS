@@ -311,10 +311,13 @@ private:
   }
 };
 
-enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2, WRITE_REQUEST = 3,
-													WRITE_DATA = 4, WRITE_ACK = 5, ATTRIB_REQUEST = 6,
+enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2,
+                          WRITE_REQUEST = 3,WRITE_DATA = 4,
+                          WRITE_ACK = 5, ATTRIB_REQUEST = 6,
 													ATTRIB_RESPONSE = 7, DELETE_REQUEST = 8,
-													DELETE_RESPONSE = 9, UNKNOWN = -1};
+													DELETE_RESPONSE = 9, TRUNCATE_REQUEST = 10,
+													TRUNCATE_RESPONSE = 11 , CREATE_REQUEST = 12,
+													CREATE_RESPONSE = 13,	UNKNOWN = 0};
 
 class BFSNetwork : ZeroNetwork{
 private:
@@ -336,6 +339,7 @@ private:
 	static taskMap<uint32_t,WriteDataTask> writeDataTasks;
 	static taskMap<uint32_t,WriteSndTask*> writeSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> deleteSendTasks;
+	static taskMap<uint32_t,WriteSndTask*> truncateSendTasks;
 	static Queue<SndTask*> sendQueue;
 	static std::thread *rcvThread;
 	static std::thread *sndThread;
@@ -365,7 +369,11 @@ private:
 	static void onAttribReqPacket(const u_char *_packet);
 	static void onAttribResPacket(const u_char *_packet);
 	/** Create Operation **/
+  static void onCreateReqPacket(const u_char *_packet);
+  static void onCreateResPacket(const u_char *_packet);
 	/** Truncate Operation **/
+	static void onTruncateReqPacket(const u_char *_packet);
+  static void onTruncateResPacket(const u_char *_packet);
 	/** Delete Operation **/
   static void onDeleteReqPacket(const u_char *_packet);
   static void onDeleteResPacket(const u_char *_packet);
@@ -401,6 +409,10 @@ public:
 			const std::string &remoteFile,unsigned char _dstMAC[6]);
 
 	static bool deleteRemoteFile(const std::string &_remoteFile, unsigned char _dstMAC[6]);
+
+	static bool truncateRemoteFile(const std::string &_remoteFile, size_t _newSize, unsigned char _dstMAC[6]);
+
+	static bool createRemoteFile(const std::string &_remoteFile, unsigned char _dstMAC[6]);
 
 	static const unsigned char* getMAC();
 

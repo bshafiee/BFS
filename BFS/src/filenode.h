@@ -144,6 +144,7 @@ public:
   long readRemote(char* _data, size_t _offset, size_t _size);
   long writeRemote(const char* _data, size_t _offset, size_t _size);
   bool rmRemote();
+  bool truncateRemote(size_t size);
 };
 
 } /* namespace FUSESwift */
