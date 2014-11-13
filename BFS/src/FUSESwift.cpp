@@ -6,16 +6,16 @@
  */
 
 #include "FUSESwift.h"
-#include "model/filenode.h"
+#include "filenode.h"
 #include "log.h"
-#include "model/filesystem.h"
+#include "filesystem.h"
 #include <cstring>
 #include <ctime>
 #include <unistd.h>
-#include "model/UploadQueue.h"
-#include "model/DownloadQueue.h"
-#include "model/MemoryController.h"
-#include "model/zoo/ZooHandler.h"
+#include "UploadQueue.h"
+#include "DownloadQueue.h"
+#include "MemoryController.h"
+#include "ZooHandler.h"
 
 using namespace std;
 

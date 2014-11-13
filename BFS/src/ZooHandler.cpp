@@ -13,12 +13,12 @@
 #include <algorithm>    // std::sort
 #include "LeaderOffer.h"
 #include "ZooNode.h"
-#include "../MemoryController.h"
-#include "../filesystem.h"
-#include "../DownloadQueue.h"
+#include "MemoryController.h"
+#include "filesystem.h"
+#include "DownloadQueue.h"
 #include "string.h"
-#include "../znet/ZeroNetwork.h"
-#include "../SettingManager.h"
+#include "ZeroNetwork.h"
+#include "SettingManager.h"
 
 using namespace std;
 

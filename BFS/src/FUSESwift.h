@@ -10,7 +10,7 @@
 
 #include <fuse.h>
 #include "log.h"
-#include "model/filesystem.h"
+#include "filesystem.h"
 #include <string.h>
 
 

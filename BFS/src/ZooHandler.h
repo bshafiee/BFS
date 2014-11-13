@@ -20,7 +20,7 @@
 #include "LeaderOffer.h"
 #include "MasterHandler.h"
 #include "ZooNode.h"
-#include "../znet/BFSNetwork.h"
+#include "BFSNetwork.h"
 
 
 namespace FUSESwift {

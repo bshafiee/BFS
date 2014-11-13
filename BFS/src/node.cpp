@@ -6,7 +6,7 @@
  */
 
 #include "node.h"
-#include "../log.h"
+#include "log.h"
 
 using namespace std;
 

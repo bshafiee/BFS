@@ -10,7 +10,7 @@
 
 #include <atomic>
 #include <vector>
-#include "../BackendManager.h"
+#include "BackendManager.h"
 
 namespace FUSESwift {
 

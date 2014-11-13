@@ -6,7 +6,7 @@
  */
 
 #include "SyncQueue.h"
-#include "../log.h"
+#include "log.h"
 #include <cstdio>
 #include <mutex>
 #include "BackendManager.h"

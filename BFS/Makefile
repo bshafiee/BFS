@@ -1,6 +1,6 @@
 #CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
 CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
-CXXSOURCES = $(wildcard *.cpp model/*.cpp model/*/*.cpp)
+CXXSOURCES = $(wildcard src/*.cpp)
 OBJS =	$(CXXSOURCES:%.cpp=%.o)
 
 #Includes

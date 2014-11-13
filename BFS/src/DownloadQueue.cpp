@@ -9,7 +9,7 @@
 #include "UploadQueue.h"
 #include <thread>
 #include "BackendManager.h"
-#include "../log.h"
+#include "log.h"
 #include "filesystem.h"
 #include <iostream>
 #include <mutex>

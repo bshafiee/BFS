@@ -8,7 +8,7 @@
 #include "UploadQueue.h"
 #include <thread>
 #include "BackendManager.h"
-#include "../log.h"
+#include "log.h"
 #include "MemoryController.h"
 
 using namespace std;

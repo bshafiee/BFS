@@ -11,10 +11,10 @@
 #include <iostream>
 #include <Poco/StringTokenizer.h>
 #include <Poco/RegularExpression.h>
-#include "../log.h"
+#include "log.h"
 #include "UploadQueue.h"
 #include "DownloadQueue.h"
-#include "zoo/ZooHandler.h"
+#include "ZooHandler.h"
 
 using namespace std;
 using namespace Poco;

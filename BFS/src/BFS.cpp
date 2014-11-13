@@ -37,17 +37,17 @@
 #include <Poco/StreamCopier.h>
 #include "FUSESwift.h"
 #include "log.h"
-#include "model/filesystem.h"
-#include "model/filenode.h"
-#include "model/SyncQueue.h"
-#include "model/SwiftBackend.h"
-#include "model/BackendManager.h"
-#include "string.h"
-#include "model/DownloadQueue.h"
-#include "model/UploadQueue.h"
-#include "model/MemoryController.h"
-#include "model/SettingManager.h"
-#include "model/znet/BFSNetwork.h"
+#include "filesystem.h"
+#include "filenode.h"
+#include "SyncQueue.h"
+#include "SwiftBackend.h"
+#include "BackendManager.h"
+#include <string.h>
+#include "DownloadQueue.h"
+#include "UploadQueue.h"
+#include "MemoryController.h"
+#include "SettingManager.h"
+#include "BFSNetwork.h"
 #include <thread>
 
 

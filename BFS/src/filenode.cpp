@@ -8,12 +8,12 @@
 #include "filenode.h"
 #include <cstring>
 #include <sstream>      // std::istringstream
-#include "../log.h"
+#include "log.h"
 #include "filesystem.h"
 #include <Poco/MD5Engine.h>
 #include "UploadQueue.h"
 #include "MemoryController.h"
-#include "znet/BFSNetwork.h"
+#include "BFSNetwork.h"
 
 using namespace std;
 

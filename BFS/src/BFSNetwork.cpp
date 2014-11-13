@@ -15,9 +15,9 @@
 extern "C" {
 	#include <pfring.h>
 }
-#include "../filesystem.h"
-#include "../filenode.h"
-#include "../SettingManager.h"
+#include "filesystem.h"
+#include "filenode.h"
+#include "SettingManager.h"
 #include <sys/time.h>
 
 namespace FUSESwift {

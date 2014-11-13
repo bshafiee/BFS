@@ -6,7 +6,7 @@
  */
 
 #include "SwiftBackend.h"
-#include "../log.h"
+#include "log.h"
 #include <Object.h>
 #include <Container.h>
 #include <Poco/Net/HTTPClientSession.h>
