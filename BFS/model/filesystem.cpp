@@ -90,6 +90,15 @@ FileNode* FileSystem::searchNode(FileNode* _parent, std::string _name,
   return nullptr;
 }
 
+size_t FileSystem::rmNode(FileNode* &_node) {
+
+  FileNode* parent = findParent(_node->getFullPath());
+  if(!parent)
+    return 0;
+  else
+    return rmNode(parent,_node);
+}
+
 size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   //First traverse and store list of all files to be deleted by backend(bottom up!)
   //we need stack because we traverse top-down
@@ -119,8 +128,11 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   DownloadQueue::getInstance().informDeletedFiles(fullPathStack);
 
   //Now commit to sync queue! the order matters (before delete)
-  for(int i=fullPathStack.size()-1;i>=0;i--)
-    UploadQueue::getInstance().push(new SyncEvent(SyncEventType::DELETE,nullptr,fullPathStack[i]));
+  for(int i=fullPathStack.size()-1;i>=0;i--){
+    FileNode* file = getNode(fullPathStack[i]);
+    if(!file->isRemote())
+      UploadQueue::getInstance().push(new SyncEvent(SyncEventType::DELETE,nullptr,fullPathStack[i]));
+  }
 
   //Do the actual removing on local file system
   //remove from parent
@@ -314,7 +326,7 @@ std::string FileSystem::printFileSystem() {
   return output;
 }
 
-std::vector<std::string> FileSystem::listLocalFileSystem() {
+std::vector<std::string> FileSystem::listFileSystem(bool _includeRemotes) {
 	vector<string> output;
   //Recursive is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
@@ -324,8 +336,11 @@ std::vector<std::string> FileSystem::listLocalFileSystem() {
     auto childIterator = start->childrendBegin();
     for (; childIterator != start->childrenEnd(); childIterator++){
     	FileNode* fileNode = (FileNode*) childIterator->second;
-      if(!fileNode->isRemote())//If not remove we will claim we have this File
-				childrenQueue.push_back(fileNode);
+    	if(_includeRemotes)
+    	  childrenQueue.push_back(fileNode);
+    	else if(!fileNode->isRemote())//If not remove we will claim we have this File
+    	  childrenQueue.push_back(fileNode);
+
     }
     //Now we can release start node
     if(start->getName()!="/" && !start->isDirectory())//if not a directory

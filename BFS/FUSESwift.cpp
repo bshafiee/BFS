@@ -159,13 +159,9 @@ int swift_unlink(const char* path) {
   }
 
 
-  if(node->isOpen())
-  	node->signalDelete();
-  else {
-		FileNode* parent = FileSystem::getInstance().findParent(path);
-		//size_t remNodes = FileSystem::getInstance().rmNode(parent, node);
-		FileSystem::getInstance().rmNode(parent, node);
-  }
+
+  if(!node->signalDelete())
+    return -EIO;
 
   if(DEBUG_UNLINK)
     //log_msg("Removed %d nodes from %s file.\n", remNodes, path);
@@ -186,10 +182,11 @@ int swift_rmdir(const char* path) {
     return -ENOENT;
   }
 
-  FileNode* parent = FileSystem::getInstance().findParent(path);
-  size_t remNodes = FileSystem::getInstance().rmNode(parent,node);
+
+  if(!node->signalDelete())
+    return -EIO;
   if(DEBUG_RMDIR)
-    log_msg("Removed %d nodes from %s dir.\n", remNodes, path);
+    log_msg("Removed nodes from %s dir.\n", path);
 
   return 0;
 }
@@ -249,14 +246,14 @@ int swift_truncate(const char* path, off_t size) {
 /*int swift_utime(const char* path, struct utimbuf* ubuf) {
 }*/
 
-mutex outMutex,errMutex;
+//mutex outMutex,errMutex;
 
 int swift_open(const char* path, struct fuse_file_info* fi) {
-  static uint64_t counter = 0;
+  /*static uint64_t counter = 0;
   outMutex.lock();
   fprintf(stdout,"FUSE OPEN, size:%zu\n",++counter);
   fflush(stdout);
-  outMutex.unlock();
+  outMutex.unlock();*/
   if(DEBUG_OPEN)
     log_msg("\nbb_open(path=\"%s\", fi=0x%08x fh=0x%08x)\n", path, fi,fi->fh);
   //Get associated FileNode*
@@ -278,11 +275,11 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
 
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
-  errMutex.lock();
+  /*errMutex.lock();
   static uint64_t counter = 0;
   fprintf(stderr,"FUSE READ, size:%zu\n",++counter);
   fflush(stderr);
-  errMutex.unlock();
+  errMutex.unlock();*/
   if(DEBUG_READ)
     log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
         path, buf, size, offset, fi);
@@ -346,7 +343,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     node->setNeedSync(true);
   }
 
-  if (written == (int) size) {
+  if (written == (long) size) {
     if (DEBUG_WRITE)
       log_msg("bb_write successful to:%s size=%d, offset=%lld\n",
           node->getName().c_str(), written, offset);

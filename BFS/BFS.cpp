@@ -136,16 +136,20 @@ void outOfMemHandler() {
 	fprintf(stderr,"Unable to satisfy request for memory\n");
   shutdown();
 }
-atomic<int> global(0);
 
+atomic<int> global(0);
 void readRemote() {
-  size_t len = 1462*10;
-  unsigned char mac[6] = {0x00,0x24,0x8c,0x05,0xee,0xdd};
+  //size_t len = 1024l*1024l*1024l;
+  size_t len = 1024000000ll;
+  unsigned char mac[6] = {0x90,0xe2,0xba,0x35,0x22,0xd8};
   char * buffer = new char[len];
-  long res = BFSNetwork::readRemoteFile((void*)buffer,len,(size_t)0,string("/2G"),mac);
-  global++;
-  int local = global;
-  fprintf(stderr,"READ DONE:%ld %d\n",res,local);
+  //long res = BFSNetwork::readRemoteFile((void*)buffer,len,(size_t)123123,string("/RNA"),mac);
+  long res = BFSNetwork::writeRemoteFile(buffer,len,123123,"/RNA",mac);
+  //struct stat attBuff;
+  //long res = BFSNetwork::readRemoteFileAttrib(&attBuff,string("/RNA"),mac);
+  //long res = BFSNetwork::deleteRemoteFile(string("/2G"),mac);
+
+  fprintf(stderr,"READ DONE:%ld %d\n",res,++global);
   fflush(stderr);
   delete []buffer;
   buffer = nullptr;
@@ -153,7 +157,7 @@ void readRemote() {
 
 void testRemoteRead() {
   sleep(1);
-  for(int i=0;i<8000;i++) {
+  for(int i=0;i<1;i++) {
     //usleep(100);
     //readRemote();
     new thread(readRemote);
@@ -208,7 +212,7 @@ int main(int argc, char *argv[]) {
   BackendManager::registerBackend(&swiftBackend);
 
   //Get Physical Memory amount
-  cout <<"Total Physical Memory:"<<MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024<<" MB"<<endl;
+  cout <<"Total Physical Memory:" << MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024 << " MB"<<endl;
 
   //Start BFS Network(before zoo, zoo uses mac info from this package)
 	if(!BFSNetwork::startNetwork()) {
@@ -216,14 +220,15 @@ int main(int argc, char *argv[]) {
 		shutdown();
 	}
 
-	testRemoteRead();
+	//testRemoteRead();
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
   //Start fuse_main
-  int fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
+  int fuse_stat = 0;
+  fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-  //while(1) {}
+  //while(1) {sleep(1);}
 
   shutdown();
   return fuse_stat;

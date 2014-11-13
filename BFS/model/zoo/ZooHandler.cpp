@@ -237,7 +237,7 @@ bool ZooHandler::makeOffer() {
 	 * zoo_create(zh,(electionZNode).c_str(),"Election Offers",
 	 strlen("Election Offers"),&ZOO_OPEN_ACL_UNSAFE ,0,newNodePath,newNodePathLen);*/
 	//ZooNode
-	vector<string> listOfFiles = FileSystem::getInstance().listLocalFileSystem();
+	vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
 	//Create a ZooNode
 	ZooNode zooNode(getHostName(),
 	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC());
@@ -414,7 +414,7 @@ void ZooHandler::publishListOfFiles() {
 		return;
 	}
 
-	vector<string> listOfFiles = FileSystem::getInstance().listLocalFileSystem();
+	vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
 	//Traverse FileSystem Hierarchies
 
 	//Create a ZooNode
@@ -531,7 +531,7 @@ void ZooHandler::updateGlobalView() {
 
 void ZooHandler::updateRemoteFilesInFS() {
 	vector<pair<string,ZooNode>> newRemoteFiles;
-	vector<string>localFiles = FileSystem::getInstance().listLocalFileSystem();
+	vector<string>localFiles = FileSystem::getInstance().listFileSystem(true);
 	for(ZooNode node:globalView){
 		//We should not include ourself in this
 		const unsigned char* myMAC = BFSNetwork::getMAC();
@@ -570,6 +570,46 @@ void ZooHandler::updateRemoteFilesInFS() {
 				item.second.MAC[1],item.second.MAC[2],item.second.MAC[3],
 				item.second.MAC[4],item.second.MAC[5]);
 	}
+
+	//Now remove the localRemoteFiles(remote files which have a pointer in our
+	// fs locally) which don't exist anymore
+	for(string fileName:localFiles) {
+	  FileNode* file = FileSystem::getInstance().getNode(fileName);
+	  if(file == nullptr){
+	    fprintf(stderr,"updateRemoteFilesInFS(): ERROR, cannot find "
+	        "corresponding node in filesystem for:%s\n",fileName.c_str());
+	    continue;
+	  }
+
+	  if(!file->isRemote())
+	    continue;
+
+	  bool exist = false;
+	  for(ZooNode node:globalView){
+      //We should not include ourself in this
+      const unsigned char* myMAC = BFSNetwork::getMAC();
+      bool isMe = true;
+      for(int i=0;i<6;i++)
+        if(node.MAC[i]!=myMAC[i]){
+          isMe = false;
+          break;
+        }
+      if(isMe)
+        continue;
+
+      for(string remoteFile:node.containedFiles){
+        if(remoteFile == fileName){
+          exist = true;
+          break;
+        }
+      }
+      if(exist)
+        break;
+	  }
+	  if(!exist)
+	    FileSystem::getInstance().rmNode(file);
+	}
+
 }
 
 void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,

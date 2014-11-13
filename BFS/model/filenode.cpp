@@ -431,8 +431,17 @@ void FileNode::unlockDelete() {
   deleteMutex.unlock();
 }
 
-void FileNode::signalDelete() {
+bool FileNode::signalDelete() {
 	mustDeleted = true;
+	if(isOpen())
+	  return true;//will be deleted on close
+	//Otherwise delete it right away
+	FileNode* thisPtr = this;
+
+	if(isRemote())
+    return rmRemote();
+	else
+	  return FileSystem::getInstance().rmNode(thisPtr);
 }
 
 bool FileNode::isRemote() {
@@ -572,6 +581,10 @@ long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
 	  return -2;//ACK error
 	else
 	  return written;
+}
+
+bool FUSESwift::FileNode::rmRemote() {
+  return BFSNetwork::deleteRemoteFile(getFullPath(),remoteHostMAC);
 }
 
 } //namespace

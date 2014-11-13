@@ -138,11 +138,12 @@ public:
    * therefore, we indicate this file should be removed after all
    * the references to it being closed!
    */
-  void signalDelete();
+  bool signalDelete();
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   long readRemote(char* _data, size_t _offset, size_t _size);
   long writeRemote(const char* _data, size_t _offset, size_t _size);
+  bool rmRemote();
 };
 
 } /* namespace FUSESwift */

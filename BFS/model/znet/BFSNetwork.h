@@ -12,6 +12,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+#include <atomic>
 #include <unordered_map>
 #include <atomic>
 #include <vector>
@@ -200,32 +201,45 @@ struct WriteDataTask {
 template <typename keyType,typename valueType>
 struct taskMap {
 private:
-	std::unordered_map<keyType,valueType> readRcvTasks;
+	std::unordered_map<keyType,valueType> tasks;
 	std::mutex mutex;
 public:
+	taskMap(unsigned int initCapacity) {
+	  tasks.reserve(initCapacity);
+	}
 	auto inline find(keyType key) {
-		return readRcvTasks.find(key);
+	  std::lock_guard<std::mutex> lock(mutex);
+		return tasks.find(key);
 	}
 	auto inline insert(keyType key,valueType value) {
 		std::lock_guard<std::mutex> lock(mutex);
-		return readRcvTasks.insert(std::pair<keyType,valueType>(key,value));
+		auto res = tasks.insert(std::pair<keyType,valueType>(key,value));
+		return res;
 	}
 	auto inline erase(auto it) {
-		std::lock_guard<std::mutex> lock(mutex);
-		return readRcvTasks.erase(it);
+	  std::lock_guard<std::mutex> lock(mutex);
+		auto res = tasks.erase(it);
+		return res;
 	}
 
 	auto inline end() {
-		return readRcvTasks.end();
+		return tasks.end();
 	}
 
+	auto inline begin() {
+    return tasks.begin();
+  }
+
 	auto inline size() {
-		return readRcvTasks.size();
+	  std::lock_guard<std::mutex> lock(mutex);
+		return tasks.size();
 	}
-	void lock(){
-	  mutex.lock();
-	}
-	void unlock(){
+
+  void lock() {
+    mutex.lock();
+  }
+
+  void unlock() {
     mutex.unlock();
   }
 };
@@ -279,6 +293,10 @@ private:
     cond.notify_one();
   }
 
+  inline auto at(uint64_t index) {
+    return queue[index];
+  }
+
   auto begin() const{
 		return queue.begin();
 	}
@@ -287,14 +305,16 @@ private:
 		return queue.end();
 	}
 
-  const auto size() const {
+  const auto size() {
+    std::lock_guard<std::mutex> lock(mutex);
   	return queue.size();
   }
 };
 
 enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2, WRITE_REQUEST = 3,
-													WRITE_DATA = 4, WRITE_ACK = 5, ATTRIB_REQEUST = 6,
-													ATTRIB_RESPONSE = 7, UNKNOWN = -1};
+													WRITE_DATA = 4, WRITE_ACK = 5, ATTRIB_REQUEST = 6,
+													ATTRIB_RESPONSE = 7, DELETE_REQUEST = 8,
+													DELETE_RESPONSE = 9, UNKNOWN = -1};
 
 class BFSNetwork : ZeroNetwork{
 private:
@@ -315,12 +335,11 @@ private:
 	static taskMap<uint32_t,ReadRcvTask*> attribRcvTasks;
 	static taskMap<uint32_t,WriteDataTask> writeDataTasks;
 	static taskMap<uint32_t,WriteSndTask*> writeSendTasks;
+	static taskMap<uint32_t,WriteSndTask*> deleteSendTasks;
 	static Queue<SndTask*> sendQueue;
 	static std::thread *rcvThread;
 	static std::thread *sndThread;
-	static uint32_t fileIDCounter;
-	/** FileID **/
-	static std::mutex fileIDCounterMutex;
+	static std::atomic<uint32_t> fileIDCounter;
 	static uint32_t getNextFileID();
 	/** packet processing callback **/
 	static void rcvLoop();
@@ -348,6 +367,8 @@ private:
 	/** Create Operation **/
 	/** Truncate Operation **/
 	/** Delete Operation **/
+  static void onDeleteReqPacket(const u_char *_packet);
+  static void onDeleteResPacket(const u_char *_packet);
 	/** Rename Operation **/
 public:
 	virtual ~BFSNetwork();
@@ -378,6 +399,8 @@ public:
 
 	static bool readRemoteFileAttrib(struct stat *attBuff,
 			const std::string &remoteFile,unsigned char _dstMAC[6]);
+
+	static bool deleteRemoteFile(const std::string &_remoteFile, unsigned char _dstMAC[6]);
 
 	static const unsigned char* getMAC();
 

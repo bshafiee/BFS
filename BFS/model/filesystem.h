@@ -36,6 +36,7 @@ public:
   FileNode* mkFile(const std::string &_path,bool _isRemote);
   FileNode* mkDirectory(const std::string &_path,bool _isRemote);
   size_t rmNode(FileNode* &_parent,FileNode* &_node);
+  size_t rmNode(FileNode* &_node);
   FileNode* searchFile(FileNode* _parent, const std::string &_name);
   FileNode* searchDir(FileNode* _parent, const std::string &_name);
   FileNode* getNode(const std::string &_path);
@@ -60,7 +61,7 @@ public:
   /**
    * Caller's responisbility to call delete on returned list
    */
-  std::vector<std::string> listLocalFileSystem();
+  std::vector<std::string> listFileSystem(bool _includeRemotes);
   /**
    * checks if the input name is valid
    */

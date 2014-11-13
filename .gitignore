@@ -1,5 +1,8 @@
 *.o
+*.d
 *.cproject
 *.project
 *.settings
 *.log
+BFS
+core
