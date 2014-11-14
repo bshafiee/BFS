@@ -18,8 +18,8 @@ extern "C" {
 #include "filesystem.h"
 #include "filenode.h"
 #include "SettingManager.h"
-#include <sys/time.h>
 #include "MemoryController.h"
+#include "Timer.h"
 
 namespace FUSESwift {
 
@@ -33,6 +33,7 @@ taskMap<uint32_t,WriteDataTask> BFSNetwork::writeDataTasks(2000);
 taskMap<uint32_t,ReadRcvTask*> BFSNetwork::attribRcvTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::deleteSendTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::truncateSendTasks(2000);
+taskMap<uint32_t,WriteSndTask*> BFSNetwork::createSendTasks(2000);
 atomic<bool> BFSNetwork::isRunning(true);
 Queue<SndTask*> BFSNetwork::sendQueue;
 thread * BFSNetwork::rcvThread = nullptr;
@@ -635,31 +636,21 @@ void FUSESwift::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
   //revert back the task size.
   _task.size = total;
 
-  struct timespec bef,after;
-
+  Timer t;
+  t.begin();
   //Now wait for the ACK!
-  unique_lock<mutex> ack_lk(_task.ack_m);
 	while(!_task.ack_ready) {
-	  clock_gettime(CLOCK_MONOTONIC, &bef);
+	  unique_lock<mutex> ack_lk(_task.ack_m);
 		_task.ack_cv.wait_for(ack_lk,chrono::milliseconds(ACK_TIMEOUT));
-		clock_gettime(CLOCK_MONOTONIC, &after);
-		uint64_t nanoDiff = after.tv_nsec - bef.tv_nsec;
-		if(!_task.ack_ready && (nanoDiff >= ACK_TIMEOUT*1000ll*1000ll))
+		t.end();
+		ack_lk.unlock();
+		if(!_task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
 		  break;
 	}
-	ack_lk.unlock();
 
-	clock_gettime(CLOCK_MONOTONIC, &after);
-	if(!_task.ack_ready) {
-	  fprintf(stderr,"Befor TIME: %zu\n",bef.tv_nsec);
-    fprintf(stderr,"After TIME: %zu\n",after.tv_nsec);
-    uint64_t diff = after.tv_nsec - bef.tv_nsec;
-    fprintf(stderr,"Delta TIME: %zu nanoseconds\n",diff);
-    fflush(stderr);
-	}
 
 	if(!_task.ack_ready)
-		printf("WriteRequest not Acked:%d ACK_Ready:%d\n",_task.fileID,_task.ack_ready);
+		printf("WriteRequest Timeout: fileID:%d ElapsedMILLIS:%f\n",_task.fileID,t.elapsedMillis());
 
 	if(!_task.acked && _task.ack_ready)
     printf("WriteRequest failed:%s\n",_task.remoteFile.c_str());
@@ -668,7 +659,6 @@ void FUSESwift::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
   unique_lock<mutex> lk(_task.m);
 	_task.ready = true;
 	lk.unlock();
-	//lk.unlock();
 	_task.cv.notify_one();
 }
 
@@ -855,11 +845,6 @@ void FUSESwift::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
 	uint32_t fileID = ntohl(reqPacket->fileID);
 	uint64_t size = be64toh(reqPacket->size);
 
-	struct timespec now;
-  clock_gettime(CLOCK_MONOTONIC, &now);
-  //fprintf(stderr,"ACK   TIME: %ld\n",now.tv_nsec);
-  //fflush(stderr);
-
   uint64_t queueSize = sendQueue.size();
 	for(uint64_t i=0; i<queueSize;i++) {
 		SndTask *task = sendQueue.at(i);
@@ -878,7 +863,6 @@ void FUSESwift::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
 			}
 	}
 
-	fprintf(stderr,"ACK   TIME: %zu\n",now.tv_nsec);
 	//Error
 	printf("onWriteAckPacket():got ack for:%u but no task found!\n",fileID);
 	fflush(stderr);
@@ -919,23 +903,25 @@ bool BFSNetwork::readRemoteFileAttrib(struct stat *attBuff,
 		return false;
 	}
 
+	Timer t;
+	t.begin();
 	//Now wait for it!
-  unique_lock<std::mutex> lk(task.m);
 	while(!task.ready) {
-		task.cv.wait(lk);//,chrono::milliseconds(ACK_TIMEOUT));
-		if (!task.ready) {
-			fprintf(stderr,"readRemoteAttrib(), HOLY SHIT! Spurious wake up!\n");
-			attribRcvTasks.erase(resPair.first);
-			lk.unlock();
-			return false;
-			//continue;
-		}
+	  unique_lock<std::mutex> lk(task.m);
+		task.cv.wait_for(lk,chrono::milliseconds(ACK_TIMEOUT));
+		t.end();
+		lk.unlock();
+		if (!task.ready && (t.elapsedMillis() > ACK_TIMEOUT))
+			break;
 	}
-	lk.unlock();
+
+	if(!task.ready)
+	  fprintf(stderr,"readRemoteFileAttrib() Timeout: fileID:%d elapsedTime:%f\n",
+	      task.fileID,t.elapsedMillis());
 
 	//remove it from queue
 	attribRcvTasks.erase(resPair.first);
-	if(task.offset == 1)//success
+	if(task.ready && task.offset == 1)//success
 		return true;
 	else
 		return false;
@@ -1112,30 +1098,21 @@ bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
     return false;
   }
 
-  struct timespec bef,after;
+  Timer t;
+  t.begin();
   //Now wait for the ACK!
   while(!task.ack_ready) {
-    clock_gettime(CLOCK_MONOTONIC, &bef);
     unique_lock<mutex> ack_lk(task.ack_m);
     task.ack_cv.wait_for(ack_lk,chrono::milliseconds(ACK_TIMEOUT));
+    t.end();
     ack_lk.unlock();
-    clock_gettime(CLOCK_MONOTONIC, &after);
-    uint64_t nanoDiff = after.tv_nsec - bef.tv_nsec;
-    if(!task.ack_ready && (nanoDiff >= ACK_TIMEOUT*1000ll*1000ll))
+
+    if(!task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
       break;
   }
 
-  clock_gettime(CLOCK_MONOTONIC, &after);
-  if(!task.ack_ready) {
-    fprintf(stderr,"Befor TIME: %zu\n",bef.tv_nsec);
-    fprintf(stderr,"After TIME: %zu\n",after.tv_nsec);
-    uint64_t diff = after.tv_nsec - bef.tv_nsec;
-    fprintf(stderr,"Delta TIME: %zu nanoseconds\n",diff);
-    fflush(stderr);
-  }
-
   if(!task.ack_ready)
-    printf("DeleteRequest not Acked:%d ACK_Ready:%d\n",task.fileID,task.ack_ready);
+    printf("DeleteRequest Timeout: fileID%d ElapsedMILLIS:%f\n",task.fileID,t.elapsedMillis());
   if(!task.acked && task.size == 0)
     printf("DeleteRequest failed: %s\n",task.remoteFile.c_str());
 
@@ -1260,31 +1237,21 @@ bool BFSNetwork::truncateRemoteFile(const std::string& _remoteFile,
   //Truncate can be a lengthy operation
   uint64_t timeout = ACK_TIMEOUT * 10;
 
-  struct timespec bef, after;
+  Timer t;
+  t.begin();
   //Now wait for the ACK!
   while (!task.ack_ready) {
-    clock_gettime(CLOCK_MONOTONIC, &bef);
     unique_lock < mutex > ack_lk(task.ack_m);
-    task.ack_cv.wait_for(ack_lk, chrono::milliseconds(ACK_TIMEOUT));
+    task.ack_cv.wait_for(ack_lk, chrono::milliseconds(timeout));
+    t.end();
     ack_lk.unlock();
-    clock_gettime(CLOCK_MONOTONIC, &after);
-    uint64_t nanoDiff = after.tv_nsec - bef.tv_nsec;
-    if (!task.ack_ready && (nanoDiff >= timeout * 1000ll * 1000ll))
+    if (!task.ack_ready && (t.elapsedMillis() >= timeout))
       break;
   }
 
-  clock_gettime(CLOCK_MONOTONIC, &after);
-  if (!task.ack_ready) {
-    fprintf(stderr, "Befor TIME: %zu\n", bef.tv_nsec);
-    fprintf(stderr, "After TIME: %zu\n", after.tv_nsec);
-    uint64_t diff = after.tv_nsec - bef.tv_nsec;
-    fprintf(stderr, "Delta TIME: %zu nanoseconds\n", diff);
-    fflush(stderr);
-  }
-
   if (!task.ack_ready)
-    printf("TruncateRequest not Acked:%d ACK_Ready:%d\n", task.fileID,
-        task.ack_ready);
+    printf("TruncateRequest Timeout: fileID:%d ElapsedTimeMILLIS:%f\n", task.fileID,
+        t.elapsedMillis());
   if (!task.acked && task.size != _newSize)
     printf("TruncateRequest failed: %s\n", task.remoteFile.c_str());
 
@@ -1293,13 +1260,139 @@ bool BFSNetwork::truncateRemoteFile(const std::string& _remoteFile,
 }
 
 void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
+  WriteReqPacket *reqPacket = (WriteReqPacket*)_packet;
+  //Local file to be created
+  string fileName = string(reqPacket->fileName);
+  uint32_t fileID = ntohl(reqPacket->fileID);
+  //uint64_t size = be64toh(reqPacket->size);
+
+  //Response Packet
+  char buffer[MTU];
+  WriteDataPacket *createAck = (WriteDataPacket *)buffer;
+  fillBFSHeader((char*)createAck,reqPacket->srcMac);
+  createAck->opCode = htonl((uint32_t)BFS_OPERATION::CREATE_RESPONSE);
+  //set fileID
+  createAck->fileID = htonl(fileID);
+  //Size == 0 means failed! if truncate successful size will be newSize
+  createAck->size = 0;//zero is zero anyway
+
+
+  bool res = false;
+
+  //Manipulate file
+  FileNode* existing = FileSystem::getInstance().getNode(fileName);
+  if(existing) {
+    if(existing->isRemote()) {//I'm not responsible! I should not have seen this.
+      fprintf(stderr,"onCreateReqPacket(): I'm not responsible for this file!\n");
+      res = false;
+      //Handle Move file to here!
+    } else { //overwrite file=>truncate to 0
+      existing->open();
+      res = existing->truncate(0);
+      existing->close();
+    }
+  } else {
+    res = (FileSystem::getInstance().mkFile(fileName,false)!=nullptr)?true:false;
+  }
+
+  if(res)//Success
+    createAck->size = htobe64(1);
+
+  //Send the ack on the wire
+  if(!ZeroNetwork::send(buffer,MTU)) {
+    fprintf(stderr,"Failed to send createAckpacket.\n");
+  }
 }
 
 void BFSNetwork::onCreateResPacket(const u_char* _packet) {
+  WriteDataPacket *resPacket = (WriteDataPacket*)_packet;
+  //Find write sendTask
+  uint32_t fileID = ntohl(resPacket->fileID);
+  uint64_t size = be64toh(resPacket->size);
+
+  auto taskIt = createSendTasks.find(fileID);
+  createSendTasks.lock();
+  if(taskIt == createSendTasks.end()) {
+    fprintf(stderr,"onCreateResPacket:No valid Task found. fileID:%d\n",fileID);
+    createSendTasks.unlock();
+    return;
+  }
+  WriteSndTask* createTask = (WriteSndTask*) taskIt->second;
+
+  //Signal
+  unique_lock<mutex> lk(createTask->ack_m);
+  if(size == 0) //0 indicates failure
+    createTask->acked = false;
+  else
+    createTask->acked = true;
+
+  createTask->ack_ready = true;
+  lk.unlock();
+  createTask->ack_cv.notify_one();
+
+  createSendTasks.unlock();
 }
 
 bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
     unsigned char _dstMAC[6]) {
+  if (_remoteFile.length() > DATA_LENGTH) {
+    fprintf(stderr, "Filename too long!\n");
+    return false;
+  }
+
+  //Create a new task
+  WriteSndTask task;
+  task.srcBuffer = nullptr;
+  task.size = 0;
+  task.offset = 0;
+  task.fileID = getNextFileID();
+  task.remoteFile = _remoteFile;
+  task.acked = false;
+  memcpy(task.dstMac, _dstMAC, 6);
+  task.ready = false;
+  task.ack_ready = false;
+
+  //First Send a write request
+  char buffer[MTU];
+  WriteReqPacket *createReqPkt = (WriteReqPacket*) buffer;
+  fillWriteReqPacket(createReqPkt, task.dstMac, task);
+  createReqPkt->opCode = htonl((uint32_t) BFS_OPERATION::CREATE_REQUEST);
+
+  //Put it on the createSendTask map!
+  auto resPair = createSendTasks.insert(task.fileID, &task);
+  if (!resPair.second) {
+    fprintf(stderr,
+        "createRemoteFile(), error in inserting task to createSendTask!size:%lu\n",
+        createSendTasks.size());
+    return false;
+  }
+
+  //Now send packet on the wire
+  if (!ZeroNetwork::send(buffer, MTU)) {
+    fprintf(stderr, "Failed to send createReqpacket.\n");
+    createSendTasks.erase(resPair.first);
+    return false;
+  }
+
+  Timer t;
+  //Now wait for the ACK!
+  t.begin();
+  while (!task.ack_ready) {
+    unique_lock < mutex > ack_lk(task.ack_m);
+    task.ack_cv.wait_for(ack_lk, chrono::milliseconds(ACK_TIMEOUT));
+    t.end();
+    ack_lk.unlock();
+    if (!task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
+      break;
+  }
+
+  if (!task.ack_ready)
+    printf("CreateRequest Timeout: fileID:%d ElapsedTimeMILLI:%f\n", task.fileID,t.elapsedMillis());
+  if (!task.acked && task.size > 0)//0 indicates failed operation
+    printf("CreateRequest failed: %s\n", task.remoteFile.c_str());
+
+  createSendTasks.erase(resPair.first);
+  return task.acked;
 }
 
 } /* namespace FUSESwift */

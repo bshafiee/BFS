@@ -23,7 +23,6 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
-#include <sys/time.h>
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
 #endif
@@ -139,15 +138,16 @@ void outOfMemHandler() {
 atomic<int> global(0);
 void readRemote() {
   //size_t len = 1024l*1024l*1024l;
-  size_t len = 0;
+  size_t len = 102400;
   unsigned char mac[6] = {0x90,0xe2,0xba,0x35,0x22,0xd8};
   char * buffer = new char[len];
   //long res = BFSNetwork::readRemoteFile((void*)buffer,len,(size_t)0,string("/RNA"),mac);
-  //long res = BFSNetwork::writeRemoteFile(buffer,len,123123,"/RNA",mac);
+  //long res = BFSNetwork::writeRemoteFile(buffer,len,123,"/RNA",mac);
   //struct stat attBuff;
   //long res = BFSNetwork::readRemoteFileAttrib(&attBuff,string("/RNA"),mac);
   //long res = BFSNetwork::deleteRemoteFile(string("/2G"),mac);
-  long res = BFSNetwork::truncateRemoteFile(string("/trunc"),len,mac);
+  //long res = BFSNetwork::truncateRemoteFile(string("/trunc"),len,mac);
+  long res = BFSNetwork::createRemoteFile(string("/trunc"),mac);
 
 
   fprintf(stderr,"READ DONE:%ld %d\n",res,++global);
@@ -221,15 +221,15 @@ int main(int argc, char *argv[]) {
 		shutdown();
 	}
 
-	testRemoteRead();
+	//testRemoteRead();
 
   // turn over control to fuse
   fprintf(stderr, "about to call fuse_main\n");
   //Start fuse_main
   int fuse_stat = 0;
-  //fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
+  fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
   fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-  while(1) {sleep(1);}
+  //while(1) {sleep(1);}
 
   shutdown();
   return fuse_stat;

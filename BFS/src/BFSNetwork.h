@@ -100,7 +100,7 @@ namespace FUSESwift {
  *
  */
 
-#define ACK_TIMEOUT 1000//miliseconds
+#define ACK_TIMEOUT 1000l//miliseconds
 #define HEADER_LEN 38
 
 
@@ -340,6 +340,7 @@ private:
 	static taskMap<uint32_t,WriteSndTask*> writeSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> deleteSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> truncateSendTasks;
+	static taskMap<uint32_t,WriteSndTask*> createSendTasks;
 	static Queue<SndTask*> sendQueue;
 	static std::thread *rcvThread;
 	static std::thread *sndThread;

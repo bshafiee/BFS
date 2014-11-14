@@ -4,5 +4,5 @@
 *.project
 *.settings
 *.log
-BFS
 core
+BFS/BFS
