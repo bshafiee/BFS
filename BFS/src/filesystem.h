@@ -10,6 +10,10 @@
 
 #include "tree.h"
 #include <vector>
+#include <atomic>
+#include <unordered_map>
+#include <mutex>
+
 
 namespace FUSESwift {
 
@@ -23,6 +27,10 @@ class FileSystem: public Tree {
   FileSystem(FileNode* _root);
   FileNode* searchNode(FileNode* _parent, std::string _name, bool _isDir);
   FileNode* traversePathToParent(const std::string &_path);
+  //inode handling
+  std::atomic<uint64_t> inodeCounter;
+  std::unordered_map<uint64_t,intptr_t> inodeMap;
+  std::mutex inodeMapMutex;
 public:
   //Constants
   static const size_t blockSize = 1024*512;
@@ -66,6 +74,18 @@ public:
    * checks if the input name is valid
    */
   bool nameValidator(const std::string &_name);
+
+  /** Remote Operations **/
+  bool createRemoteFile(const std::string &_name);
+  /**
+   * moves _localFile to a remote file with tons of free space
+   */
+  bool moveToRemoteNode(FileNode* _localFile);
+
+  intptr_t getNodeByINodeNum(uint64_t _inodeNum);
+  uint64_t assignINodeNum(intptr_t _nodePtr);
+  void replaceNodeByINodeNum(uint64_t _inodeNum, intptr_t _nodePtr);
+  void removeINodeEntry(uint64_t _inodeNum);
 };
 
 } /* namespace FUSESwift */

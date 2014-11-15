@@ -31,7 +31,6 @@ FileNode::~FileNode() {
 
   //Release readbuffer
   //delete readBuffer;
-
   for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
     delete []block;
@@ -492,9 +491,9 @@ bool FileNode::getStat(struct stat *stbuff) {
 			fprintf(stderr,"GetRemoteAttrib failed for:%s\n",this->getFullPath().c_str());
 		else {//update local info!
 			//get io mutex to update size
-			ioMutex.lock();
+			/*ioMutex.lock();//We should not do this, it will fuck move operations
 			this->size = stbuff->st_size;
-			ioMutex.unlock();
+			ioMutex.unlock();*/
 
 			//Update meta info
 			stbuff->st_blksize = FileSystem::blockSize;
@@ -550,8 +549,8 @@ long ReadBuffer::readBuffered(void* _dstBuff,uint64_t _reqOffset,uint64_t _reqSi
 long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
 	//Check offset
-	if(_offset >= this->size)
-		return 0;
+/*	if(_offset >= this->size)//This fucks up move operation
+		return 0;*/
 
 	/*if(readBuffer->contains(_offset,_size))
 		return readBuffer->readBuffered(_data,_offset,_size);
@@ -582,8 +581,8 @@ long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
 	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
 	//Check offset
-	if(_offset > this->size)
-		return 0;
+/*	if(_offset > this->size)
+		return 0;*///This fuck move operation
 	if(_size == 0)
 	  return 0;
 	unsigned long written = BFSNetwork::writeRemoteFile(
@@ -602,5 +601,43 @@ bool FileNode::truncateRemote(size_t size) {
   return BFSNetwork::truncateRemoteFile(getFullPath(),size, remoteHostMAC);
 }
 
+void FileNode::makeLocal() {
+  isRem.store(false);
+}
+
+void FileNode::makeRemote() {
+  isRem.store(true);
+}
+
+void FileNode::deallocate() {
+  //We need Delete lock before releasing this document.
+  lockDelete();
+  //Get IO MUTEX
+  lock_guard<mutex> lk_guard(ioMutex);
+
+  //Release readbuffer
+  //delete readBuffer;
+  for(auto it = dataList.begin();it != dataList.end();it++) {
+    char *block = *it;
+    delete []block;
+    block = nullptr;
+  }
+  dataList.clear();
+  //Clean up children
+  for(auto it = children.begin();it != children.end();it++) {
+    FileNode* child = (FileNode*)it->second;
+    delete child;
+    it->second = nullptr;
+  }
+  children.clear();
+  //Unlock delete no unlock when being removed
+  unlockDelete();
+  //Release Memory in the memory controller!
+  MemoryContorller::getInstance().releaseMemory(size);
+  //Update size
+  size = 0;
+}
+
 } //namespace
+
 

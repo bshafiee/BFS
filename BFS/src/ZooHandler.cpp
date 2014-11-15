@@ -606,8 +606,11 @@ void ZooHandler::updateRemoteFilesInFS() {
       if(exist)
         break;
 	  }
-	  if(!exist)
+	  if(!exist) {
+	    fprintf(stderr,"ZOOOOHANDLER GOING TO REMOVE:%s\n",file->getFullPath().c_str());
+	    fflush(stderr);
 	    FileSystem::getInstance().rmNode(file);
+	  }
 	}
 
 }
@@ -688,6 +691,22 @@ void ZooHandler::assignmentWatcher(zhandle_t* zzh, int type, int state,
 	}
 }
 
-}	//Namespace
+ZooNode ZooHandler::getMostFreeNode() {
+  updateGlobalView();
+  vector<ZooNode>globalView = getGlobalView();
+  if(globalView.size() == 0) {
+    vector<string> emptyVector;
+    ZooNode emptyNode(string(""),0,emptyVector,nullptr);
+    return emptyNode;
+  }
+  //Now sort ourZoo by Free Space descendingly!
+  std::sort(globalView.begin(),globalView.end(),ZooNode::CompByFreeSpaceDes);
+  return globalView.front();
+}
 
+void ZooHandler::requestUpdateGlobalView() {
+  updateGlobalView();
+}
+
+}	//Namespace
 

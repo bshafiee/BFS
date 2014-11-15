@@ -147,7 +147,7 @@ void readRemote() {
   //long res = BFSNetwork::readRemoteFileAttrib(&attBuff,string("/RNA"),mac);
   //long res = BFSNetwork::deleteRemoteFile(string("/2G"),mac);
   //long res = BFSNetwork::truncateRemoteFile(string("/trunc"),len,mac);
-  long res = BFSNetwork::createRemoteFile(string("/trunc"),mac);
+  long res = BFSNetwork::createRemoteFile(string("/trunc2"),mac);
 
 
   fprintf(stderr,"READ DONE:%ld %d\n",res,++global);
@@ -214,6 +214,8 @@ int main(int argc, char *argv[]) {
 
   //Get Physical Memory amount
   cout <<"Total Physical Memory:" << MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024 << " MB"<<endl;
+  cout <<"BFS Available Memory:" << MemoryContorller::getInstance().getAvailableMemory()/1024/1024 << " MB"<<endl;
+  cout <<"Memory Utilization:" << MemoryContorller::getInstance().getMemoryUtilization()*100<< "%"<<endl;
 
   //Start BFS Network(before zoo, zoo uses mac info from this package)
 	if(!BFSNetwork::startNetwork()) {

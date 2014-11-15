@@ -108,4 +108,10 @@ int64_t MemoryContorller::getAvailableMemory() {
   return max_allowed - total;
 }
 
+double MemoryContorller::getMemoryUtilization() {
+  double used = getMaxAllowed() - getAvailableMemory();
+  return used/(double)getMaxAllowed();
+}
+
 } //end of namespace FUSESWIFT
+

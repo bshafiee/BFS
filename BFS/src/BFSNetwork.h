@@ -17,8 +17,9 @@
 #include <atomic>
 #include <vector>
 #include <queue>
-#include "ZeroNetwork.h"
 #include <sys/stat.h>
+#include "ZeroNetwork.h"
+#include "filenode.h"
 
 namespace FUSESwift {
 
@@ -150,6 +151,26 @@ struct ReadRcvTask {
 	std::condition_variable cv;
 };
 
+
+struct MoveTask {
+  std::string fileName;
+  uint32_t fileID;
+  unsigned char requestorMac[6];
+  /** Synchronization **/
+  bool ready = false;
+  bool acked = false;
+  std::mutex m;
+  std::condition_variable cv;
+};
+
+struct MoveConfirmTask {
+  uint32_t fileID;
+  /** Synchronization **/
+  bool ready = false;
+  bool acked = false;
+  std::mutex m;
+  std::condition_variable cv;
+};
 
 enum SEND_TASK_TYPE {SEND_READ, SEND_WRITE};
 struct SndTask {
@@ -316,8 +337,8 @@ enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2,
                           WRITE_ACK = 5, ATTRIB_REQUEST = 6,
 													ATTRIB_RESPONSE = 7, DELETE_REQUEST = 8,
 													DELETE_RESPONSE = 9, TRUNCATE_REQUEST = 10,
-													TRUNCATE_RESPONSE = 11 , CREATE_REQUEST = 12,
-													CREATE_RESPONSE = 13,	UNKNOWN = 0};
+													TRUNCATE_RESPONSE = 11, CREATE_REQUEST = 12,
+													CREATE_RESPONSE = 13, UNKNOWN = 0};
 
 class BFSNetwork : ZeroNetwork{
 private:
@@ -341,14 +362,19 @@ private:
 	static taskMap<uint32_t,WriteSndTask*> deleteSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> truncateSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> createSendTasks;
+	static taskMap<uint32_t,MoveConfirmTask*> moveConfirmSendTasks;
 	static Queue<SndTask*> sendQueue;
+	static Queue<MoveTask*> moveQueue;
 	static std::thread *rcvThread;
 	static std::thread *sndThread;
+	static std::thread *moveThread;
+
 	static std::atomic<uint32_t> fileIDCounter;
 	static uint32_t getNextFileID();
 	/** packet processing callback **/
 	static void rcvLoop();
 	static void sendLoop();
+	static void moveLoop();
 	static void fillBFSHeader(char *_packet,const unsigned char _dstMAC[6]);
 	/** Read Operation **/
 	static void onReadResPacket(const u_char *_packet);
@@ -372,6 +398,7 @@ private:
 	/** Create Operation **/
   static void onCreateReqPacket(const u_char *_packet);
   static void onCreateResPacket(const u_char *_packet);
+  static void processMoveTask(const MoveTask &_moveTask);
 	/** Truncate Operation **/
 	static void onTruncateReqPacket(const u_char *_packet);
   static void onTruncateResPacket(const u_char *_packet);
@@ -396,7 +423,7 @@ public:
 	 * 	Number of bytes read
 	 * */
 	static long readRemoteFile(void* _dstBuffer,size_t _size,size_t _offset,
-				const std::string &_remoteFile,unsigned char _dstMAC[6]);
+				const std::string &_remoteFile, const unsigned char _dstMAC[6]);
 	/**
 	 * Writes to _offset, _size bytes to _remoteFile@_dstMAC
 	 * from _srcBuffer
@@ -404,16 +431,16 @@ public:
 	 * Number of bytes written
 	 * */
 	static long writeRemoteFile(const void* _srcBuffer,size_t _size,size_t _offset,
-				const std::string &_remoteFile,unsigned char _dstMAC[6]);
+				const std::string &_remoteFile, const unsigned char _dstMAC[6]);
 
 	static bool readRemoteFileAttrib(struct stat *attBuff,
-			const std::string &remoteFile,unsigned char _dstMAC[6]);
+			const std::string &remoteFile, const unsigned char _dstMAC[6]);
 
-	static bool deleteRemoteFile(const std::string &_remoteFile, unsigned char _dstMAC[6]);
+	static bool deleteRemoteFile(const std::string &_remoteFile, const unsigned char _dstMAC[6]);
 
-	static bool truncateRemoteFile(const std::string &_remoteFile, size_t _newSize, unsigned char _dstMAC[6]);
+	static bool truncateRemoteFile(const std::string &_remoteFile, size_t _newSize, const unsigned char _dstMAC[6]);
 
-	static bool createRemoteFile(const std::string &_remoteFile, unsigned char _dstMAC[6]);
+	static bool createRemoteFile(const std::string &_remoteFile, const unsigned char _dstMAC[6]);
 
 	static const unsigned char* getMAC();
 

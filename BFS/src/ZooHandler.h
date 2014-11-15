@@ -84,6 +84,8 @@ public:
 	void publishListOfFiles();
 	std::vector<ZooNode> getGlobalView();
 	void startElection();
+	ZooNode getMostFreeNode();
+	void requestUpdateGlobalView();
 };
 
 }//Namespace

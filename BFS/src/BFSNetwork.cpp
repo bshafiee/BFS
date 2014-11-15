@@ -5,9 +5,15 @@
  *      Author: behrooz
  */
 
-#include "BFSNetwork.h"
-#include <iostream>
 #include "ZeroNetwork.h"
+#include "BFSNetwork.h"
+#include "ZooHandler.h"
+#include "filesystem.h"
+#include "filenode.h"
+#include "SettingManager.h"
+#include "MemoryController.h"
+#include "Timer.h"
+#include <iostream>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <endian.h>
@@ -15,11 +21,7 @@
 extern "C" {
 	#include <pfring.h>
 }
-#include "filesystem.h"
-#include "filenode.h"
-#include "SettingManager.h"
-#include "MemoryController.h"
-#include "Timer.h"
+
 
 namespace FUSESwift {
 
@@ -34,10 +36,13 @@ taskMap<uint32_t,ReadRcvTask*> BFSNetwork::attribRcvTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::deleteSendTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::truncateSendTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::createSendTasks(2000);
+taskMap<uint32_t,MoveConfirmTask*> BFSNetwork::moveConfirmSendTasks(1000);
 atomic<bool> BFSNetwork::isRunning(true);
 Queue<SndTask*> BFSNetwork::sendQueue;
+Queue<MoveTask*> BFSNetwork::moveQueue;
 thread * BFSNetwork::rcvThread = nullptr;
 thread * BFSNetwork::sndThread = nullptr;
+thread * BFSNetwork::moveThread = nullptr;
 atomic<uint32_t> BFSNetwork::fileIDCounter(0);
 unsigned int BFSNetwork::DATA_LENGTH = -1;
 
@@ -67,10 +72,16 @@ bool BFSNetwork::startNetwork() {
 		delete sndThread;
 		sndThread = nullptr;
 	}
-	//Start rcvLoop
+  if(moveThread != nullptr) {
+    delete moveThread;
+    moveThread = nullptr;
+  }
+	//Start rcv Loop
 	rcvThread = new thread(rcvLoop);
 	//Start Send Loop
   sndThread = new thread(sendLoop);
+  //Start Move Loop
+  moveThread = new thread(moveLoop);
 
 	return true;
 }
@@ -146,7 +157,7 @@ void BFSNetwork::fillReadResPacket(ReadResPacket* _packet,const ReadSndTask& _sn
 
 
 long BFSNetwork::readRemoteFile(void* _dstBuffer, size_t _size, size_t _offset,
-    const std::string& _remoteFile,unsigned char _dstMAC[6]) {
+    const std::string& _remoteFile, const unsigned char _dstMAC[6]) {
 
 	long result = -1;
 	if(_remoteFile.length() > DATA_LENGTH){
@@ -235,7 +246,7 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 
 	//Find file and lock it!
 	FileNode* fNode = FileSystem::getInstance().getNode(_task.localFile);
-	if(fNode == nullptr || _task.size == 0) { //error just send a packet of size 0
+	if(fNode == nullptr || _task.size == 0|| fNode->isRemote()) { //error just send a packet of size 0
 		char buffer[MTU];
 		ReadResPacket *packet = (ReadResPacket*)buffer;
 		fillReadResPacket(packet,_task);
@@ -248,6 +259,13 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 				break;
 			retry--;
 		}
+
+		if(fNode->isRemote()){
+		  fprintf(stderr,"processReadSendTask(), Request to read a "
+		      "remote file(%s) from me!\n",_task.localFile.c_str());
+		  fflush(stderr);
+		}
+
 		return;
 	}
 	uint64_t localOffset = 0;
@@ -304,6 +322,98 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
   fNode->close();
   _task.size = total;
 
+}
+
+void BFSNetwork::moveLoop() {
+  while(isRunning) {
+    MoveTask* front = moveQueue.front();
+    processMoveTask(*front);
+    delete front;
+    front = nullptr;
+    moveQueue.pop();
+  }
+}
+
+void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
+  //Response Packet
+  char buffer[MTU];
+  WriteDataPacket *moveAck = (WriteDataPacket *)buffer;
+  fillBFSHeader((char*)moveAck,_moveTask.requestorMac);
+  moveAck->opCode = htonl((uint32_t)BFS_OPERATION::CREATE_RESPONSE);
+  //set fileID
+  moveAck->fileID = htonl(_moveTask.fileID);
+  //Size == 0 means failed! if create successful size will be > 0
+  moveAck->size = 0;//zero is zero anyway
+
+  bool res = false;
+
+  //1) find file
+  FileNode* file = FileSystem::getInstance().getNode(_moveTask.fileName);
+  if(file != nullptr) {
+    //2) Open file
+    file->open();
+    //3)check size
+    struct stat st;
+    if(file->getStat(&st)) {
+      //If we have enough space (2 times of current space
+      if(st.st_size * 2 < MemoryContorller::getInstance().getAvailableMemory()) {
+        //4) we have space to start to read the file
+        uint64_t bufferLen = 1024ll*1024ll*100ll;//100MB
+        char *buffer = new char[bufferLen];
+        uint64_t left = st.st_size;
+        uint64_t offset = 0;
+        while(left > 0) {
+          long read = file->readRemote(buffer,offset,bufferLen);
+          if(read <= 0 )
+            break;
+          if(read != file->write(buffer,offset,read))//error in writing
+            break;
+          left -= read;
+          offset += read;
+        }
+        delete []buffer;//Release memory
+
+        if(left == 0) {//Successful read
+          //First make file local because the other side removes it and zookeeper will try to remove it!
+          //if failed we will return it to remote
+          file->makeLocal();
+          //We remotely delete that file
+          if(deleteRemoteFile(_moveTask.fileName,_moveTask.requestorMac)) {
+            //Everything went well
+            ZooHandler::getInstance().publishListOfFiles();//Inform rest of world
+            res = true;
+          } else {
+            fprintf(stderr,"processMoveTask(): Failed to delete remote file:%s.\n",_moveTask.fileName.c_str());
+            fflush(stderr);
+            file->makeRemote();
+            file->deallocate();//Release memory allocated to the file
+          }
+        } else {
+          fprintf(stderr,"processMoveTask():reading remote File/writing to local one failed:%s\n",_moveTask.fileName.c_str());
+          fflush(stderr);
+        }
+      }
+    } else {
+      fprintf(stderr,"processMoveTask():Get Remote File Stat FAILED:%s\n",_moveTask.fileName.c_str());
+      fflush(stderr);
+    }
+
+    file->close();
+  } else {
+    fprintf(stderr,"processMoveTask():Cannot find fileNode:%s\n",_moveTask.fileName.c_str());
+    fflush(stderr);
+  }
+
+
+  if(res)//Success
+    moveAck->size = htobe64(1);
+  else
+    moveAck->size = 0;
+
+  //Send the ack on the wire
+  if(!ZeroNetwork::send(buffer,MTU)) {
+    fprintf(stderr,"Failed to send createAckpacket.\n");
+  }
 }
 
 //BFS_OPERATION {REQUEST_FILE = 1, RESPONSE = 2};
@@ -449,7 +559,6 @@ void BFSNetwork::rcvLoop() {
       case BFS_OPERATION::CREATE_RESPONSE:
         onCreateResPacket(_packet);
         break;
-
 			default:
 				fprintf(stderr,"UNKNOWN OPCODE:%ul\n",opCode);
 		}
@@ -548,16 +657,13 @@ void FUSESwift::BFSNetwork::onReadReqPacket(const u_char* _packet) {
 	task->fileID = ntohl(reqPacket->fileID);
 	memcpy(task->requestorMac,reqPacket->srcMac,6);
 
-	//fprintf(stderr,"READ REQ:%s offset:%lu size:%lu\n",task->localFile.c_str(),task->offset,task->size);
-	/*static uint64_t counter = 0;
-	fprintf(stderr,"READ REQ: Counter:%lu\n",++counter);*/
 	//Push it on the Queue
 	sendQueue.push(task);
 }
 
 
 long BFSNetwork::writeRemoteFile(const void* _srcBuffer, size_t _size,
-    size_t _offset, const std::string& _remoteFile, unsigned char _dstMAC[6]) {
+    size_t _offset, const std::string& _remoteFile, const unsigned char _dstMAC[6]) {
 	if(_remoteFile.length() > DATA_LENGTH){
 		fprintf(stderr,"Filename too long!\n");
 		return false;
@@ -637,13 +743,12 @@ void FUSESwift::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
   _task.size = total;
 
   Timer t;
+  unique_lock<mutex> ack_lk(_task.ack_m);
   t.begin();
   //Now wait for the ACK!
 	while(!_task.ack_ready) {
-	  unique_lock<mutex> ack_lk(_task.ack_m);
 		_task.ack_cv.wait_for(ack_lk,chrono::milliseconds(ACK_TIMEOUT));
 		t.end();
-		ack_lk.unlock();
 		if(!_task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
 		  break;
 	}
@@ -654,6 +759,7 @@ void FUSESwift::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
 
 	if(!_task.acked && _task.ack_ready)
     printf("WriteRequest failed:%s\n",_task.remoteFile.c_str());
+	ack_lk.unlock();
 
   //GOT ACK So Signal Caller to wake up
   unique_lock<mutex> lk(_task.m);
@@ -809,15 +915,18 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
     fprintf(stderr,"onWriteDataPacket(), File Not found:%s!\n",writeTask.remoteFile.c_str());
   else {
     //Open file
-    fNode->open();
+    fNode->open();//Will be closed when the write operation is finished.
 
     //Put it on the rcvTask map!
     auto resPair = writeDataTasks.insert(writeTask.fileID,writeTask);
-    if(resPair.second)
+    if(resPair.second){
       return;
+    }
     else
       fprintf(stderr,"onWriteReqPacket(), error in inserting task to writeRcvTasks!size:%lu\n",writeDataTasks.size());
   }
+
+  fNode->close();//Close file
   //FAILED! send NACK
   //Send ACK
   char buffer[MTU];
@@ -879,7 +988,7 @@ const unsigned char* BFSNetwork::getMAC() {
 }
 
 bool BFSNetwork::readRemoteFileAttrib(struct stat *attBuff,
-		const string &remoteFile,unsigned char _dstMAC[6]) {
+		const string &remoteFile, const unsigned char _dstMAC[6]) {
 	//Create a new task
 	ReadRcvTask task;
 	task.dstBuffer = attBuff;
@@ -904,13 +1013,12 @@ bool BFSNetwork::readRemoteFileAttrib(struct stat *attBuff,
 	}
 
 	Timer t;
+	unique_lock<std::mutex> lk(task.m);
 	t.begin();
 	//Now wait for it!
 	while(!task.ready) {
-	  unique_lock<std::mutex> lk(task.m);
 		task.cv.wait_for(lk,chrono::milliseconds(ACK_TIMEOUT));
 		t.end();
-		lk.unlock();
 		if (!task.ready && (t.elapsedMillis() > ACK_TIMEOUT))
 			break;
 	}
@@ -919,6 +1027,7 @@ bool BFSNetwork::readRemoteFileAttrib(struct stat *attBuff,
 	  fprintf(stderr,"readRemoteFileAttrib() Timeout: fileID:%d elapsedTime:%f\n",
 	      task.fileID,t.elapsedMillis());
 
+	lk.unlock();
 	//remove it from queue
 	attribRcvTasks.erase(resPair.first);
 	if(task.ready && task.offset == 1)//success
@@ -1057,7 +1166,7 @@ void BFSNetwork::onDeleteResPacket(const u_char* _packet) {
 }
 
 bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
-    unsigned char _dstMAC[6]) {
+    const unsigned char _dstMAC[6]) {
 
   if(_remoteFile.length() > DATA_LENGTH){
     fprintf(stderr,"Filename too long!\n");
@@ -1099,13 +1208,12 @@ bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
   }
 
   Timer t;
+  unique_lock<mutex> ack_lk(task.ack_m);
   t.begin();
   //Now wait for the ACK!
   while(!task.ack_ready) {
-    unique_lock<mutex> ack_lk(task.ack_m);
     task.ack_cv.wait_for(ack_lk,chrono::milliseconds(ACK_TIMEOUT));
     t.end();
-    ack_lk.unlock();
 
     if(!task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
       break;
@@ -1116,7 +1224,7 @@ bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
   if(!task.acked && task.size == 0)
     printf("DeleteRequest failed: %s\n",task.remoteFile.c_str());
 
-
+  ack_lk.unlock();
   deleteSendTasks.erase(resPair.first);
   return task.acked;
 }
@@ -1194,7 +1302,7 @@ void BFSNetwork::onTruncateResPacket(const u_char* _packet) {
 }
 
 bool BFSNetwork::truncateRemoteFile(const std::string& _remoteFile,
-    size_t _newSize, unsigned char _dstMAC[6]) {
+    size_t _newSize, const unsigned char _dstMAC[6]) {
   if (_remoteFile.length() > DATA_LENGTH) {
     fprintf(stderr, "Filename too long!\n");
     return false;
@@ -1238,13 +1346,12 @@ bool BFSNetwork::truncateRemoteFile(const std::string& _remoteFile,
   uint64_t timeout = ACK_TIMEOUT * 10;
 
   Timer t;
+  unique_lock < mutex > ack_lk(task.ack_m);
   t.begin();
   //Now wait for the ACK!
   while (!task.ack_ready) {
-    unique_lock < mutex > ack_lk(task.ack_m);
     task.ack_cv.wait_for(ack_lk, chrono::milliseconds(timeout));
     t.end();
-    ack_lk.unlock();
     if (!task.ack_ready && (t.elapsedMillis() >= timeout))
       break;
   }
@@ -1255,6 +1362,7 @@ bool BFSNetwork::truncateRemoteFile(const std::string& _remoteFile,
   if (!task.acked && task.size != _newSize)
     printf("TruncateRequest failed: %s\n", task.remoteFile.c_str());
 
+  ack_lk.unlock();
   truncateSendTasks.erase(resPair.first);
   return task.acked;
 }
@@ -1283,9 +1391,16 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
   FileNode* existing = FileSystem::getInstance().getNode(fileName);
   if(existing) {
     if(existing->isRemote()) {//I'm not responsible! I should not have seen this.
-      fprintf(stderr,"onCreateReqPacket(): I'm not responsible for this file!\n");
-      res = false;
+      fprintf(stderr,"onCreateReqPacket(): Going to move file:%s to here!\n",fileName.c_str());
       //Handle Move file to here!
+      MoveTask *mvTask = new MoveTask();
+      mvTask->fileName = fileName;
+      mvTask->fileID = fileID;
+      mvTask->acked = false;
+      mvTask->ready = false;
+      memcpy(mvTask->requestorMac,existing->getRemoteHostMAC(),6);
+      moveQueue.push(mvTask);
+      return;//The response will be sent later
     } else { //overwrite file=>truncate to 0
       existing->open();
       res = existing->truncate(0);
@@ -1334,12 +1449,12 @@ void BFSNetwork::onCreateResPacket(const u_char* _packet) {
 }
 
 bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
-    unsigned char _dstMAC[6]) {
+    const unsigned char _dstMAC[6]) {
   if (_remoteFile.length() > DATA_LENGTH) {
     fprintf(stderr, "Filename too long!\n");
     return false;
   }
-
+  fprintf(stderr, "CreateRemote FILE!\n");
   //Create a new task
   WriteSndTask task;
   task.srcBuffer = nullptr;
@@ -1369,30 +1484,52 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
 
   //Now send packet on the wire
   if (!ZeroNetwork::send(buffer, MTU)) {
-    fprintf(stderr, "Failed to send createReqpacket.\n");
+    fprintf(stderr, "createRemoteFile(): Failed to send createReqpacket.\n");
     createSendTasks.erase(resPair.first);
     return false;
   }
 
-  Timer t;
-  //Now wait for the ACK!
-  t.begin();
-  while (!task.ack_ready) {
+  //Try to figure out if this is going to be a new file remotely or if it's a
+  //truncate or a move operation!
+  FileNode *fNode = FileSystem::getInstance().getNode(_remoteFile);
+  if(fNode != nullptr && !fNode->isRemote()) { //This is a move operation
     unique_lock < mutex > ack_lk(task.ack_m);
-    task.ack_cv.wait_for(ack_lk, chrono::milliseconds(ACK_TIMEOUT));
-    t.end();
+    while (!task.ack_ready) {
+      task.ack_cv.wait(ack_lk);
+    }
+
+    if (!task.acked) {
+      fprintf(stderr,"Move failed: %s\n", task.remoteFile.c_str());
+      fflush(stderr);
+    } else {//Successful move
+      ZooHandler::getInstance().requestUpdateGlobalView();
+    }
+
     ack_lk.unlock();
-    if (!task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
-      break;
+    createSendTasks.erase(resPair.first);
+
+    return task.acked;
+  } else { //Truncate or new remote file
+    Timer t;
+    //Now wait for the ack!
+    unique_lock < mutex > ack_lk(task.ack_m);
+    t.begin();
+    while (!task.ack_ready) {
+      task.ack_cv.wait_for(ack_lk, chrono::milliseconds(ACK_TIMEOUT));
+      t.end();
+      if (!task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
+        break;
+    }
+
+    if (!task.ack_ready)
+      printf("CreateRequest Timeout: fileID:%d ElapsedTimeMILLI:%f\n", task.fileID,t.elapsedMillis());
+    if (!task.acked && task.size > 0)//0 indicates failed operation
+      printf("CreateRequest failed: %s\n", task.remoteFile.c_str());
+
+    ack_lk.unlock();
+    createSendTasks.erase(resPair.first);
+    return task.acked;
   }
-
-  if (!task.ack_ready)
-    printf("CreateRequest Timeout: fileID:%d ElapsedTimeMILLI:%f\n", task.fileID,t.elapsedMillis());
-  if (!task.acked && task.size > 0)//0 indicates failed operation
-    printf("CreateRequest failed: %s\n", task.remoteFile.c_str());
-
-  createSendTasks.erase(resPair.first);
-  return task.acked;
 }
 
 } /* namespace FUSESwift */

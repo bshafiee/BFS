@@ -73,29 +73,37 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
 		return swift_ftruncate(path,0,nullptr);
 	}
 
+	string name = FileSystem::getInstance().getFileNameFromPath(path);
+  if(!FileSystem::getInstance().nameValidator(name)) {
+    if(DEBUG_MKNOD)
+      log_msg("\nbb_mknod can't create file: invalid name:\"%s\"\n", path);
+    return EINVAL;
+  }
+
 	//Not existing
   if (S_ISREG(mode)) {
-    string pathStr(path, strlen(path));
-    string name = FileSystem::getInstance().getFileNameFromPath(path);
-    if(!FileSystem::getInstance().nameValidator(name)) {
-      if(DEBUG_MKNOD)
-        log_msg("\nbb_mknod can't create file: invalid name:\"%s\"\n", path);
-      return EINVAL;
+    if(MemoryContorller::getInstance().getMemoryUtilization() < 0.9) {
+
+      FileNode *newFile = FileSystem::getInstance().mkFile(pathStr,false);
+      if (newFile == nullptr) {
+        retstat = ENOENT;
+        log_msg("bb_mknod mkFile (newFile is nullptr)\n");
+      }
+      //File created successfully
+      newFile->setMode(mode); //Mode
+      unsigned long now = time(0);
+      newFile->setMTime(now); //MTime
+      newFile->setCTime(now); //CTime
+      //Get Context
+      struct fuse_context fuseContext = *fuse_get_context();
+      newFile->setGID(fuseContext.gid);    //gid
+      newFile->setUID(fuseContext.uid);    //uid
+    } else {//Remote file
+      if(FileSystem::getInstance().createRemoteFile(pathStr))
+        retstat = 0;
+      else
+        retstat = -EIO;
     }
-    FileNode *newFile = FileSystem::getInstance().mkFile(pathStr,false);
-    if (newFile == nullptr) {
-      retstat = ENOENT;
-      log_msg("bb_mknod mkFile (newFile is nullptr)\n");
-    }
-    //File created successfully
-    newFile->setMode(mode); //Mode
-    unsigned long now = time(0);
-    newFile->setMTime(now); //MTime
-    newFile->setCTime(now); //CTime
-    //Get Context
-    struct fuse_context fuseContext = *fuse_get_context();
-    newFile->setGID(fuseContext.gid);    //gid
-    newFile->setUID(fuseContext.uid);    //uid
   } else {
     retstat = ENOENT;
     log_msg("bb_mknod expects regular file\n");
@@ -246,14 +254,8 @@ int swift_truncate(const char* path, off_t size) {
 /*int swift_utime(const char* path, struct utimbuf* ubuf) {
 }*/
 
-//mutex outMutex,errMutex;
 
 int swift_open(const char* path, struct fuse_file_info* fi) {
-  /*static uint64_t counter = 0;
-  outMutex.lock();
-  fprintf(stdout,"FUSE OPEN, size:%zu\n",++counter);
-  fflush(stdout);
-  outMutex.unlock();*/
   if(DEBUG_OPEN)
     log_msg("\nbb_open(path=\"%s\", fi=0x%08x fh=0x%08x)\n", path, fi,fi->fh);
   //Get associated FileNode*
@@ -265,12 +267,17 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
     return -ENOENT;
   }
   bool res = node->open();
-  if(res) {
-		fi->fh = (intptr_t)node;
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  if(res && inodeNum!=0) {
+		fi->fh = inodeNum;
 		return 0;
   }
-  else
+  else {
+    fi->fh = 0;
+    fprintf(stderr,"swift_open(): error in assigning inodeNum, or opening file.\n");
+    fflush(stderr);
   	return -ENOENT;
+  }
 }
 
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
@@ -290,7 +297,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
     return -ENOENT;
   }
   //Get associated FileNode*
-  FileNode* node = (FileNode*)fi->fh;
+  FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
   //Empty file
   if((!node->isRemote()&&node->getSize() == 0)||size == 0) {
     if(DEBUG_READ)
@@ -330,17 +337,43 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     return -ENOENT;
   }
   //Get associated FileNode*
-  FileNode* node = (FileNode*) fi->fh;
+  FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
   long written = 0;
 
-  if (node->isRemote()){
+  if (node->isRemote()) {
     written = node->writeRemote(buf, offset, size);
   }
   else {
     written = node->write(buf, offset, size);
     //Needs synchronization with the backend
-    node->setNeedSync(true);
+    if(written > 0)
+      node->setNeedSync(true);
+    if(written == -1) { //Not enough space!
+      //Move file to another node if possible
+      string fileName = node->getName();
+      node->close();
+      if(FileSystem::getInstance().moveToRemoteNode(node)) {
+        node = FileSystem::getInstance().getNode(fileName);
+        if(node == nullptr|| !node->isRemote()) {
+          fprintf(stderr,"swift_write(): HollyShit! we just moved "
+              "this file to a remote node! but "
+              "Does not exist or is not remote\n");
+          fflush(stderr);
+          return -EIO;
+        } else {// all good ;)
+          //set fi->fh
+          FileSystem::getInstance().replaceNodeByINodeNum(fi->fh,(intptr_t)node);
+          //fi->fh = (intptr_t)node;//not working cuz not call by ref in fuse:(
+          node->open();
+          written = node->writeRemote(buf, offset, size);
+        }
+      } else {
+        fprintf(stderr,"swift_write(): moveToRemoteNode failed.\n");
+        fflush(stderr);
+        return -EIO;
+      }
+    }
   }
 
   if (written == (long) size) {
@@ -377,7 +410,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
 int swift_flush(const char* path, struct fuse_file_info* fi) {
   int retstat = 0;
   //Get associated FileNode*
-  FileNode* node = (FileNode*)fi->fh;
+  FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
   if(DEBUG_FLUSH)
     log_msg("\nbb_flush(path=\"%s\", fi=0x%08x) name:%s\n", path, fi,node->getName().c_str());
   // no need to get fpath on this one, since I work from fi->fh not the path
@@ -397,7 +430,7 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
     return ENOENT;
   }
   //Get associated FileNode*
-  FileNode* node = (FileNode*)fi->fh;
+  FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
   //Update modification time
   node->setMTime(time(0));
   //Node might get deleted after close! so no reference to it anymore!
@@ -405,6 +438,8 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   string pathStr = node->getFullPath();
   //Now we can safetly close it!
   node->close();
+  //we can earse ionode num from map as well
+  FileSystem::getInstance().removeINodeEntry(fi->fh);
   if(DEBUG_RELEASE) {
     log_msg("\nbb_release(name=\"%s\", fi=0x%08x) \n", pathStr.c_str(), fi);
     log_fi(fi);
@@ -445,9 +480,17 @@ int swift_opendir(const char* path, struct fuse_file_info* fi) {
     fi->fh = 0;
     return -ENOENT;
   }
-  node->open();
-  fi->fh = (intptr_t)node;
-  return 0;
+  bool res = node->open();
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+    if(res && inodeNum != 0) {
+    fi->fh = inodeNum;
+    return 0;
+  } else {
+    fi->fh = 0;
+    fprintf(stderr,"swift_opendir(): error in assigning inodeNum or openning dir.\n");
+    fflush(stderr);
+    return -EIO;
+  }
 }
 
 int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
@@ -467,7 +510,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     node = FileSystem::getInstance().getNode(pathStr);
   }
   else
-    node = (FileNode*)fi->fh;
+    node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
 
   int retstat = 0;
@@ -509,10 +552,12 @@ int swift_releasedir(const char* path, struct fuse_file_info* fi) {
     return ENOENT;
   }
   //Get associated FileNode*
-  FileNode* node = (FileNode*)fi->fh;
+  FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
   //Update modification time
   node->setMTime(time(0));
   node->close();
+  //we can earse ionode num from map as well
+  FileSystem::getInstance().removeINodeEntry(fi->fh);
 
   if(DEBUG_RELEASEDIR) {
     log_msg("\nbb_releasedir(path=\"%s\", fi=0x%08x) isStillOpen?%d \n", path, fi, node->isOpen());

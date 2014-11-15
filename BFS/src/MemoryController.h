@@ -31,6 +31,10 @@ public:
   int64_t getMaxAllowed() const;
   int64_t getTotal() const;
   int64_t getAvailableMemory();
+  /**
+   * @return [0..1] % of utilization
+   */
+  double getMemoryUtilization();
 };
 
 } //end of namespace FUSESWIFT

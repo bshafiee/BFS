@@ -25,7 +25,7 @@ namespace FUSESwift {
 std::string FileSystem::delimiter = "/";
 
 FileSystem::FileSystem(FileNode* _root) :
-    Tree(_root), root(_root) {
+    Tree(_root), root(_root), inodeCounter(1) {
 }
 
 FileSystem::~FileSystem() {}
@@ -364,5 +364,67 @@ bool FileSystem::nameValidator(const std::string& _name) {
 	//return true;
 }
 
-} // namespace
+bool FileSystem::createRemoteFile(const std::string& _name) {
+  ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
+  if(mostFreeNode.freeSpace == 0)//GetMostFreeNode could not find a node
+    return false;
+  bool res = BFSNetwork::createRemoteFile(_name,mostFreeNode.MAC);
+  ZooHandler::getInstance().requestUpdateGlobalView();
+  return res;
+}
 
+bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
+  ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
+  if(mostFreeNode.freeSpace < _localFile->getSize()*2) //Could not find a node with enough space :(
+    return false;
+  return BFSNetwork::createRemoteFile(_localFile->getFullPath(),mostFreeNode.MAC);
+}
+
+intptr_t FileSystem::getNodeByINodeNum(uint64_t _inodeNum) {
+  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  auto res = inodeMap.find(_inodeNum);
+  if(res != inodeMap.end())
+    return res->second;
+  else
+    return 0;
+}
+
+uint64_t FileSystem::assignINodeNum(intptr_t _nodePtr) {
+  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  uint64_t nextInodeNum = ++inodeCounter;
+  if(inodeMap.find(nextInodeNum)!=inodeMap.end()) {
+    fprintf(stderr, "fileSystem(): inodeCounter overflow :(\n");
+    fflush(stderr);
+    return 0;
+  }
+
+  auto res = inodeMap.insert(pair<uint64_t,intptr_t>(nextInodeNum,_nodePtr));
+  if(res.second)
+    return nextInodeNum;
+  else
+    return 0;
+}
+
+void FileSystem::replaceNodeByINodeNum(uint64_t _inodeNum, intptr_t _nodePtr) {
+  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  //Check if such a inode already exist
+  auto it = inodeMap.find(_inodeNum);
+  if(it == inodeMap.end()) {
+    fprintf(stderr, "replaceNodeByINodeNum(): no such a _inodeNum.\n");
+    fflush(stderr);
+  } else //remove it
+    inodeMap.erase(it->first);
+
+  auto res = inodeMap.insert(pair<uint64_t,intptr_t>(_inodeNum,_nodePtr));
+  if(!res.second) {
+    fprintf(stderr, "replaceNodeByINodeNum(): failed to insert the new node.\n");
+    fflush(stderr);
+  }
+}
+
+void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
+  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  inodeMap.erase(_inodeNum);
+}
+
+} // namespace

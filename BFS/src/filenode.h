@@ -51,7 +51,7 @@ class FileNode: public Node {
   unsigned int blockIndex;
   std::atomic<bool> needSync;
   std::atomic<bool> mustDeleted;//To indicate this file should be deleted after being closed
-  bool isRem;//indicates whether this node exist on the local RAM or on a remote machine
+  std::atomic<bool> isRem;//indicates whether this node exist on the local RAM or on a remote machine
   unsigned char remoteHostMAC[6];
   //Delete Lock
   std::mutex deleteMutex;
@@ -145,6 +145,9 @@ public:
   long writeRemote(const char* _data, size_t _offset, size_t _size);
   bool rmRemote();
   bool truncateRemote(size_t size);
+  void makeLocal();
+  void makeRemote();
+  void deallocate();
 };
 
 } /* namespace FUSESwift */
