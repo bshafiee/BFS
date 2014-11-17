@@ -16,6 +16,7 @@ using namespace std;
 namespace FUSESwift {
 
 atomic<bool> MasterHandler::isRunning;
+vector<ZooNode> MasterHandler::existingNodes;
 
 MasterHandler::MasterHandler() {
 }
@@ -46,6 +47,7 @@ static bool contains(const vector<T> &vec,const T &item) {
 			return true;
 	return false;
 }
+template static bool contains<ZooNode>(const vector<ZooNode> &vec,const ZooNode &item);
 
 void MasterHandler::removeDuplicates(vector<BackendItem> &newList,vector<BackendItem> &oldList) {
 	for(auto iter=newList.begin();iter!=newList.end();) {
@@ -142,22 +144,46 @@ void MasterHandler::leadershipLoop() {
 			usleep(interval);
 			continue;
     }
-    vector<BackendItem> *backup = new vector<BackendItem>();
-    for(BackendItem item:*backendList)
-    	backup->push_back(item);
-    //2)Check if there is any new change
+
+
+    //3)Fetch list of avail nodes, their free space
+    vector<ZooNode> globalView = ZooHandler::getInstance().getGlobalView();
+    //Check if there is any change in nodes(only checks freespace name and mac)
+    bool nodesChanged = false;
+    if(globalView.size()!=existingNodes.size()) {
+      //Get rid of already assigned ones because some of them might be dead
+      cleanAssignmentFolder();
+      nodesChanged = true;
+    }
+    else {
+      for(ZooNode node:globalView)
+        if(!contains<ZooNode>(existingNodes,node)) {
+          nodesChanged = true;
+          break;
+        }
+    }
+
+    //2)Check if there is any new change or any change in nodes!
     vector<BackendItem> oldAssignments = getExistingAssignments();
     //cerr<<"oldAssignments:";printVector(oldAssignments);
     if(oldAssignments.size() > 0)
-    	removeDuplicates(*backendList,oldAssignments);
-    //3)Fetch list of avail nodes, their free space
+      removeDuplicates(*backendList,oldAssignments);
+
+    if(nodesChanged) { //Get a copy in existing nodes
+      existingNodes.clear();
+      existingNodes.insert(existingNodes.end(),globalView.begin(),globalView.end());
+    }
+
     //4)Divide tasks among nodes
 		//5)Clean all previous assignments
 		//6)Publish assignments
-
 		bool change = false;
-		if(backendList->size())
-			change = divideTaskAmongNodes(backendList);
+		if(backendList->size() || nodesChanged)
+			change = divideTaskAmongNodes(backendList,globalView);
+
+		//Release Memory
+		backendList->clear();
+		delete backendList;
 
     //Adaptive sleep
 		if(!change)
@@ -190,9 +216,8 @@ void MasterHandler::stopLeadership() {
  *
  * return true if a new assignment happens
  */
-bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
+bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vector<ZooNode> &globalView) {
 	//1)First check which files already exist in nodes
-	vector<ZooNode> globalView = ZooHandler::getInstance().getGlobalView();
 	for(auto iter = listFiles->begin(); iter != listFiles->end();) {
 		bool found = false;
 		for(ZooNode node : globalView) {
@@ -249,10 +274,19 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 				iter = listFiles->erase(iter);
 				couldAssign = true;//an assignment happened :)
 			}
-			else
+			else {
+			  //fprintf(stderr,"%s can't be assigned to any node.\n",iter->name.c_str());
 				iter++;
+			}
 		}
 		assignments.push_back(task);
+	}
+
+	//First Delete all existing assignment nodes
+	if(!cleanAssignmentFolder()){
+	  fprintf(stderr, "divideTaskAmongNodes(): cleaning up assignment folder failed:\n");
+	  fflush(stderr);
+	  return true;//reschedule
 	}
 
 	//having all task determined we need to publish them!
@@ -267,8 +301,8 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 		}
 
 		//First try to set if does not exist create it!
-		int callRes = zoo_set(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),value.length(),-1);
-		if(callRes == ZNONODE) {//Does not exist!
+		//int callRes = zoo_set(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),value.length(),-1);
+		//if(callRes == ZNONODE) {//Does not exist!
 			char buffer[100];
 			strcpy(buffer,path.c_str());
 			int createRes = zoo_create(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),
@@ -277,14 +311,52 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles) {
 				fprintf(stderr, "divideTaskAmongNodes(): zoo_create failed:%s\n",zerror(createRes));
 				continue;
 			}
-		} else if(callRes != ZOK) {
-			fprintf(stderr, "divideTaskAmongNodes(): zoo_set failed:%s\n",zerror(callRes));
-			continue;
-		}
+//		} else if(callRes != ZOK) {
+//			fprintf(stderr, "divideTaskAmongNodes(): zoo_set failed:%s\n",zerror(callRes));
+//			continue;
+//		}
 
-		printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
+		//printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
 	}
 	return couldAssign;
+}
+
+bool MasterHandler::cleanAssignmentFolder() {
+  String_vector children;
+  int callResult = zoo_wget_children(ZooHandler::getInstance().zh,
+      ZooHandler::getInstance().assignmentZNode.c_str(),
+      nullptr,nullptr, &children);
+  if (callResult != ZOK) {
+    printf("cleanAssignmentFolder(): zoo_wget_children failed:%s\n",
+        zerror(callResult));
+    return false;
+  }
+
+  zoo_op_t *opArr = new zoo_op[children.count];
+  for(int i = 0;i<children.count;i++) {
+    zoo_op_t op;
+    string path = ZooHandler::getInstance().assignmentZNode + "/" +string(children.data[i]);
+    zoo_delete_op_init(&op,path.c_str(),-1);//No versioning
+    opArr[i] = op;
+  }
+
+/*  for(int i=0;i<children.count;i++)
+    fprintf(stderr, "removing:%s\n",opArr[i].delete_op.path);*/
+
+  zoo_op_result_t *results = new zoo_op_result_t[children.count];
+
+  //int res = zoo_multi(ZooHandler::getInstance().zh,children.count,opArr,results);
+  for(int i = 0;i<children.count;i++) {
+    string path = ZooHandler::getInstance().assignmentZNode + "/" +string(children.data[i]);
+    int res = zoo_delete(ZooHandler::getInstance().zh,path.c_str(),-1);
+    if(res != ZOK)
+      return false;
+  }
+
+  delete []opArr;
+  delete []results;
+  //return res == ZOK;
+  return true;
 }
 
 } /* namespace FUSESwift */

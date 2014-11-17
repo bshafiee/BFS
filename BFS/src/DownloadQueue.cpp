@@ -39,6 +39,13 @@ bool DownloadQueue::shouldDownload(BackendItem item) {
   return true;
 }
 
+bool DownloadQueue::isDeleted(const std::string& _name) {
+  for(string toBeDelete:deletedFiles)
+    if(toBeDelete == _name)
+      return true;
+  return false;
+}
+
 void DownloadQueue::updateFromBackend() {
 	//Try to query backend for list of files
 	Backend* backend = BackendManager::getActiveBackend();
@@ -151,14 +158,16 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	newFile->open();
 	newFile->unlockDelete();
 	//Make a fake event to check if the file has been deleted
-	SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
+	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content
 	char buff[FileSystem::blockSize];
 	size_t offset = 0;
 	while(iStream->eof() == false) {
 	  iStream->read(buff,FileSystem::blockSize);
 	  //CheckEvent validity
-    if(!UploadQueue::getInstance().checkEventValidity(fakeDeleteEvent)) return;
+    //if(!UploadQueue::getInstance().checkEventValidity(fakeDeleteEvent)) break;;
+	  if(newFile->mustBeDeleted())
+	    break;
     //get lock delete so file won't be deleted
     newFile->lockDelete();
     int retCode = newFile->write(buff,offset,iStream->gcount());
@@ -173,10 +182,10 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	  newFile->unlockDelete();
 	  offset += iStream->gcount();
 	}
-	newFile->lockDelete();
-	newFile->close();
+	//newFile->lockDelete();
 	printf("DONWLOAD FINISHED:%s\n",newFile->getName().c_str());
-	newFile->unlockDelete();
+	//newFile->unlockDelete();
+	newFile->close();
 }
 
 void DownloadQueue::processDownloadMetadata(const SyncEvent* _event) {
@@ -256,8 +265,9 @@ void DownloadQueue::syncLoop() {
 
 void DownloadQueue::informDeletedFiles(std::vector<std::string> list) {
   lock_guard<std::mutex> lock(deletedFilesMutex);
-  for(string item:list)
-    deletedFiles.push_back(item);
+  deletedFiles.insert(deletedFiles.end(),list.begin(),list.end());
+  /*for(string item:list)
+    deletedFiles.push_back(item);*/
 }
 
 } /* namespace FUSESwift */

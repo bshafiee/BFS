@@ -11,6 +11,7 @@
 #include <atomic>
 #include <vector>
 #include "BackendManager.h"
+#include "ZooNode.h"
 
 namespace FUSESwift {
 
@@ -18,12 +19,14 @@ namespace FUSESwift {
 
 class MasterHandler {
 private:
+  static std::vector<ZooNode> existingNodes;
   static std::atomic<bool> isRunning;
   MasterHandler();
   static std::vector<BackendItem> getExistingAssignments();
   static void leadershipLoop();
-  static bool divideTaskAmongNodes(std::vector<BackendItem> *listFiles);
+  static bool divideTaskAmongNodes(std::vector<BackendItem> *listFiles,std::vector<ZooNode> &globalView);
   static void removeDuplicates(std::vector<BackendItem> &newList,std::vector<BackendItem> &oldList);
+  static bool cleanAssignmentFolder();
 public:
   virtual ~MasterHandler();
   static void startLeadership();

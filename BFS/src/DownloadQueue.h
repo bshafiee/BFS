@@ -24,6 +24,7 @@ class DownloadQueue: public SyncQueue{
   std::mutex deletedFilesMutex;
   std::vector<std::string> deletedFiles;
   bool shouldDownload(BackendItem item);
+  bool isDeleted(const std::string& _name);
   //Private constructor
   DownloadQueue();
 public:

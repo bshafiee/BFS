@@ -90,6 +90,7 @@ public:
   bool isRemote();
   const unsigned char* getRemoteHostMAC();
   void setRemoteHostMAC(const unsigned char *_mac);
+  bool mustBeDeleted();
   /**
    * tries to rename input child
    * @return

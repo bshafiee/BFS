@@ -55,6 +55,18 @@ struct ZooNode {
   static bool CompByFreeSpaceDes (const ZooNode& lhs, const ZooNode& rhs) {
 		return lhs.freeSpace > rhs.freeSpace;
 	}
+
+  inline bool operator == (const ZooNode& obj) {
+    if(this->freeSpace != obj.freeSpace)
+      return false;
+    if(this->hostName != obj.hostName)
+      return false;
+    for(int i=0;i<6;i++)
+      if(this->MAC[i] != obj.MAC[i])
+        return false;
+
+    return true;
+  }
 };
 }//namespace
 #endif /* ZOONODE_H_ */

@@ -638,6 +638,9 @@ void FileNode::deallocate() {
   size = 0;
 }
 
-} //namespace
+bool FileNode::mustBeDeleted() {
+  return mustDeleted;
+}
 
+} //namespace
 
