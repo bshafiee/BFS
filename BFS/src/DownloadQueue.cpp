@@ -27,112 +27,23 @@ DownloadQueue::DownloadQueue():SyncQueue() {
 DownloadQueue::~DownloadQueue() {
 }
 
-bool DownloadQueue::shouldDownload(BackendItem item) {
-  for(string toBeDelete:deletedFiles)
-    if(toBeDelete == item.name)
-      return false;
-  //Check Size
-  if(!MemoryContorller::getInstance().checkPossibility(item.length)){
-    log_msg("Can't download %s, due to lack of space.\n",item.name.c_str());
-    return false;
-  }
-  return true;
-}
-
-bool DownloadQueue::isDeleted(const std::string& _name) {
-  for(string toBeDelete:deletedFiles)
-    if(toBeDelete == _name)
-      return true;
-  return false;
-}
-
-void DownloadQueue::updateFromBackend() {
-	//Try to query backend for list of files
-	Backend* backend = BackendManager::getActiveBackend();
-	if (backend == nullptr) {
-		log_msg("No active backend for Download Queue\n");
-		lock_guard<std::mutex> lock(deletedFilesMutex);
-		deletedFiles.clear();
-		return;
-	}
-	vector<BackendItem>* listFiles = backend->list();
-	//Get lock for deleted files
-	lock_guard<std::mutex> lock(deletedFilesMutex);
-	if(listFiles == nullptr || listFiles->size() == 0) {
-	  deletedFiles.clear();
-	  if(listFiles!=nullptr){
-	  	delete listFiles;
-	  	listFiles = nullptr;
-	  }
-		return;
-	}
-
-	//Now we have actully some files to sync(download)
-	for(auto it=listFiles->begin();it!=listFiles->end();it++) {
-	  if(!shouldDownload(*it))
-	    continue;
-		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,it->name));
-		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,it->name));
-		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
-	}
-	log_msg("DOWNLOAD QUEUE: Num of Events: %zu .\n",list.size());
-	//Update list of files that were actually deleted
-	for(auto it=deletedFiles.begin();it!=deletedFiles.end();) {
-    bool exist = false;
-    for(BackendItem fileItem:*listFiles) {
-      if(fileItem.name == *it)
-        exist = true;
-    }
-    if(!exist)
-      it = deletedFiles.erase(it);
-    else
-      ++it;
-  }
-	//Release memory
-	if(listFiles!=nullptr){
-		delete listFiles;
-		listFiles = nullptr;
-	}
-}
-
 void DownloadQueue::addZooTask(vector<string>assignments) {
 	//Try to query backend for list of files
 	Backend* backend = BackendManager::getActiveBackend();
 	if (backend == nullptr) {
 		log_msg("No active backend for Download Queue\n");
-		lock_guard<std::mutex> lock(deletedFilesMutex);
-		deletedFiles.clear();
-		return;
-	}
-	//Get lock for deleted files
-	lock_guard<std::mutex> lock(deletedFilesMutex);
-	if(assignments.size() == 0) {
-	  deletedFiles.clear();
 		return;
 	}
 
+	if(assignments.size() == 0)
+		return;
+
 	//Now we have actully some files to sync(download)
 	for(auto it=assignments.begin();it!=assignments.end();it++) {
-		for(string toBeDelete:deletedFiles)
-			if(toBeDelete == *it)
-				continue;
 		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,*it));
 		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,*it));
 		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
-
-	//Update list of files that were actually deleted
-	for(auto it=deletedFiles.begin();it!=deletedFiles.end();) {
-    bool exist = false;
-    for(string fileItem:assignments) {
-      if(fileItem == *it)
-        exist = true;
-    }
-    if(!exist)
-      it = deletedFiles.erase(it);
-    else
-      ++it;
-  }
 }
 
 void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
@@ -261,13 +172,6 @@ void DownloadQueue::syncLoop() {
 		//reset delay
 		delay = minDelay;
 	}
-}
-
-void DownloadQueue::informDeletedFiles(std::vector<std::string> list) {
-  lock_guard<std::mutex> lock(deletedFilesMutex);
-  deletedFiles.insert(deletedFiles.end(),list.begin(),list.end());
-  /*for(string item:list)
-    deletedFiles.push_back(item);*/
 }
 
 } /* namespace FUSESwift */

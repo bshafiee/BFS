@@ -442,6 +442,9 @@ void FileNode::unlockDelete() {
 }
 
 bool FileNode::signalDelete() {
+  static atomic<int> counter;
+  fprintf(stderr,"SIGNAL DELETE:%d  %s \n",++counter,this->key.c_str());
+  fflush(stderr);
 	mustDeleted = true;
 	if(isOpen())
 	  return true;//will be deleted on close

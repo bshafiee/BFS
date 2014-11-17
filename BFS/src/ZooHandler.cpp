@@ -410,7 +410,7 @@ void ZooHandler::publishListOfFiles() {
 	if (sessionState != ZOO_CONNECTED_STATE
 	    || (electionState != ElectionState::LEADER
 	        && electionState != ElectionState::READY)) {
-		printf("publishListOfFiles(): invalid sessionstate or electionstate\n");
+		//printf("publishListOfFiles(): invalid sessionstate or electionstate\n");
 		return;
 	}
 
@@ -425,7 +425,7 @@ void ZooHandler::publishListOfFiles() {
 	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
 	    str.length(), -1);
 	if (callRes != ZOK) {
-		printf("publishListOfFiles(): zoo_set failed:%s\n", zerror(callRes));
+		//printf("publishListOfFiles(): zoo_set failed:%s\n", zerror(callRes));
 		return;
 	}
 
@@ -607,8 +607,8 @@ void ZooHandler::updateRemoteFilesInFS() {
         break;
 	  }
 	  if(!exist) {
-	    fprintf(stderr,"ZOOOOHANDLER GOING TO REMOVE:%s\n",file->getFullPath().c_str());
-	    fflush(stderr);
+	    //fprintf(stderr,"ZOOOOHANDLER GOING TO REMOVE:%s\n",file->getFullPath().c_str());
+	    //fflush(stderr);
 	    FileSystem::getInstance().rmNode(file);
 	  }
 	}
@@ -619,7 +619,7 @@ void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
 	if (type == ZOO_CHANGED_EVENT) {
 		string pathStr(path);
-		printf("Node %s changed! updating globalview...\n", path);
+		//printf("Node %s changed! updating globalview...\n", path);
 		getInstance().updateGlobalView();
 	}
 }
@@ -628,7 +628,7 @@ void ZooHandler::electionFolderWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
 	if (type == ZOO_CHILD_EVENT) {
 		string pathStr(path);
-		printf("Children of Election folder changed: %s . updating globalview...\n", path);
+		//printf("Children of Election folder changed: %s . updating globalview...\n", path);
 		getInstance().updateGlobalView();
 	}
 	getInstance().determineElectionStatus();

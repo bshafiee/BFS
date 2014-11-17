@@ -71,7 +71,7 @@ void UploadQueue::processEvent(const SyncEvent* _event) {
       break;
     default:
       log_msg("INVALID Event: file:%s TYPE:%S\n",_event->node->getFullPath().c_str(),
-          SyncEvent::getEnumString(_event->type).c_str());
+      SyncEvent::getEnumString(_event->type).c_str());
   }
 }
 

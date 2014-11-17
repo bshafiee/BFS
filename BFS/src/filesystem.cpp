@@ -125,7 +125,7 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
    * Inform Download queue that these files are going to be deleted!
    * So no need to download them.
    */
-  DownloadQueue::getInstance().informDeletedFiles(fullPathStack);
+  //DownloadQueue::getInstance().informDeletedFiles(fullPathStack);No need, it will check mustDeleted
 
   //Now commit to sync queue! the order matters (before delete)
   for(int i=fullPathStack.size()-1;i>=0;i--){

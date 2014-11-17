@@ -77,6 +77,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
     //release file delete lock, so they can delete it
     _putEvent->node->unlockDelete();
+    if(obj) delete obj;
     return false;
   }
   //Check if Obj already exist
@@ -87,6 +88,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
           _putEvent->node->getFullPath().c_str(),_putEvent->node->getMD5().c_str());
       //release file delete lock, so they can delete it
       _putEvent->node->unlockDelete();
+      delete obj;
       return true;
     }
   }
@@ -97,10 +99,18 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   //Make a back up of file name in case it gets deleted while uploading
   string nameBackup = _putEvent->node->getName();
   ostream *outStream = nullptr;
+
+  if(_putEvent->node->mustBeDeleted()){
+    _putEvent->node->unlockDelete();
+    delete obj;
+    return false;
+  }
+
+
   SwiftResult<Poco::Net::HTTPClientSession*> *chunkedResult =
       obj->swiftCreateReplaceObject(outStream);
   if(chunkedResult->getError().code != SwiftError::SWIFT_OK) {
-    delete outStream;
+    delete chunkedResult;
     delete obj;
     //release file delete lock, so they can delete it
     _putEvent->node->unlockDelete();
@@ -110,7 +120,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   _putEvent->node->unlockDelete();
 
   //Ready to write (write each time a blocksize)
-  char *buff = new char[FileSystem::blockSize];
+  char *buff = new char[1024l*1024l*10l];//10MB buffer
   size_t offset = 0;
   long read = 0;
   FileNode *node = _putEvent->node;
@@ -119,12 +129,26 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     //if(node == nullptr)
       //break;
     //CheckEvent validity
-    if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) return false;
+    if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
+      delete chunkedResult;
+      delete obj;
+      delete []buff;
+      return false;
+    }
     //get lock delete so file won't be deleted
     _putEvent->node->lockDelete();
     read = node->read(buff,offset,FileSystem::blockSize);
     //get lock delete so file won't be deleted
     _putEvent->node->unlockDelete();
+
+    if(_putEvent->node->mustBeDeleted()){//Check Delete
+      _putEvent->node->unlockDelete();
+      delete chunkedResult;
+      delete obj;
+      delete []buff;
+      return false;
+    }
+
     offset += read;
     outStream->write(buff,read);
   }
@@ -132,11 +156,19 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
 
   if(node == nullptr) {
     log_msg("Sync: File:%s failed due to interferring delete operation\n",nameBackup.c_str());
+    delete chunkedResult;
+    delete obj;
+    delete []buff;
     return false;
   }
   else {
     //CheckEvent validity
-    if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) return false;
+    if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
+      delete chunkedResult;
+      delete obj;
+      delete []buff;
+      return false;
+    }
     //get lock delete so file won't be deleted
     _putEvent->node->lockDelete();
     log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
@@ -149,11 +181,16 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   Poco::Net::HTTPResponse response;
   chunkedResult->getPayload()->receiveResponse(response);
   if(response.getStatus() == response.HTTP_CREATED) {
+    delete chunkedResult;
+    delete obj;
     delete []buff;
     return true;
   }
   else {
     log_msg("Error in swift: %s\n",response.getReason().c_str());
+    delete chunkedResult;
+    delete obj;
+    delete []buff;
     return false;
   }
 }
