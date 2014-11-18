@@ -77,9 +77,10 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
     //release file delete lock, so they can delete it
     _putEvent->node->unlockDelete();
-    if(obj) delete obj;
+    delete res;
     return false;
   }
+  bool shouldDeleteOBJ = false;
   //Check if Obj already exist
   if(obj != nullptr) {
     //check MD5
@@ -88,12 +89,14 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
           _putEvent->node->getFullPath().c_str(),_putEvent->node->getMD5().c_str());
       //release file delete lock, so they can delete it
       _putEvent->node->unlockDelete();
-      delete obj;
+      delete res;
       return true;
     }
   }
-  else
+  else {
+    shouldDeleteOBJ = true;
     obj = new Object(defaultContainer,convertToSwiftName(_putEvent->node->getFullPath()));
+  }
 
   //upload chunk by chunk
   //Make a back up of file name in case it gets deleted while uploading
@@ -102,7 +105,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
 
   if(_putEvent->node->mustBeDeleted()){
     _putEvent->node->unlockDelete();
-    delete obj;
+    delete res;
+    if(shouldDeleteOBJ)delete obj;
     return false;
   }
 
@@ -111,7 +115,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       obj->swiftCreateReplaceObject(outStream);
   if(chunkedResult->getError().code != SwiftError::SWIFT_OK) {
     delete chunkedResult;
-    delete obj;
+    if(shouldDeleteOBJ) delete obj;
+    delete res;
     //release file delete lock, so they can delete it
     _putEvent->node->unlockDelete();
     return false;
@@ -131,7 +136,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     //CheckEvent validity
     if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
       delete chunkedResult;
-      delete obj;
+      if(shouldDeleteOBJ) delete obj;
+      delete res;
       delete []buff;
       return false;
     }
@@ -144,7 +150,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     if(_putEvent->node->mustBeDeleted()){//Check Delete
       _putEvent->node->unlockDelete();
       delete chunkedResult;
-      delete obj;
+      delete res;
+      if(shouldDeleteOBJ) delete obj;
       delete []buff;
       return false;
     }
@@ -157,7 +164,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(node == nullptr) {
     log_msg("Sync: File:%s failed due to interferring delete operation\n",nameBackup.c_str());
     delete chunkedResult;
-    delete obj;
+    delete res;
+    if(shouldDeleteOBJ) delete obj;
     delete []buff;
     return false;
   }
@@ -165,7 +173,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     //CheckEvent validity
     if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
       delete chunkedResult;
-      delete obj;
+      delete res;
+      if(shouldDeleteOBJ) delete obj;
       delete []buff;
       return false;
     }
@@ -182,14 +191,16 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   chunkedResult->getPayload()->receiveResponse(response);
   if(response.getStatus() == response.HTTP_CREATED) {
     delete chunkedResult;
-    delete obj;
+    delete res;
+    if(shouldDeleteOBJ) delete obj;
     delete []buff;
     return true;
   }
   else {
     log_msg("Error in swift: %s\n",response.getReason().c_str());
     delete chunkedResult;
-    delete obj;
+    delete res;
+    if(shouldDeleteOBJ) delete obj;
     delete []buff;
     return false;
   }

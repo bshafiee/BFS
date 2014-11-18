@@ -65,31 +65,6 @@ FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bo
     return nullptr;
 }
 
-FileNode* FileSystem::searchNode(FileNode* _parent, std::string _name,
-    bool _isDir) {
-  //Recursive search is dangerous, we might cause stack overflow
-  vector<FileNode*> childrenQueue;
-
-  while (_parent != nullptr) {
-    if (_parent->getName() == _name && _parent->isDirectory() == _isDir)
-      return _parent;
-    //add children to queue
-    auto childIterator = _parent->childrendBegin();
-    for (; childIterator != _parent->childrenEnd(); childIterator++)
-      childrenQueue.push_back((FileNode*) childIterator->second);
-
-    if (childrenQueue.size() == 0)
-      return nullptr;
-    else {
-      //Now assign start to a new node in queue
-      auto frontIt = childrenQueue.begin();
-      _parent = *frontIt;
-      childrenQueue.erase(frontIt);
-    }
-  }
-  return nullptr;
-}
-
 size_t FileSystem::rmNode(FileNode* &_node) {
 
   FileNode* parent = findParent(_node->getFullPath());
@@ -109,9 +84,11 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   while (temp != nullptr) {
     fullPathStack.push_back(temp->getFullPath());
     //add children to queue
-    auto childIterator = temp->childrendBegin();
-    for (; childIterator != temp->childrenEnd(); childIterator++)
+    temp->childrenLock();
+    auto childIterator = temp->childrendBegin2();
+    for (; childIterator != temp->childrenEnd2(); childIterator++)
       childrenQueue.push_back((FileNode*) childIterator->second);
+    temp->childrenUnlock();
     if (childrenQueue.size() == 0)
       temp = nullptr;
     else {
@@ -139,22 +116,18 @@ size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
   if(_parent != nullptr) //removing the node itself
     _parent->childRemove(_node->getName());
 
+  //string name = _node->getName();
+
   bool isRemote = _node->isRemote();
   delete _node;//this will recursively call destructor of all kids
   _node = nullptr;
+
+  //fprintf(stderr,"XXXXXX: %s\n",name.c_str());
 
   //Inform ZooHandler about new file
   if(!isRemote)
   	ZooHandler::getInstance().publishListOfFiles();
   return fullPathStack.size();
-}
-
-FileNode* FileSystem::searchFile(FileNode* _parent, const std::string &_name) {
-  return searchNode(_parent, _name, false);
-}
-
-FileNode* FileSystem::searchDir(FileNode* _parent, const std::string &_name) {
-  return searchNode(_parent, _name, true);
 }
 
 FileNode* FileSystem::traversePathToParent(const string &_path) {
@@ -301,9 +274,14 @@ std::string FileSystem::printFileSystem() {
   log_msg("FileSystem:\n\n");
   while (start != nullptr) {
     //add children to queue
-    auto childIterator = start->childrendBegin();
-    for (; childIterator != start->childrenEnd(); childIterator++)
+    start->childrenLock();
+    auto childIterator = start->childrendBegin2();
+    for (; childIterator != start->childrenEnd2(); childIterator++){
+      if(((FileNode*)(childIterator->second))->mustBeDeleted())
+        continue;
       childrenQueue.push_back((FileNode*) childIterator->second);
+    }
+    start->childrenUnlock();
     //Now we can release start node
     output += start->getName()+" ";
     newLineCounter--;
@@ -333,17 +311,22 @@ std::vector<std::string> FileSystem::listFileSystem(bool _includeRemotes) {
   FileNode* start = root;
   while (start != nullptr) {
     //add children to queue
-    auto childIterator = start->childrendBegin();
-    for (; childIterator != start->childrenEnd(); childIterator++){
+    start->childrenLock();
+    auto childIterator = start->childrendBegin2();
+    for (; childIterator != start->childrenEnd2(); childIterator++){
     	FileNode* fileNode = (FileNode*) childIterator->second;
-    	if(_includeRemotes)
-    	  childrenQueue.push_back(fileNode);
-    	else if(!fileNode->isRemote())//If not remove we will claim we have this File
-    	  childrenQueue.push_back(fileNode);
 
+    	if(fileNode->mustBeDeleted())
+    	  continue;
+
+    	if(!fileNode->isRemote())//If not remote we will claim we have this File
+    	  childrenQueue.push_back(fileNode);
+    	else if(_includeRemotes && fileNode->isRemote())
+        childrenQueue.push_back(fileNode);
     }
+    start->childrenUnlock();
     //Now we can release start node
-    if(start->getName()!="/" && !start->isDirectory())//if not a directory
+    if(start->getName()!="/" && !start->isDirectory() && !start->mustBeDeleted())//if not a directory
     	output.push_back(start->getFullPath());
 
     if (childrenQueue.size() == 0)

@@ -429,7 +429,7 @@ void ZooHandler::publishListOfFiles() {
 		return;
 	}
 
-	printf("publishListOfFiles successfully!\n");
+	//printf("publishListOfFiles successfully!\n");
 }
 
 std::vector<ZooNode> ZooHandler::getGlobalView() {
@@ -529,6 +529,15 @@ void ZooHandler::updateGlobalView() {
 	updateRemoteFilesInFS();
 }
 
+static void printVector(vector<string> vec) {
+  cerr<<"{";
+  for(unsigned int i=0;i<vec.size();i++)
+    if(i<vec.size()-1)
+      cerr<<vec[i]<<",";
+    else
+      cerr<<vec[i]<<"}"<<endl;;
+}
+
 void ZooHandler::updateRemoteFilesInFS() {
 	vector<pair<string,ZooNode>> newRemoteFiles;
 	vector<string>localFiles = FileSystem::getInstance().listFileSystem(true);
@@ -607,9 +616,9 @@ void ZooHandler::updateRemoteFilesInFS() {
         break;
 	  }
 	  if(!exist) {
-	    //fprintf(stderr,"ZOOOOHANDLER GOING TO REMOVE:%s\n",file->getFullPath().c_str());
+	    fprintf(stderr,"ZOOOOHANDLER GOING TO REMOVE:%s\n",file->getFullPath().c_str());
 	    //fflush(stderr);
-	    FileSystem::getInstance().rmNode(file);
+	    file->signalDelete();
 	  }
 	}
 

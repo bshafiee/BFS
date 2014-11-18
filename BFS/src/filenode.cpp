@@ -55,7 +55,7 @@ FileNode* FileNode::getParent() {
 }
 
 void FileNode::metadataAdd(std::string _key, std::string _value) {
-	lock_guard<mutex> lock(metadataMutex);
+	lock_guard<std::mutex> lock(metadataMutex);
   auto it = metadata.find(_key);
   if(it == metadata.end())
     metadata.insert(make_pair(_key,_value));
@@ -70,6 +70,7 @@ void FileNode::metadataRemove(std::string _key) {
 }
 
 string FileNode::metadataGet(string _key) {
+  lock_guard<mutex> lock(metadataMutex);
   auto it = metadata.find(_key);
   return (it == metadata.end())? "": it->second;
 }
@@ -352,7 +353,7 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
   if(it != children.end()) {
     FileNode* existingNodes = (FileNode*)(it->second);
     FileNode* parent = this;
-    FileSystem::getInstance().rmNode(parent, existingNodes);
+    FileSystem::getInstance().rmNode(parent, existingNodes);//TODO SHOULD BE SIGNALDELETE
     //children.erase(it);
   }
 
@@ -382,12 +383,8 @@ void FileNode::close() {
   			this->setNeedSync(false);
 
   	//If all refrences to this files are deleted so it can be deleted
-  	if(mustDeleted) {
-  		string path = this->getFullPath();
-  		FileNode* parent = FileSystem::getInstance().findParent(path);
-  		FileNode* thisNode = FileSystem::getInstance().getNode(path);
-  		FileSystem::getInstance().rmNode(parent,thisNode);
-  	}
+  	if(mustDeleted)
+  	  signalDelete();//It's close now! so will be removed
   }
   else {
     /*int refs = refCount;
@@ -442,17 +439,21 @@ void FileNode::unlockDelete() {
 }
 
 bool FileNode::signalDelete() {
-  static atomic<int> counter;
+  /*static atomic<int> counter;
   fprintf(stderr,"SIGNAL DELETE:%d  %s \n",++counter,this->key.c_str());
-  fflush(stderr);
+  fflush(stderr);*/
 	mustDeleted = true;
 	if(isOpen())
 	  return true;//will be deleted on close
 	//Otherwise delete it right away
 	FileNode* thisPtr = this;
 
-	if(isRemote())
-    return rmRemote();
+	if(isRemote()){
+    bool res = rmRemote();//This might take long so we need to check again if file is open
+    if(isOpen())
+      return true;
+    return FileSystem::getInstance().rmNode(thisPtr)&&res;
+	}
 	else
 	  return FileSystem::getInstance().rmNode(thisPtr);
 }
@@ -490,8 +491,15 @@ bool FileNode::getStat(struct stat *stbuff) {
 	}
 	else{
 		bool res = BFSNetwork::readRemoteFileAttrib(stbuff,this->getFullPath(),remoteHostMAC);
-		if(!res)
+		if(!res){
+		  //fprintf(stderr,"ISFILEOPEN? %d   ",isOpen());
+		  string test;
+		  for(int i=0;i<100;i++)
+		    test = this->getName();
 			fprintf(stderr,"GetRemoteAttrib failed for:%s\n",this->getFullPath().c_str());
+			for(int i=0;i<100;i++)
+			  test = this->getName();
+		}
 		else {//update local info!
 			//get io mutex to update size
 			/*ioMutex.lock();//We should not do this, it will fuck move operations

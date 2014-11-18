@@ -65,13 +65,15 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	FileNode* parent = FileSystem::getInstance().createHierarchy(_event->fullPathBuffer);
 	string fileName = FileSystem::getInstance().getFileNameFromPath(_event->fullPathBuffer);
 	FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName,false);
+
 	newFile->lockDelete();
+	fprintf(stderr,"DOWNLOAD: %s\n",newFile->getFullPath().c_str());
 	newFile->open();
 	newFile->unlockDelete();
 	//Make a fake event to check if the file has been deleted
 	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content
-	char buff[FileSystem::blockSize];
+	char buff[FileSystem::blockSize];//TODO increase this
 	size_t offset = 0;
 	while(iStream->eof() == false) {
 	  iStream->read(buff,FileSystem::blockSize);

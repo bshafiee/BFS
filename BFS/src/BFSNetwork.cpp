@@ -1048,7 +1048,9 @@ void BFSNetwork::onAttribReqPacket(const u_char *_packet) {
 	if(fNode) {
 		//Offset is irrelevant here and we use it for indicating success for failure
 		attribResPacket->offset = be64toh(1);
+		fNode->open();//protect agains delete
 		fNode->getStat((struct stat*)attribResPacket->data);
+		fNode->close();
 	}
 	else{
 		attribResPacket->offset = be64toh(0);//zero is zero anyway...
@@ -1219,8 +1221,9 @@ bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
       break;
   }
 
-  if(!task.ack_ready)
-    printf("DeleteRequest Timeout: fileID%d ElapsedMILLIS:%f\n",task.fileID,t.elapsedMillis());
+  if(!task.ack_ready){
+    //printf("DeleteRequest Timeout: fileID%d ElapsedMILLIS:%f\n",task.fileID,t.elapsedMillis());
+  }
   if(!task.acked && task.size == 0)
     printf("DeleteRequest failed: %s\n",task.remoteFile.c_str());
 

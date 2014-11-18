@@ -175,8 +175,8 @@ int main(int argc, char *argv[]) {
 	signal(SIGTERM, sigproc);
 	signal(SIGINT, sigproc);
   //set the new_handler
-  std::set_new_handler(outOfMemHandler);
-  std::set_terminate(systemErrorHandler);
+  //std::set_new_handler(outOfMemHandler);
+  //std::set_terminate(systemErrorHandler);
 
   AuthenticationInfo info;
   info.username = SettingManager::get(CONFIG_KEY_SWIFT_USERNAME);

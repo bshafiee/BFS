@@ -10,6 +10,7 @@
 
 #include <unordered_map>
 #include <string>
+#include <mutex>
 
 namespace FUSESwift {
 
@@ -22,6 +23,7 @@ protected:
   childDictionary children;
   std::string key;
   Node* parent;
+  std::mutex mapMutex;
 public:
 
   /** Functions **/
@@ -67,16 +69,19 @@ public:
    * Returns an iterator to the first element of the container.
    * If the container is empty, the returned iterator will be equal to end().
    */
-  childDictionary::iterator childrendBegin();
+  childDictionary::iterator childrendBegin2();
 
   /**
    * Returns an iterator to the element following the last element of
    * the container. This element acts as a placeholder; attempting to
    * access it results in undefined behavior.
    */
-  childDictionary::iterator childrenEnd();
+  childDictionary::iterator childrenEnd2();
 
   Node* getParent();
+
+  void childrenLock();
+  void childrenUnlock();
 };
 
 } /* namespace FUSESwift */

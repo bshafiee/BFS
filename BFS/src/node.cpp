@@ -16,6 +16,7 @@ Node::Node(string _key, Node* _parent):key(_key), parent(_parent) {
 }
 
 Node::~Node() {
+  lock_guard<mutex> lk(mapMutex);
   //delete children
   for(auto it = children.begin();it != children.end();it++) {
     delete it->second;
@@ -29,14 +30,17 @@ Node* Node::getParent() {
 }
 
 pair<childDictionary::iterator, bool> Node::childAdd(Node* _node) {
+  lock_guard<mutex> lk(mapMutex);
   return children.insert(childDictionary::value_type(_node->key,_node));
 }
 
 int Node::childRemove(const string& _key) {
+  lock_guard<mutex> lk(mapMutex);
   return children.erase(_key);
 }
 
 Node* Node::childFind(const string& _key) {
+  lock_guard<mutex> lk(mutex);
   auto it = children.find(_key);
 
   if(it != children.end())
@@ -46,23 +50,36 @@ Node* Node::childFind(const string& _key) {
 }
 
 void Node::childrenClear() {
+  lock_guard<mutex> lk(mapMutex);
   children.clear();
 }
 
 size_t Node::childrenSize() {
+  lock_guard<mutex> lk(mapMutex);
   return children.size();
 }
 
 size_t Node::childrenMaxSize() {
+  lock_guard<mutex> lk(mapMutex);
   return children.max_size();
 }
 
-childDictionary::iterator Node::childrendBegin() {
+childDictionary::iterator Node::childrendBegin2() {
   return children.begin();
 }
 
-childDictionary::iterator Node::childrenEnd() {
+childDictionary::iterator Node::childrenEnd2() {
   return children.end();
 }
 
+void FUSESwift::Node::childrenLock() {
+  mapMutex.lock();
 }
+
+void FUSESwift::Node::childrenUnlock() {
+  mapMutex.unlock();
+}
+
+}
+
+

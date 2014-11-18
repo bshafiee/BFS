@@ -40,13 +40,19 @@ int swift_getattr(const char *path, struct stat *stbuff) {
       log_msg("swift_getattr: Node not found: %s\n", path);
     return -ENOENT;
   }
+
+  node->open();//protect against delete
+  bool res = node->getStat(stbuff);
   //Fill Stat struct
+  node->close();
+
   if(DEBUG_GET_ATTRIB)
     log_stat(stbuff);
-  if(node->getStat(stbuff))
+
+  if(res)
   	return 0;
   else
-  	return EAGAIN;
+  	return -ENOENT;
 }
 
 int swift_readlink(const char* path, char* buf, size_t size) {
@@ -513,6 +519,11 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
 
+  if(node == nullptr)
+    return -ENOENT;
+
+  node->open();//protect against clsoe
+
   int retstat = 0;
 
   if(DEBUG_READDIR)
@@ -522,22 +533,36 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
-  auto it = node->childrendBegin();
-  for (; it != node->childrenEnd(); it++) {
+  node->childrenLock();
+  auto it = node->childrendBegin2();
+  for (; it != node->childrenEnd2(); it++) {
     FileNode* entry = (FileNode*) it->second;
     struct stat st;
     /**
      * void *buf, const char *name,
      const struct stat *stbuf, off_t off
      */
+    entry->open();//protect against delete
+    if(entry->mustBeDeleted()) {
+      entry->close();
+      continue;
+    }
     entry->getStat(&st);
     if (filler(buf, entry->getName().c_str(), &st, 0)) {
       log_msg("swift_readdir filler error\n");
+      entry->close();//protect against delete
+      node->close();
+      node->childrenUnlock();
       return EIO;
     }
+    entry->close();//protect against delete
   }
+  node->childrenUnlock();
+
   if(DEBUG_READDIR)
     log_msg("readdir successful: %d entry on Path:%s\n", node->childrenSize(),node->getName().c_str());
+
+  node->close();
 
   return retstat;
 }

@@ -28,9 +28,11 @@ size_t Tree::destroy(Node*& start) {
 
   while(start != nullptr) {
     //add children to queue
-    auto childIterator = start->childrendBegin();
-    for(;childIterator != start->childrenEnd();childIterator++)
+    start->childrenLock();
+    auto childIterator = start->childrendBegin2();
+    for(;childIterator != start->childrenEnd2();childIterator++)
       childrenQueue.push_back(childIterator->second);
+    start->childrenUnlock();
     //Now we can release start node
     delete start;
     numOfRemovedNodes++;
