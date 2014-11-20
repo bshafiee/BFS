@@ -304,6 +304,8 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
+ fprintf(stderr,"READING: %s\n",node->getFullPath().c_str());
+ fflush(stderr);
   //Empty file
   if((!node->isRemote()&&node->getSize() == 0)||size == 0) {
     if(DEBUG_READ)

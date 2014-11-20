@@ -26,9 +26,6 @@ FileNode::FileNode(string _name,bool _isDir, FileNode* _parent, bool _isRemote):
 }
 
 FileNode::~FileNode() {
-  //We need Delete lock before releasing this document.
-  lockDelete();
-
   //Release readbuffer
   //delete readBuffer;
   for(auto it = dataList.begin();it != dataList.end();it++) {
@@ -430,14 +427,6 @@ std::string FileNode::getMD5() {
   return Poco::DigestEngine::digestToHex(md5.digest());
 }
 
-void FileNode::lockDelete() {
-  deleteMutex.lock();
-}
-
-void FileNode::unlockDelete() {
-  deleteMutex.unlock();
-}
-
 bool FileNode::signalDelete() {
   /*static atomic<int> counter;
   fprintf(stderr,"SIGNAL DELETE:%d  %s \n",++counter,this->key.c_str());
@@ -621,11 +610,6 @@ void FileNode::makeRemote() {
 }
 
 void FileNode::deallocate() {
-  //We need Delete lock before releasing this document.
-  lockDelete();
-  //Get IO MUTEX
-  lock_guard<mutex> lk_guard(ioMutex);
-
   //Release readbuffer
   //delete readBuffer;
   for(auto it = dataList.begin();it != dataList.end();it++) {
@@ -641,8 +625,7 @@ void FileNode::deallocate() {
     it->second = nullptr;
   }
   children.clear();
-  //Unlock delete no unlock when being removed
-  unlockDelete();
+
   //Release Memory in the memory controller!
   MemoryContorller::getInstance().releaseMemory(size);
   //Update size

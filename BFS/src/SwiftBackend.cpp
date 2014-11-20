@@ -63,7 +63,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       || defaultContainer == nullptr || _putEvent->node == nullptr)
     return false;
   //get lock delete so file won't be deleted
-  _putEvent->node->lockDelete();
+  _putEvent->node->open();
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
@@ -76,7 +76,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   //CheckEvent validity
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
     //release file delete lock, so they can delete it
-    _putEvent->node->unlockDelete();
+    _putEvent->node->close();
     delete res;
     return false;
   }
@@ -88,7 +88,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       log_msg("Sync: File:%s did not change with compare to remote version, MD5:%s\n",
           _putEvent->node->getFullPath().c_str(),_putEvent->node->getMD5().c_str());
       //release file delete lock, so they can delete it
-      _putEvent->node->unlockDelete();
+      _putEvent->node->close();
       delete res;
       return true;
     }
@@ -104,7 +104,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   ostream *outStream = nullptr;
 
   if(_putEvent->node->mustBeDeleted()){
-    _putEvent->node->unlockDelete();
+    _putEvent->node->close();
     delete res;
     if(shouldDeleteOBJ)delete obj;
     return false;
@@ -118,17 +118,18 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     if(shouldDeleteOBJ) delete obj;
     delete res;
     //release file delete lock, so they can delete it
-    _putEvent->node->unlockDelete();
+    _putEvent->node->close();
     return false;
   }
   //release file delete lock, so they can delete it
-  _putEvent->node->unlockDelete();
+  _putEvent->node->close();
 
   //Ready to write (write each time a blocksize)
-  char *buff = new char[1024l*1024l*10l];//10MB buffer
+  uint64_t buffSize = 1024l*1024l*10l;
+  char *buff = new char[buffSize];//10MB buffer
   size_t offset = 0;
   long read = 0;
-  FileNode *node = _putEvent->node;
+  //FileNode *node = _putEvent->node;
   do {
     //node = FileSystem::getInstance().getNode(nameBackup);
     //if(node == nullptr)
@@ -141,51 +142,55 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       delete []buff;
       return false;
     }
-    //get lock delete so file won't be deleted
-    _putEvent->node->lockDelete();
-    read = node->read(buff,offset,FileSystem::blockSize);
-    //get lock delete so file won't be deleted
-    _putEvent->node->unlockDelete();
 
     if(_putEvent->node->mustBeDeleted()){//Check Delete
-      _putEvent->node->unlockDelete();
+      _putEvent->node->close();
       delete chunkedResult;
       delete res;
       if(shouldDeleteOBJ) delete obj;
       delete []buff;
       return false;
     }
+
+    //get lock delete so file won't be deleted
+    _putEvent->node->open();
+    read = _putEvent->node->read(buff,offset,buffSize);
+    //get lock delete so file won't be deleted
+    _putEvent->node->close();
+
 
     offset += read;
     outStream->write(buff,read);
   }
   while(read > 0);
 
-  if(node == nullptr) {
-    log_msg("Sync: File:%s failed due to interferring delete operation\n",nameBackup.c_str());
+  if(_putEvent->node->mustBeDeleted()){//Check Delete
+    _putEvent->node->close();
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
     delete []buff;
     return false;
   }
-  else {
-    //CheckEvent validity
-    if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
-      delete chunkedResult;
-      delete res;
-      if(shouldDeleteOBJ) delete obj;
-      delete []buff;
-      return false;
-    }
-    //get lock delete so file won't be deleted
-    _putEvent->node->lockDelete();
-    log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
-      _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize(),
-      _putEvent->node->getMD5().c_str(),obj->getName().c_str());
-    //get lock delete so file won't be deleted
-    _putEvent->node->unlockDelete();
+
+
+  if(_putEvent->node->mustBeDeleted()){//Check Delete
+    _putEvent->node->close();
+    delete chunkedResult;
+    delete res;
+    if(shouldDeleteOBJ) delete obj;
+    delete []buff;
+    return false;
   }
+
+  //get lock delete so file won't be deleted
+  _putEvent->node->open();
+  log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
+    _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize(),
+    _putEvent->node->getMD5().c_str(),obj->getName().c_str());
+  //get lock delete so file won't be deleted
+  _putEvent->node->close();
+
   //Now send object
   Poco::Net::HTTPResponse response;
   chunkedResult->getPayload()->receiveResponse(response);

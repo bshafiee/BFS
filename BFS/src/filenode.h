@@ -54,7 +54,7 @@ class FileNode: public Node {
   std::atomic<bool> isRem;//indicates whether this node exist on the local RAM or on a remote machine
   unsigned char remoteHostMAC[6];
   //Delete Lock
-  std::mutex deleteMutex;
+  //std::mutex deleteMutex;
   //Read/Write Lock
   std::mutex ioMutex;
   //Metadata Lock
@@ -132,8 +132,8 @@ public:
   bool open();
   void close();
   bool isOpen();
-  void lockDelete();
-  void unlockDelete();
+/*  void lockDelete();
+  void unlockDelete();*/
   /**
    * When a file is being removed it might be open yet!
    * therefore, we indicate this file should be removed after all

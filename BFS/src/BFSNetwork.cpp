@@ -393,6 +393,10 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
           fflush(stderr);
         }
       }
+      else {
+        fprintf(stderr,"processMoveTask():Not enough space to move %s here.\n",_moveTask.fileName.c_str());
+        fflush(stderr);
+      }
     } else {
       fprintf(stderr,"processMoveTask():Get Remote File Stat FAILED:%s\n",_moveTask.fileName.c_str());
       fflush(stderr);
@@ -405,10 +409,16 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
   }
 
 
-  if(res)//Success
+  if(res){//Success
     moveAck->size = htobe64(1);
-  else
+    fprintf(stderr,"processMoveTask(): MOVE SUCCESS TO HERE:%s\n",_moveTask.fileName.c_str());
+    fflush(stderr);
+  }
+  else {
     moveAck->size = 0;
+    fprintf(stderr,"processMoveTask(): MOVE FAILED TO HERE:%s\n",_moveTask.fileName.c_str());
+    fflush(stderr);
+  }
 
   //Send the ack on the wire
   if(!ZeroNetwork::send(buffer,MTU)) {
@@ -855,9 +865,14 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
   //Write data to file
 	//memcpy(testWriteBuffer+offset,dataPacket->data,size);
   long result = fNode->write(dataPacket->data,offset,size);
-  if(result <= 0 || (unsigned long)result != size){ //send a NACK
+  if(result <= 0 ){ //send a NACK
     taskIt->second.failed = true;
-    fprintf(stderr,"onWriteDataPacket(), write failed:%s!\n",taskIt->second.remoteFile.c_str());
+    fprintf(stderr,"onWriteDataPacket(), write failed NOT ENOUGH MEMORY:%s MEMUTILIZATION:%f\n",taskIt->second.remoteFile.c_str(),MemoryContorller::getInstance().getMemoryUtilization());
+  }
+
+  if((unsigned long)result != size){ //send a NACK
+    taskIt->second.failed = true;
+    fprintf(stderr,"onWriteDataPacket(), write failed size:%ld written:%ld file:%s!\n",size,result,taskIt->second.remoteFile.c_str());
   }
 
 
@@ -1457,7 +1472,7 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
     fprintf(stderr, "Filename too long!\n");
     return false;
   }
-  fprintf(stderr, "CreateRemote FILE!\n");
+  fprintf(stderr, "CreateRemote FILE:%s\n",_remoteFile.c_str());
   //Create a new task
   WriteSndTask task;
   task.srcBuffer = nullptr;

@@ -65,11 +65,9 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	FileNode* parent = FileSystem::getInstance().createHierarchy(_event->fullPathBuffer);
 	string fileName = FileSystem::getInstance().getFileNameFromPath(_event->fullPathBuffer);
 	FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName,false);
-
-	newFile->lockDelete();
-	fprintf(stderr,"DOWNLOAD: %s\n",newFile->getFullPath().c_str());
 	newFile->open();
-	newFile->unlockDelete();
+	fprintf(stderr,"DOWNLOADING: %s\n",newFile->getFullPath().c_str());
+	newFile->close();
 	//Make a fake event to check if the file has been deleted
 	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content
@@ -77,28 +75,24 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	size_t offset = 0;
 	while(iStream->eof() == false) {
 	  iStream->read(buff,FileSystem::blockSize);
-	  //CheckEvent validity
-    //if(!UploadQueue::getInstance().checkEventValidity(fakeDeleteEvent)) break;;
-	  if(newFile->mustBeDeleted())
+
+	  newFile->open();
+
+	  if(newFile->mustBeDeleted()){
+	    newFile->close();
 	    break;
-    //get lock delete so file won't be deleted
-    newFile->lockDelete();
+	  }
     int retCode = newFile->write(buff,offset,iStream->gcount());
     //Check space availability
 	  if(retCode < 0) {
 	    log_msg("Error in writing file:%s, probably no diskspace, Code:%d\n",newFile->getFullPath().c_str(),retCode);
 	    newFile->close();
-	    newFile->unlockDelete();
 	    return;
 	  }
 
-	  newFile->unlockDelete();
+	  newFile->close();
 	  offset += iStream->gcount();
 	}
-	//newFile->lockDelete();
-	printf("DONWLOAD FINISHED:%s\n",newFile->getName().c_str());
-	//newFile->unlockDelete();
-	newFile->close();
 }
 
 void DownloadQueue::processDownloadMetadata(const SyncEvent* _event) {
