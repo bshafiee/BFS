@@ -48,6 +48,10 @@
 #include "BFSNetwork.h"
 #include <thread>
 
+//Initialize logger
+#include "LoggerInclude.h"
+_INITIALIZE_EASYLOGGINGPP
+
 
 using namespace Swift;
 using namespace FUSESwift;
@@ -106,7 +110,7 @@ static struct fuse_operations fuse_oper = {
 };
 
 void shutdown() {
-	fprintf(stderr, "Leaving...\n");
+  LOG(INFO) <<"Leaving...";
 	//Log Close
 	log_close();
 	BFSNetwork::stopNetwork();
@@ -125,13 +129,13 @@ void sigproc(int sig) {
 
 // function to call if operator new can't allocate enough memory or error arises
 void systemErrorHandler() {
-	fprintf(stderr,"System Termination Occurred\n");
+  LOG(ERROR) <<"System Termination Occurred";
   shutdown();
 }
 
 // function to call if operator new can't allocate enough memory or error arises
 void outOfMemHandler() {
-	fprintf(stderr,"Unable to satisfy request for memory\n");
+  LOG(ERROR) <<"Unable to satisfy request for memory";
   shutdown();
 }
 
@@ -150,8 +154,7 @@ void readRemote() {
   long res = BFSNetwork::createRemoteFile(string("/trunc2"),mac);
 
 
-  fprintf(stderr,"READ DONE:%ld %d\n",res,++global);
-  fflush(stderr);
+  LOG(INFO) <<"READ DONE:"<<res<<" "<<++global;
   delete []buffer;
   //buffer = nullptr;
 }
@@ -166,7 +169,20 @@ void testRemoteRead() {
   //readRemote();
 }
 
+void initLogger(int argc, char *argv[]) {
+  _START_EASYLOGGINGPP(argc, argv);
+  // Load configuration from file
+  el::Configurations conf("log_config");
+  // Reconfigure single logger
+  el::Loggers::reconfigureLogger("default", conf);
+  // Actually reconfigure all loggers instead
+  el::Loggers::reconfigureAllLoggers(conf);
+
+  el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
+}
+
 int main(int argc, char *argv[]) {
+  initLogger(argc,argv);
 	//Load configs first
 	SettingManager::load("config");
 
@@ -198,8 +214,7 @@ int main(int argc, char *argv[]) {
   // user doing it with the allow_other flag is still there because
   // I don't want to parse the options string.
   if ((getuid() == 0) || (geteuid() == 0)) {
-    fprintf(stderr,
-        "Running BBFS as root opens unnacceptable security holes\n");
+    LOG(ERROR) << "Running BBFS as root opens unnacceptable security holes";
     //return 1;
   }
 
@@ -213,24 +228,24 @@ int main(int argc, char *argv[]) {
   BackendManager::registerBackend(&swiftBackend);
 
   //Get Physical Memory amount
-  cout <<"Total Physical Memory:" << MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024 << " MB"<<endl;
-  cout <<"BFS Available Memory:" << MemoryContorller::getInstance().getAvailableMemory()/1024/1024 << " MB"<<endl;
-  cout <<"Memory Utilization:" << MemoryContorller::getInstance().getMemoryUtilization()*100<< "%"<<endl;
+  LOG(INFO) <<"Total Physical Memory:" << MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024 << " MB";
+  LOG(INFO) <<"BFS Available Memory:" << MemoryContorller::getInstance().getAvailableMemory()/1024/1024 << " MB";
+  LOG(ERROR) <<"Memory Utilization:" << MemoryContorller::getInstance().getMemoryUtilization()*100<< "%";
 
   //Start BFS Network(before zoo, zoo uses mac info from this package)
 	if(!BFSNetwork::startNetwork()) {
-		fprintf(stderr, "Cannot initialize ZeroNetworking!\n");
+	  LOG(ERROR) <<"Cannot initialize ZeroNetworking!";
 		shutdown();
 	}
 
 	//testRemoteRead();
 
   // turn over control to fuse
-  fprintf(stderr, "about to call fuse_main\n");
+	LOG(INFO) <<"calling fuse_main";
   //Start fuse_main
   int fuse_stat = 0;
   fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
-  fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+  LOG(ERROR) <<"fuse returned: "<<fuse_stat;
   //while(1) {sleep(1);}
 
   shutdown();

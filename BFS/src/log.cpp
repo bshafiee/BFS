@@ -47,7 +47,7 @@ void log_close() {
 }
 
 void log_msg(const char *format, ...) {
-#ifdef DEBUG
+#ifdef DDEBUG
   va_list ap;
   va_start(ap, format);
   bb_data->logMutex.lock();
@@ -58,7 +58,7 @@ void log_msg(const char *format, ...) {
 
 // fuse context
 void log_fuse_context(struct fuse_context *context) {
-#ifdef DEBUG
+#ifdef DDEBUG
   log_msg("    context:\n");
 
   /** Pointer to the fuse object */
@@ -91,7 +91,7 @@ void log_fuse_context(struct fuse_context *context) {
 // connection being used.  I don't actually use any of this
 // information in bbfs
 void log_conn(struct fuse_conn_info *conn) {
-#ifdef DEBUG
+#ifdef DDEBUG
   log_msg("    conn:\n");
 
   /** Major version of the protocol (read-only) */
@@ -140,7 +140,7 @@ void log_conn(struct fuse_conn_info *conn) {
 // definition, and comments, come from /usr/include/fuse/fuse_common.h
 // Duplicated here for convenience.
 void log_fi(struct fuse_file_info *fi) {
-#ifdef DEBUG
+#ifdef DDEBUG
   log_msg("    fi:\n");
 
   /** Open flags.  Available in open() and release() */
@@ -183,7 +183,7 @@ void log_fi(struct fuse_file_info *fi) {
 // This dumps the info from a struct stat.  The struct is defined in
 // <bits/stat.h>; this is indirectly included from <fcntl.h>
 void log_stat(struct stat *si) {
-#ifdef DEBUG
+#ifdef DDEBUG
   log_msg("    si:\n");
 
   //  dev_t     st_dev;     /* ID of device containing file */
@@ -228,7 +228,7 @@ void log_stat(struct stat *si) {
 }
 
 void log_statvfs(struct statvfs *sv) {
-#ifdef DEBUG
+#ifdef DDEBUG
   log_msg("    sv:\n");
 
   //  unsigned long  f_bsize;    /* file system block size */
@@ -267,7 +267,7 @@ void log_statvfs(struct statvfs *sv) {
 }
 
 void log_utime(struct utimbuf *buf) {
-#ifdef DEBUG
+#ifdef DDEBUG
   log_msg("    buf:\n");
 
   //    time_t actime;

@@ -529,15 +529,6 @@ void ZooHandler::updateGlobalView() {
 	updateRemoteFilesInFS();
 }
 
-static void printVector(vector<string> vec) {
-  cerr<<"{";
-  for(unsigned int i=0;i<vec.size();i++)
-    if(i<vec.size()-1)
-      cerr<<vec[i]<<",";
-    else
-      cerr<<vec[i]<<"}"<<endl;;
-}
-
 void ZooHandler::updateRemoteFilesInFS() {
 	vector<pair<string,ZooNode>> newRemoteFiles;
 	vector<string>localFiles = FileSystem::getInstance().listFileSystem(true);

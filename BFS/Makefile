@@ -4,7 +4,7 @@ CXXSOURCES = $(wildcard src/*.cpp)
 OBJS =	$(CXXSOURCES:%.cpp=%.o)
 
 #Includes
-LFLAGS=-Ilib/json -Ilib/zookeeper/include/zookeeper -Ilib/libSwift/include/swift -Ilib/poco/include -I/usr/local/include/fuse
+LFLAGS=-Ilib/json -Ilib/zookeeper/include/zookeeper -Ilib/libSwift/include/swift -Ilib/poco/include -I/usr/local/include/fuse -Ilib/logger
 CXXFLAGS+= $(LFLAGS)
 
 #Libraries

@@ -23,7 +23,7 @@ struct bb_state {
 };
 
 //DEBUG LEVELS
-#define DEBUG 0
+#define DDEBUG 0
 #define DEBUG_INIT       0
 #define DEBUG_DESTROY    0
 #define DEBUG_GET_ATTRIB 0

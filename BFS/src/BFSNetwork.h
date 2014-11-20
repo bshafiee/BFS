@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include "ZeroNetwork.h"
 #include "filenode.h"
+#include "LoggerInclude.h"
 
 namespace FUSESwift {
 
