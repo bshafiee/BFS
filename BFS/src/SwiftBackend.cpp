@@ -311,7 +311,7 @@ istream* SwiftBackend::get(const SyncEvent* _getEvent) {
     return nullptr;
   }
   else
-    return res->getPayload();
+    return res->getPayload();//TODO XXX somebody should delete res!
 }
 
 vector<pair<string,string>>* SwiftBackend::get_metadata(const SyncEvent* _getMetaEvent) {

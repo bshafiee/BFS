@@ -46,6 +46,8 @@
 #include "MemoryController.h"
 #include "SettingManager.h"
 #include "BFSNetwork.h"
+#include "MasterHandler.h"
+#include "ZooHandler.h"
 #include <thread>
 
 //Initialize logger
@@ -57,6 +59,9 @@ using namespace Swift;
 using namespace FUSESwift;
 using namespace std;
 using namespace Poco;
+
+
+void shutdown(void* userdata);
 
 static struct fuse_operations fuse_oper = {
   .getattr = FUSESwift::swift_getattr ,
@@ -89,7 +94,7 @@ static struct fuse_operations fuse_oper = {
   .releasedir = FUSESwift::swift_releasedir ,
   .fsyncdir = NULL ,
   .init = FUSESwift::swift_init ,
-  .destroy = FUSESwift::swift_destroy ,
+  .destroy = shutdown ,
   .access = FUSESwift::swift_access ,
   .create = NULL ,
   .ftruncate = FUSESwift::swift_ftruncate ,
@@ -109,34 +114,36 @@ static struct fuse_operations fuse_oper = {
   .fallocate = NULL
 };
 
-void shutdown() {
+void shutdown(void* userdata) {
   LOG(INFO) <<"Leaving...";
-	//Log Close
-	log_close();
-	BFSNetwork::stopNetwork();
-	FileSystem::getInstance().destroy();
-	exit(0);
+  //Log Close
+  log_close();
+  BFSNetwork::stopNetwork();
+  ZooHandler::getInstance().stopZooHandler();
+  MasterHandler::stopLeadership();
+  FileSystem::getInstance().destroy();
+  exit(0);
 }
 
 void bfs_usage(){
 	fprintf(stderr, "usage:  BFS [FUSE and mount options] mountPoint\n");
-  shutdown();
+  shutdown(nullptr);
 }
 
 void sigproc(int sig) {
-	shutdown();
+	shutdown(nullptr);
 }
 
 // function to call if operator new can't allocate enough memory or error arises
 void systemErrorHandler() {
   LOG(ERROR) <<"System Termination Occurred";
-  shutdown();
+  shutdown(nullptr);
 }
 
 // function to call if operator new can't allocate enough memory or error arises
 void outOfMemHandler() {
   LOG(ERROR) <<"Unable to satisfy request for memory";
-  shutdown();
+  shutdown(nullptr);
 }
 
 atomic<int> global(0);
@@ -235,7 +242,7 @@ int main(int argc, char *argv[]) {
   //Start BFS Network(before zoo, zoo uses mac info from this package)
 	if(!BFSNetwork::startNetwork()) {
 	  LOG(ERROR) <<"Cannot initialize ZeroNetworking!";
-		shutdown();
+		shutdown(nullptr);
 	}
 
 	//testRemoteRead();
@@ -248,6 +255,6 @@ int main(int argc, char *argv[]) {
   LOG(ERROR) <<"fuse returned: "<<fuse_stat;
   //while(1) {sleep(1);}
 
-  shutdown();
+  shutdown(nullptr);
   return fuse_stat;
 }

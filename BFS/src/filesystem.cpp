@@ -42,8 +42,12 @@ FileSystem& FileSystem::getInstance() {
 FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _isRemote) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *dir = new FileNode(_name, false, _parent, _isRemote);
-  auto res = _parent->childAdd(dir);
+  FileNode *file;
+  if(_parent == root)
+    file = new FileNode(_name,_parent->getFullPath()+_name, false, _isRemote);
+  else
+    file = new FileNode(_name,_parent->getFullPath()+delimiter+_name, false, _isRemote);
+  auto res = _parent->childAdd(file);
   if (res.second) {
   	//Inform ZooHandler about new file if not remote
   	if(!_isRemote)
@@ -57,7 +61,11 @@ FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _i
 FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *dir = new FileNode(_name, true, _parent,_isRemote);
+  FileNode *dir;
+  if(_parent == root)
+    dir = new FileNode(_name,_parent->getFullPath()+_name ,true, _isRemote);
+  else
+    dir = new FileNode(_name,_parent->getFullPath()+delimiter+_name ,true, _isRemote);
   auto res = _parent->childAdd(dir);
   if (res.second)
     return (FileNode*) (res.first->second);
@@ -65,72 +73,10 @@ FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bo
     return nullptr;
 }
 
-size_t FileSystem::rmNode(FileNode* &_node) {
-
-  FileNode* parent = findParent(_node->getFullPath());
-  if(!parent)
-    return 0;
-  else
-    return rmNode(parent,_node);
-}
-
-size_t FileSystem::rmNode(FileNode* &_parent, FileNode* &_node) {
-  //First traverse and store list of all files to be deleted by backend(bottom up!)
-  //we need stack because we traverse top-down
-  vector<string> fullPathStack;
-  //Recursive removing is dangerous, because we might run out of memory.
-  vector<FileNode*> childrenQueue;
-  FileNode* temp = _node;
-  while (temp != nullptr) {
-    fullPathStack.push_back(temp->getFullPath());
-    //add children to queue
-    temp->childrenLock();
-    auto childIterator = temp->childrendBegin2();
-    for (; childIterator != temp->childrenEnd2(); childIterator++)
-      childrenQueue.push_back((FileNode*) childIterator->second);
-    temp->childrenUnlock();
-    if (childrenQueue.size() == 0)
-      temp = nullptr;
-    else {
-      //Now assign start to a new node in queue
-      temp = childrenQueue.front();
-      childrenQueue.erase(childrenQueue.begin());
-    }
-  }
-
-  /**
-   * Inform Download queue that these files are going to be deleted!
-   * So no need to download them.
-   */
-  //DownloadQueue::getInstance().informDeletedFiles(fullPathStack);No need, it will check mustDeleted
-
-  //Now commit to sync queue! the order matters (before delete)
-  for(int i=fullPathStack.size()-1;i>=0;i--){
-    FileNode* file = getNode(fullPathStack[i]);
-    if(!file->isRemote())
-      UploadQueue::getInstance().push(new SyncEvent(SyncEventType::DELETE,nullptr,fullPathStack[i]));
-  }
-
-  //Do the actual removing on local file system
-  //remove from parent
-  if(_parent != nullptr) //removing the node itself
-    _parent->childRemove(_node->getName());
-
-  //string name = _node->getName();
-
-  bool isRemote = _node->isRemote();
-  delete _node;//this will recursively call destructor of all kids
-  _node = nullptr;
-
-  //fprintf(stderr,"XXXXXX: %s\n",name.c_str());
-
-  //Inform ZooHandler about new file
-  if(!isRemote)
-  	ZooHandler::getInstance().publishListOfFiles();
-  return fullPathStack.size();
-}
-
 FileNode* FileSystem::traversePathToParent(const string &_path) {
+  //Root
+  if (_path == FileSystem::delimiter)
+    return nullptr;
   //Traverse FileSystem Hierarchies
   StringTokenizer tokenizer(_path, FileSystem::delimiter);
   string name = tokenizer[tokenizer.count() - 1];
@@ -140,6 +86,8 @@ FileNode* FileSystem::traversePathToParent(const string &_path) {
       continue;
     Node* node = start->childFind(tokenizer[i]);
     start = (node == nullptr) ? nullptr : (FileNode*) node;
+    if(start == nullptr)//parent already removed
+      return nullptr;
   }
   return start;
 }
@@ -214,7 +162,8 @@ FileNode* FileSystem::getNode(const std::string &_path) {
 }
 
 FileNode* FileSystem::findParent(const string &_path) {
-  vector<FileNode*> childrenQueue;
+  return traversePathToParent(_path);
+  /*vector<FileNode*> childrenQueue;
   //Root
   if (_path == FileSystem::delimiter)
     return root;
@@ -230,14 +179,17 @@ FileNode* FileSystem::findParent(const string &_path) {
       parentPath += tokenizer[i]+FileSystem::delimiter;
   }
   //log_msg("parent path: %s\n",parentPath.c_str());
-  return getNode(parentPath);
+  return getNode(parentPath);*/
 }
 
 void FileSystem::destroy() {
   //Important, first kill download and upload thread
   DownloadQueue::getInstance().stopSynchronization();
   UploadQueue::getInstance().stopSynchronization();
-  delete root;
+
+  if(root)
+    root->signalDelete(false);
+  root = nullptr;
 }
 
 bool FileSystem::tryRename(const string &_from,const string &_to) {

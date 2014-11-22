@@ -55,7 +55,7 @@ ZooHandler::ZooHandler() :
 
 ZooHandler::~ZooHandler() {
 	if (this->zh)
-		free(this->zh);
+	  free(this->zh);
 }
 
 string ZooHandler::sessiontState2String(int state) {
@@ -429,7 +429,7 @@ void ZooHandler::publishListOfFiles() {
 		return;
 	}
 
-	//printf("publishListOfFiles successfully!\n");
+	//LOG(ERROR)<<"publishListOfFiles successfully:"<<str<<endl;
 }
 
 std::vector<ZooNode> ZooHandler::getGlobalView() {
@@ -525,6 +525,12 @@ void ZooHandler::updateGlobalView() {
 		delete[] buffer;
 		buffer = nullptr;
 	}
+
+	string glob;
+	for(ZooNode node:globalView)
+	  glob+= "{"+node.toString()+"}\n";
+	//LOG(ERROR)<<"GLOBAL VIEW UPDATED:"<<glob<<endl;
+
 	//Now we have a fresh globalView! So update list of remote files if our FS!
 	updateRemoteFilesInFS();
 }
@@ -607,9 +613,9 @@ void ZooHandler::updateRemoteFilesInFS() {
         break;
 	  }
 	  if(!exist) {
-	    fprintf(stderr,"ZOOOOHANDLER GOING TO REMOVE:%s\n",file->getFullPath().c_str());
+	    LOG(ERROR)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
 	    //fflush(stderr);
-	    file->signalDelete();
+	    file->signalDelete(false);
 	  }
 	}
 
@@ -706,6 +712,12 @@ ZooNode ZooHandler::getMostFreeNode() {
 
 void ZooHandler::requestUpdateGlobalView() {
   updateGlobalView();
+}
+
+void ZooHandler::stopZooHandler() {
+  sessionState = ZOO_EXPIRED_SESSION_STATE;
+  zookeeper_close(zh);
+  zh = nullptr;
 }
 
 }	//Namespace

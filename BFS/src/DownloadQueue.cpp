@@ -76,13 +76,13 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	while(iStream->eof() == false) {
 	  iStream->read(buff,FileSystem::blockSize);
 
-	  newFile->open();
-
-	  if(newFile->mustBeDeleted()){
-	    newFile->close();
+	  if(!newFile->open())
 	    break;
-	  }
-    int retCode = newFile->write(buff,offset,iStream->gcount());
+
+	  FileNode* afterMove = nullptr;
+    int retCode = newFile->writeHandler(buff,offset,iStream->gcount(),afterMove);
+    if(afterMove)
+      newFile = afterMove;
     //Check space availability
 	  if(retCode < 0) {
 	    log_msg("Error in writing file:%s, probably no diskspace, Code:%d\n",newFile->getFullPath().c_str(),retCode);

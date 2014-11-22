@@ -14,13 +14,16 @@
 #include "UploadQueue.h"
 #include "MemoryController.h"
 #include "BFSNetwork.h"
+#include "ZooHandler.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
-FileNode::FileNode(string _name,bool _isDir, FileNode* _parent, bool _isRemote):Node(_name,_parent),
-    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),mustDeleted(false), isRem(_isRemote) {
+FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):Node(_name,_fullPath),
+    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),
+    mustDeleted(false), isRem(_isRemote),
+    mustInformRemoteOwner(true), moving(false) {
 	/*if(_isRemote)
 		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
@@ -35,20 +38,25 @@ FileNode::~FileNode() {
   }
   dataList.clear();
   //Clean up children
-  for(auto it = children.begin();it != children.end();it++) {
-    FileNode* child = (FileNode*)it->second;
-    delete child;
-    it->second = nullptr;
+  //(auto it = children.begin();it != children.end();it++) {//We cann't use a for loop because the iteratoros might get deleted
+  int childrenSize = children.size();
+  while(childrenSize > 0){
+    FileNode* child = (FileNode*)children.begin()->second;
+    string key = children.begin()->first;
+    if(child)
+      child->signalDelete(mustInformRemoteOwner);//children loop is not valid after one delete
+    //Sometimes it won't be delete so we'll delete it if exist
+    children.erase(key);
+    childrenSize--;
   }
   children.clear();
-  //Unlock delete no unlock when being removed
-  //unlockDelete();
+
   //Release Memory in the memory controller!
   MemoryContorller::getInstance().releaseMemory(size);
 }
 
-FileNode* FileNode::getParent() {
-  return (FileNode*)parent;
+FileNode* FileNode::findParent() {
+  return FileSystem::getInstance().findParent(getFullPath());
 }
 
 void FileNode::metadataAdd(std::string _key, std::string _value) {
@@ -70,10 +78,6 @@ string FileNode::metadataGet(string _key) {
   lock_guard<mutex> lock(metadataMutex);
   auto it = metadata.find(_key);
   return (it == metadata.end())? "": it->second;
-}
-
-long FileNode::write(const char* _data, size_t _size) {
-  return this->write(_data,0,_size);
 }
 
 long FileNode::read(char* &_data, size_t _size) {
@@ -138,7 +142,7 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
 
 long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   //Acquire lock
-  lock_guard < mutex > lock(ioMutex);
+  lock_guard <recursive_mutex> lock(ioMutex);
 
   //Check Storage space Availability
   size_t newReqMemSize = (_offset + _size > size) ? _offset + _size - size : 0;
@@ -236,7 +240,7 @@ bool FUSESwift::FileNode::truncate(size_t _size) {
   }
   else {//Shrink
   	//Acquire lock
-  	lock_guard<mutex> lock(ioMutex);
+  	lock_guard<recursive_mutex> lock(ioMutex);
     size_t diff = size-_size;
     while(diff > 0) {
       if(blockIndex >= diff) {
@@ -349,8 +353,7 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
   it = children.find(_newName);
   if(it != children.end()) {
     FileNode* existingNodes = (FileNode*)(it->second);
-    FileNode* parent = this;
-    FileSystem::getInstance().rmNode(parent, existingNodes);//TODO SHOULD BE SIGNALDELETE
+    existingNodes->signalDelete(true);
     //children.erase(it);
   }
 
@@ -364,6 +367,8 @@ bool FileNode::isDirectory() {
 }
 
 bool FileNode::open() {
+  if(mustDeleted)
+    return false;
   refCount++;
   return true;
 }
@@ -381,7 +386,7 @@ void FileNode::close() {
 
   	//If all refrences to this files are deleted so it can be deleted
   	if(mustDeleted)
-  	  signalDelete();//It's close now! so will be removed
+  	  signalDelete(mustInformRemoteOwner);//It's close now! so will be removed
   }
   else {
     /*int refs = refCount;
@@ -396,18 +401,8 @@ bool FUSESwift::FileNode::getNeedSync() {
 
 void FUSESwift::FileNode::setNeedSync(bool _need) {
   //Acquire lock
-  lock_guard < mutex > lock(ioMutex);
+  lock_guard <recursive_mutex> lock(ioMutex);
   needSync = _need;
-}
-
-std::string FUSESwift::FileNode::getFullPath() {
-  string path = this->getName();
-  FileNode* par = getParent();
-  while(par != nullptr) {
-    path = par->getName() + (par->getParent()==nullptr?"":FileSystem::delimiter) + path;
-    par = par->getParent();
-  }
-  return path;
 }
 
 bool FileNode::isOpen() {
@@ -427,24 +422,38 @@ std::string FileNode::getMD5() {
   return Poco::DigestEngine::digestToHex(md5.digest());
 }
 
-bool FileNode::signalDelete() {
-  /*static atomic<int> counter;
-  fprintf(stderr,"SIGNAL DELETE:%d  %s \n",++counter,this->key.c_str());
-  fflush(stderr);*/
-	mustDeleted = true;
-	if(isOpen())
-	  return true;//will be deleted on close
-	//Otherwise delete it right away
-	FileNode* thisPtr = this;
+bool FileNode::signalDelete(bool _informRemoteOwner) {
+  //1) MustBeDeleted True
+  mustDeleted = true;
+  mustInformRemoteOwner = _informRemoteOwner;
+  LOG(ERROR)<<"SIGNAL DELETE:"<<key<<" isOpen?"<<isOpen();
+  //2) Remove parent->thisnode link so it won't show up anymore
+  FileNode* parent = findParent();
+  if(parent)
+    parent->childRemove(this->key);
+  //Nobody can open this file anymore!
 
-	if(isRemote()){
-    bool res = rmRemote();//This might take long so we need to check again if file is open
-    if(isOpen())
-      return true;
-    return FileSystem::getInstance().rmNode(thisPtr)&&res;
+  //3)) Inform rest of World that I'm gone
+  if(!isRemote())
+    ZooHandler::getInstance().publishListOfFiles();
+
+  //4) if is open just return and we'll come back later
+	if(isOpen()){
+	  return true;//will be deleted on close
 	}
-	else
-	  return FileSystem::getInstance().rmNode(thisPtr);
+
+	//Not open so delete right away
+	bool resultRemote = true;
+	if(isRemote() && _informRemoteOwner)
+	  resultRemote = rmRemote();
+
+	//SELF DECONTAMINATION YOHAHHA :D
+  if(!isRemote())
+    UploadQueue::getInstance().push(new SyncEvent(SyncEventType::DELETE,nullptr,getFullPath()));
+
+  delete this;//this will recursively call signalDelete on all kids of this node
+
+  return resultRemote;
 }
 
 bool FileNode::isRemote() {
@@ -497,6 +506,7 @@ bool FileNode::getStat(struct stat *stbuff) {
 
 			//Update meta info
 			stbuff->st_blksize = FileSystem::blockSize;
+	    stbuff->st_mode = this->isDirectory() ? S_IFDIR : S_IFREG;
 			this->setCTime(stbuff->st_ctim.tv_sec);
 			this->setMTime(stbuff->st_mtim.tv_sec);
 			this->setUID(stbuff->st_uid);
@@ -579,16 +589,12 @@ long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 }
 
 long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
-	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
-	//Check offset
-/*	if(_offset > this->size)
-		return 0;*///This fuck move operation
 	if(_size == 0)
 	  return 0;
 	unsigned long written = BFSNetwork::writeRemoteFile(
 	    _data,_size,_offset,this->getFullPath(),remoteHostMAC);
 	if(written!=_size)
-	  return -2;//ACK error
+	  return -3;//ACK error
 	else
 	  return written;
 }
@@ -634,6 +640,66 @@ void FileNode::deallocate() {
 
 bool FileNode::mustBeDeleted() {
   return mustDeleted;
+}
+
+bool FileNode::isMoving() {
+  return moving;
+}
+
+void FileNode::setMoving(bool _isMoving) {
+  moving.store(_isMoving);
+}
+
+/**
+ * @return
+ * Failures:
+ * -1 Moving
+ * -2 NoSpace
+ * -3 InternalError
+ * -4 Try Again
+ * Success:
+ * >= 0 written bytes
+ */
+long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, FileNode* &_afterMoveNewNode) {
+  //By default no moves happen so
+  _afterMoveNewNode = nullptr;
+
+  if(isMoving()) {
+    usleep(1000);//sleep a little and try again;
+    LOG(ERROR) <<"SLEEPING FOR MOVE";
+    return -1;
+  }
+
+  long written = write(_data, _offset, _size);
+  if(written == -1) {//No space
+    LOG(ERROR) <<"NOT ENOUGH SPACE, MOVING FILE."<<key<<" curSize:"<<size<<" UTIL:"<<MemoryContorller::getInstance().getMemoryUtilization();
+
+    string filePath = getFullPath();
+    setMoving(true);//Nobody is going to write to this file anymore
+    close();
+
+    if(FileSystem::getInstance().moveToRemoteNode(this)) {
+      FileNode *newNode = FileSystem::getInstance().getNode(filePath);
+      if(newNode == nullptr|| !newNode->isRemote()) {
+        LOG(ERROR)<<"HollyShit! we just moved "
+            "this file:"<<filePath<<" to a remote node! but "
+            "Does not exist or is not remote";
+        return -3;
+      } else {
+        // all good ;)
+        _afterMoveNewNode = newNode;
+        newNode->open();
+        return newNode->writeRemote(_data, _offset, _size);
+      }
+    } else {
+      LOG(ERROR) <<"MoveToRemoteNode failed.";
+      setMoving(false);
+      open();
+      return -2;
+    }
+  }
+  //Successfull Write
+  return written;
 }
 
 } //namespace

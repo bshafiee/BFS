@@ -1,5 +1,5 @@
 * GLOBAL:
-   FORMAT               = "%levelTID(%thread) %datetime{%H:%m:%s:%g} %func: %msg"
+   FORMAT               = "%level TID(%thread) %datetime{%H:%m:%s:%g} %func: %msg"
    FILENAME             =  "log.txt"
    ENABLED              =  true
    TO_FILE              =  true
@@ -7,5 +7,5 @@
    MILLISECONDS_WIDTH   =  6
    PERFORMANCE_TRACKING =  true
    MAX_LOG_FILE_SIZE    =  209715200 ## 2MB - Comment starts with two hashes (##)
-   LOG_FLUSH_THRESHOLD  =  10 ## Flush after every 100 logs
+   LOG_FLUSH_THRESHOLD  =  1 ## Flush after every 100 logs
    

@@ -246,7 +246,8 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 
 	//Find file and lock it!
 	FileNode* fNode = FileSystem::getInstance().getNode(_task.localFile);
-	if(fNode == nullptr || _task.size == 0|| fNode->isRemote()) { //error just send a packet of size 0
+	if(fNode == nullptr || _task.size == 0||
+	    fNode->isRemote()|| fNode->mustBeDeleted()) { //error just send a packet of size 0
 		char buffer[MTU];
 		ReadResPacket *packet = (ReadResPacket*)buffer;
 		fillReadResPacket(packet,_task);
@@ -362,7 +363,8 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
           long read = file->readRemote(buffer,offset,bufferLen);
           if(read <= 0 )
             break;
-          if(read != file->write(buffer,offset,read))//error in writing
+          FileNode* afterMove;//This won't happen(should not)
+          if(read != file->writeHandler(buffer,offset,read,afterMove))//error in writing
             break;
           left -= read;
           offset += read;
@@ -847,8 +849,10 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
     return;
   }
   //Write data to file
-	//memcpy(testWriteBuffer+offset,dataPacket->data,size);
-  long result = fNode->write(dataPacket->data,offset,size);
+  FileNode* afterMove = nullptr;
+  long result = fNode->writeHandler(dataPacket->data,offset,size,afterMove);
+  if(afterMove)
+    fNode = afterMove;
   if(result <= 0 ){ //send a NACK
     taskIt->second.failed = true;
     LOG(ERROR)<<"write failed NOT ENOUGH MEMORY:"<< taskIt->second.remoteFile<<" MEMUTILIZATION:"<<MemoryContorller::getInstance().getMemoryUtilization();
@@ -912,15 +916,15 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
     LOG(ERROR)<<"File Not found:"<<writeTask.remoteFile;
   else {
     //Open file
-    fNode->open();//Will be closed when the write operation is finished.
-
-    //Put it on the rcvTask map!
-    auto resPair = writeDataTasks.insert(writeTask.fileID,writeTask);
-    if(resPair.second){
-      return;
+    if(fNode->open()) {//Will be closed when the write operation is finished.
+      //Put it on the rcvTask map!
+      auto resPair = writeDataTasks.insert(writeTask.fileID,writeTask);
+      if(resPair.second){
+        return;
+      }
+      else
+        LOG(ERROR)<<"error in inserting task to writeRcvTasks!size:"<<writeDataTasks.size();
     }
-    else
-      LOG(ERROR)<<"error in inserting task to writeRcvTasks!size:"<<writeDataTasks.size();
   }
 
   fNode->close();//Close file
@@ -1041,10 +1045,9 @@ void BFSNetwork::onAttribReqPacket(const u_char *_packet) {
 
 	string fileName(reqPacket->fileName);
 	FileNode* fNode = FileSystem::getInstance().getNode(fileName);
-	if(fNode) {
+	if(fNode!=nullptr && fNode->open()) {
 		//Offset is irrelevant here and we use it for indicating success for failure
 		attribResPacket->offset = be64toh(1);
-		fNode->open();//protect agains delete
 		fNode->getStat((struct stat*)attribResPacket->data);
 		fNode->close();
 	}
@@ -1125,8 +1128,9 @@ void BFSNetwork::onDeleteReqPacket(const u_char* _packet) {
     return;
   }
 
-  if(fNode->signalDelete())
+  if(fNode->signalDelete(true)){
     deleteAck->size = htobe64(1);
+  }
   //Send the ack on the wires
   if(!ZeroNetwork::send(buffer,MTU)) {
     LOG(ERROR)<<"Failed to send deleteAckpacket.";
@@ -1247,7 +1251,7 @@ void BFSNetwork::onTruncateReqPacket(const u_char* _packet) {
 
   //Find file and lock it!
   FileNode* fNode = FileSystem::getInstance().getNode(fileName);
-  if(fNode == nullptr) {
+  if(fNode == nullptr || !fNode->open()) {
     //Now send packet on the wire
     if(!ZeroNetwork::send(buffer,MTU)) {
       LOG(ERROR)<<"Failed to send truncateAckpacket.";
@@ -1257,7 +1261,7 @@ void BFSNetwork::onTruncateReqPacket(const u_char* _packet) {
   }
 
   LOG(ERROR)<<"AVAILBLE MEMORY BEF: "<<MemoryContorller::getInstance().getAvailableMemory();
-  fNode->open();
+
   bool res = fNode->truncate(newSize);
   fNode->close();
 
@@ -1498,6 +1502,7 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
     if (!task.acked) {
       LOG(ERROR)<<"Move failed: "<<task.remoteFile;
     } else {//Successful move
+      LOG(ERROR)<<"Move to remote node successful: "<<task.remoteFile<< " Updating global view";
       ZooHandler::getInstance().requestUpdateGlobalView();
     }
 

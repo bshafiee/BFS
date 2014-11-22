@@ -12,7 +12,7 @@ using namespace std;
 
 namespace FUSESwift {
 
-Node::Node(string _key, Node* _parent):key(_key), parent(_parent) {
+Node::Node(string _key,string _fullPath):key(_key),fullPath(_fullPath) {
 }
 
 Node::~Node() {
@@ -23,10 +23,6 @@ Node::~Node() {
     it->second = nullptr;
   }
   children.clear();
-}
-
-Node* Node::getParent() {
-  return parent;
 }
 
 pair<childDictionary::iterator, bool> Node::childAdd(Node* _node) {
@@ -82,4 +78,10 @@ void FUSESwift::Node::childrenUnlock() {
 
 }
 
+void FUSESwift::Node::setFullPath(std::string _fullPath) {
+  fullPath = _fullPath;
+}
 
+std::string FUSESwift::Node::getFullPath() {
+  return fullPath;
+}

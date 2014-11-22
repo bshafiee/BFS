@@ -11,6 +11,7 @@
 #include <vector>
 #include <sstream>
 #include "Backend.h"
+#include "LoggerInclude.h"
 
 namespace FUSESwift {
 
@@ -46,6 +47,11 @@ struct ZooNode {
 		//std::string s = output.str();
 		//std::cout<<s<<std::endl;
   	return output.str();
+  }
+
+  std::ostream& operator<<(std::ostream& os) {
+    os<<toString();
+    return os;
   }
 
   static bool CompByFreeSpaceAsc (const ZooNode& lhs, const ZooNode& rhs) {

@@ -22,14 +22,17 @@ class Node {
 protected:
   childDictionary children;
   std::string key;
-  Node* parent;
   std::mutex mapMutex;
+  std::string fullPath;
+  void setFullPath(std::string _fullPath);
 public:
 
   /** Functions **/
-  Node(std::string _key, Node* _parent);
+  Node(std::string _key,std::string _fullPath);
 
   virtual ~Node();
+
+  std::string getFullPath();
 
   /**
    * Returns a pair consisting of an iterator to the inserted element
@@ -77,8 +80,6 @@ public:
    * access it results in undefined behavior.
    */
   childDictionary::iterator childrenEnd2();
-
-  Node* getParent();
 
   void childrenLock();
   void childrenUnlock();

@@ -43,8 +43,6 @@ public:
   FileNode* mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote);
   FileNode* mkFile(const std::string &_path,bool _isRemote);
   FileNode* mkDirectory(const std::string &_path,bool _isRemote);
-  size_t rmNode(FileNode* &_parent,FileNode* &_node);
-  size_t rmNode(FileNode* &_node);
   FileNode* searchFile(FileNode* _parent, const std::string &_name);
   FileNode* searchDir(FileNode* _parent, const std::string &_name);
   FileNode* getNode(const std::string &_path);

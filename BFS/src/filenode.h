@@ -52,17 +52,21 @@ class FileNode: public Node {
   std::atomic<bool> needSync;
   std::atomic<bool> mustDeleted;//To indicate this file should be deleted after being closed
   std::atomic<bool> isRem;//indicates whether this node exist on the local RAM or on a remote machine
+  std::atomic<bool> mustInformRemoteOwner;//To indicate if we should tell remote owner to remove or not(e.g zookeeper deletes don't need to do so).
+  std::atomic<bool> moving;//to indicate if it's being moved to another node
   unsigned char remoteHostMAC[6];
   //Delete Lock
   //std::mutex deleteMutex;
   //Read/Write Lock
-  std::mutex ioMutex;
+  std::recursive_mutex ioMutex;
   //Metadata Lock
 	std::mutex metadataMutex;
 	//Buffer
 	//ReadBuffer* readBuffer;
+
+  long write(const char *_data, size_t _offset, size_t _size);
 public:
-  FileNode(std::string _name,bool _isDir, FileNode* _parent,bool _isRemote);
+  FileNode(std::string _name,std::string _fullPath,bool _isDir,bool _isRemote);
   virtual ~FileNode();
   /**
    * if an element with key '_key' exist this will override it
@@ -84,13 +88,14 @@ public:
   void setNeedSync(bool _need);
   std::string getName();
   std::string getMD5();
-  FileNode* getParent();
-  std::string getFullPath();
+  FileNode* findParent();
   size_t getSize();
   bool isRemote();
   const unsigned char* getRemoteHostMAC();
   void setRemoteHostMAC(const unsigned char *_mac);
   bool mustBeDeleted();
+  bool isMoving();
+  void setMoving(bool _isMoving);
   /**
    * tries to rename input child
    * @return
@@ -102,10 +107,15 @@ public:
   void setName(std::string _newName);
 
   /**
-   * writes input data to this file
-   * returns true if successful, false if fails.
+   * @return
+   * Failures:
+   * -1 Moving
+   * -2 NoSpace
+   * -3 InternalError
+   * Success:
+   * >= 0 written bytes
    */
-  long write(const char* _data,size_t _size);
+  long writeHandler(const char *_data, size_t _offset, size_t _size,FileNode* &_afterMoveNewNode);
   /**
    * reads file data to input arguments.
    * returns true if successful, false if fails.
@@ -117,12 +127,7 @@ public:
    * if specified _offset or _size returns false.
    */
   long read(char* &_data, size_t _offset, size_t _size);
-  /**
-   * not inclusive set data by range
-   * sets data from index _offset to _offset+size-1 by the specified input _data
-   * if specified _offset or _size are irrelevant false is returned
-   */
-  long write(const char *_data, size_t _offset, size_t _size);
+
   /**
    * Truncates the file to the specified size if possible
    */
@@ -139,7 +144,7 @@ public:
    * therefore, we indicate this file should be removed after all
    * the references to it being closed!
    */
-  bool signalDelete();
+  bool signalDelete(bool _informRemoteOwner);
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   long readRemote(char* _data, size_t _offset, size_t _size);

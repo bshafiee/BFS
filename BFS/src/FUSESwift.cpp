@@ -16,13 +16,14 @@
 #include "DownloadQueue.h"
 #include "MemoryController.h"
 #include "ZooHandler.h"
+#include "LoggerInclude.h"
 
 using namespace std;
 
 namespace FUSESwift {
 
 FileNode* createRootNode() {
-  FileNode *node = new FileNode(FileSystem::delimiter, true, nullptr,false);
+  FileNode *node = new FileNode(FileSystem::delimiter, FileSystem::delimiter,true, false);
   unsigned long now = time(0);
   node->setCTime(now);
   node->setCTime(now);
@@ -41,7 +42,9 @@ int swift_getattr(const char *path, struct stat *stbuff) {
     return -ENOENT;
   }
 
-  node->open();//protect against delete
+  if(!node->open())//protect against delete
+    return -ENOENT;
+
   bool res = node->getStat(stbuff);
   //Fill Stat struct
   node->close();
@@ -105,6 +108,7 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
       newFile->setGID(fuseContext.gid);    //gid
       newFile->setUID(fuseContext.uid);    //uid
     } else {//Remote file
+      LOG(ERROR) <<"NOT ENOUGH SPACE, GOINT TO CREATE REMOTE FILE. UTIL:"<<MemoryContorller::getInstance().getMemoryUtilization();
       if(FileSystem::getInstance().createRemoteFile(pathStr))
         retstat = 0;
       else
@@ -141,7 +145,7 @@ int swift_mkdir(const char* path, mode_t mode) {
     FileNode *newDir = FileSystem::getInstance().mkDirectory(pathStr,false);
     if (newDir == nullptr){
       retstat = ENOENT;
-      log_msg("bb_mkdir mkFile (newFile is nullptr)\n");
+      log_msg("bb_mkdir mkdir (newDir is nullptr)\n");
     }
     //Directory created successfully
     newDir->setMode(mode); //Mode
@@ -174,7 +178,7 @@ int swift_unlink(const char* path) {
 
 
 
-  if(!node->signalDelete())
+  if(!node->signalDelete(true))
     return -EIO;
 
   if(DEBUG_UNLINK)
@@ -197,7 +201,7 @@ int swift_rmdir(const char* path) {
   }
 
 
-  if(!node->signalDelete())
+  if(!node->signalDelete(true))
     return -EIO;
   if(DEBUG_RMDIR)
     log_msg("Removed nodes from %s dir.\n", path);
@@ -267,7 +271,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().getNode(pathStr);
-  if (node == nullptr) {
+  if (node == nullptr || node->mustBeDeleted()) {
     log_msg("swift_utime error swift_open: Node not found: %s\n", path);
     fi->fh = 0;
     return -ENOENT;
@@ -304,8 +308,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
- fprintf(stderr,"READING: %s\n",node->getFullPath().c_str());
- fflush(stderr);
+
   //Empty file
   if((!node->isRemote()&&node->getSize() == 0)||size == 0) {
     if(DEBUG_READ)
@@ -331,85 +334,49 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
 
 int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
-  if (DEBUG_WRITE)
-    log_msg(
-        "\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
-        path, buf, size, offset, fi);
-  // no need to get fpath on this one, since I work from fi->fh not the path
-  if (DEBUG_WRITE)
-    log_fi(fi);
-
   //Handle path
   if (path == nullptr && fi->fh == 0) {
-    log_msg("\nswift_write: fi->fh is null\n");
+    LOG(ERROR)<<"\nswift_write: fi->fh is null";
     return -ENOENT;
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
+  /*LOG(ERROR)<<"INJAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+  errno = -EIO;
+return -EIO;*/
   long written = 0;
 
-  if (node->isRemote()) {
+  if (node->isRemote())
     written = node->writeRemote(buf, offset, size);
-  }
   else {
-    written = node->write(buf, offset, size);
-    //Needs synchronization with the backend
-    if(written > 0)
-      node->setNeedSync(true);
-    if(written == -1) { //Not enough space!
-      //Move file to another node if possible
-      string fileName = node->getName();
-      node->close();
-      if(FileSystem::getInstance().moveToRemoteNode(node)) {
-        node = FileSystem::getInstance().getNode(fileName);
-        if(node == nullptr|| !node->isRemote()) {
-          fprintf(stderr,"swift_write(): HollyShit! we just moved "
-              "this file to a remote node! but "
-              "Does not exist or is not remote\n");
-          fflush(stderr);
-          return -EIO;
-        } else {// all good ;)
-          //set fi->fh
-          FileSystem::getInstance().replaceNodeByINodeNum(fi->fh,(intptr_t)node);
-          //fi->fh = (intptr_t)node;//not working cuz not call by ref in fuse:(
-          node->open();
-          written = node->writeRemote(buf, offset, size);
-        }
-      } else {
-        fprintf(stderr,"swift_write(): moveToRemoteNode failed.\n");
-        fflush(stderr);
-        return -EIO;
-      }
+    /**
+     * @return
+     * Failures:
+     * -1 Moving
+     * -2 NoSpace
+     * -3 InternalError
+     * Success:
+     * >= 0 written bytes
+     */
+    FileNode* afterMove = nullptr;
+    written = node->writeHandler(buf, offset, size, afterMove);
+    if(afterMove) {//set fi->fh
+      FileSystem::getInstance().replaceNodeByINodeNum(fi->fh,(intptr_t)afterMove);
+      node = afterMove;
     }
   }
 
-  if (written == (long) size) {
-    if (DEBUG_WRITE)
-      log_msg("bb_write successful to:%s size=%d, offset=%lld\n",
-          node->getName().c_str(), written, offset);
-    return written;
-  } else {
-    log_msg("\nswift_write: error in writing to:%s\n", node->getName().c_str());
-    fprintf(stderr,"\nswift_write: error in writing to:%s\n", node->getName().c_str());
-    //Not Enough space left on the disk!
-    if (written == -1) {
-      log_msg(
-          "\nswift_write: Not enough space! filesize: %lld  AvailMem:%lld WriteRequest: size=%d, offset=%lld  name:%s\n",
-          node->getSize(), MemoryContorller::getInstance().getAvailableMemory(),
-          size, offset, node->getName().c_str());
+  if (written != (long) size) {
+    LOG(ERROR)<<"Error in writing to:"<<node->getName()<< " IsRemote?"<<node->isRemote()<<" Code:"<<written;
+    if (written == -1) //Moving
+      return -EAGAIN;
+    else if(written == -2) // No space
       return -ENOSPC;
-    }
-    else if(written == -2) {
-      log_msg(
-          "\nswift_write: remote write failed! filesize: %lld  AvailMem:%lld WriteRequest: size=%d, offset=%lld  name:%s\n",
-          node->getSize(), MemoryContorller::getInstance().getAvailableMemory(),
-          size, offset, node->getName().c_str());
+    else //Internal IO Error
       return -EIO;
-    }
-
-    return -EIO;
   }
+  return written;
 }
 
 /*int swift_statfs(const char* path, struct statvfs* stbuf) {
@@ -524,7 +491,8 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
   if(node == nullptr)
     return -ENOENT;
 
-  node->open();//protect against clsoe
+  if(!node->open())//protect against clsoe
+    return -ENOENT;
 
   int retstat = 0;
 
@@ -544,9 +512,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
      * void *buf, const char *name,
      const struct stat *stbuf, off_t off
      */
-    entry->open();//protect against delete
-    if(entry->mustBeDeleted()) {
-      entry->close();
+    if(!entry->open()) {//protect against delete
       continue;
     }
     entry->getStat(&st);
@@ -619,17 +585,12 @@ void* swift_init(struct fuse_conn_info* conn) {
   DownloadQueue::getInstance().startSynchronization();
   log_msg("\nSyncThreads running...\n");
   //Start Zoo Election
-	ZooHandler::getInstance().startElection();
+  ZooHandler::getInstance().startElection();
 	log_msg("\nZooHandler running...\n");
 
   return nullptr;
 }
 
-void swift_destroy(void* userdata) {
-  if(DEBUG_DESTROY)
-    log_msg("\nbb_destroy(userdata=0x%08x)\n", userdata);
-  FileSystem::getInstance().destroy();
-}
 /**
  * we just give all the permissions
  * TODO: we should not just give all the permissions
@@ -666,7 +627,8 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
       return ENOSPC;
     }
 
-  node->open();
+  if(!node->open())
+    return -ENOENT;
   bool res;
   if(node->isRemote())
     res = node->truncateRemote(size);

@@ -86,6 +86,7 @@ public:
 	void startElection();
 	ZooNode getMostFreeNode();
 	void requestUpdateGlobalView();
+	void stopZooHandler();
 };
 
 }//Namespace
