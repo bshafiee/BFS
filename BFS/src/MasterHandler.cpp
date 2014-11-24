@@ -21,24 +21,6 @@ vector<ZooNode> MasterHandler::existingNodes;
 MasterHandler::MasterHandler() {
 }
 
-/*
-static void printVector(vector<string> vec) {
-	cerr<<"{";
-	for(unsigned int i=0;i<vec.size();i++)
-		if(i<vec.size()-1)
-			cerr<<vec[i]<<",";
-		else
-			cerr<<vec[i]<<"}"<<endl;;
-}
-
-static void printVector(vector<BackendItem> vec) {
-	cerr<<"{";
-	for(unsigned int i=0;i<vec.size();i++)
-		if(i<vec.size()-1)
-			cerr<<vec[i].name<<",";
-		else
-			cerr<<vec[i].name<<"}"<<endl;;
-}*/
 
 template<typename T>
 static bool contains(const vector<T> &vec,const T &item) {

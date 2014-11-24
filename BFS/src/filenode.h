@@ -55,8 +55,6 @@ class FileNode: public Node {
   std::atomic<bool> mustInformRemoteOwner;//To indicate if we should tell remote owner to remove or not(e.g zookeeper deletes don't need to do so).
   std::atomic<bool> moving;//to indicate if it's being moved to another node
   unsigned char remoteHostMAC[6];
-  //Delete Lock
-  //std::mutex deleteMutex;
   //Read/Write Lock
   std::recursive_mutex ioMutex;
   //Metadata Lock
@@ -137,8 +135,6 @@ public:
   bool open();
   void close();
   bool isOpen();
-/*  void lockDelete();
-  void unlockDelete();*/
   /**
    * When a file is being removed it might be open yet!
    * therefore, we indicate this file should be removed after all

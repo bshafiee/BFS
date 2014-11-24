@@ -433,6 +433,7 @@ void ZooHandler::publishListOfFiles() {
 }
 
 std::vector<ZooNode> ZooHandler::getGlobalView() {
+  shared_lock<shared_timed_mutex> lk(lockGlobalView);
 	return globalView;
 }
 
@@ -444,6 +445,8 @@ std::vector<ZooNode> ZooHandler::getGlobalView() {
  * 4)update globalView
  **/
 void ZooHandler::updateGlobalView() {
+  std::unique_lock<std::shared_timed_mutex> lk(lockGlobalView);
+
 	if (sessionState != ZOO_CONNECTED_STATE
 	    || (electionState != ElectionState::LEADER
 	        && electionState != ElectionState::READY)) {
@@ -529,7 +532,7 @@ void ZooHandler::updateGlobalView() {
 	string glob;
 	for(ZooNode node:globalView)
 	  glob+= "{"+node.toString()+"}\n";
-	//LOG(ERROR)<<"GLOBAL VIEW UPDATED:"<<glob<<endl;
+	LOG(ERROR)<<"GLOBAL VIEW UPDATED:"<<glob<<endl;
 
 	//Now we have a fresh globalView! So update list of remote files if our FS!
 	updateRemoteFilesInFS();
@@ -613,7 +616,7 @@ void ZooHandler::updateRemoteFilesInFS() {
         break;
 	  }
 	  if(!exist) {
-	    LOG(ERROR)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
+	    //LOG(ERROR)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
 	    //fflush(stderr);
 	    file->signalDelete(false);
 	  }

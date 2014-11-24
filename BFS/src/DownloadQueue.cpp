@@ -83,6 +83,9 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
     int retCode = newFile->writeHandler(buff,offset,iStream->gcount(),afterMove);
     if(afterMove)
       newFile = afterMove;
+    while(retCode == -1)//-1 means moving
+      retCode = newFile->writeHandler(buff,offset,iStream->gcount(),afterMove);
+
     //Check space availability
 	  if(retCode < 0) {
 	    log_msg("Error in writing file:%s, probably no diskspace, Code:%d\n",newFile->getFullPath().c_str(),retCode);

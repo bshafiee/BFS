@@ -334,31 +334,74 @@ uint64_t FileSystem::assignINodeNum(intptr_t _nodePtr) {
   }
 
   auto res = inodeMap.insert(pair<uint64_t,intptr_t>(nextInodeNum,_nodePtr));
-  if(res.second)
-    return nextInodeNum;
+  if(res.second) {
+    //Insert to nodeInodemaps as well!
+    auto nodeInodeItr = nodeInodeMap.find(_nodePtr);
+    if(nodeInodeItr != nodeInodeMap.end()){
+      //Existing, push back
+      nodeInodeItr->second.push_back(nextInodeNum);
+    } else {
+      list<uint64_t> listOfInodes;
+      listOfInodes.push_back(nextInodeNum);
+      if(!nodeInodeMap.insert(pair<intptr_t,list<uint64_t> >(_nodePtr,listOfInodes)).second)//failed to insert
+        return 0;//Failure
+    }
+    return nextInodeNum;//Success
+  }
   else
-    return 0;
+    return 0;//Failure
 }
 
-void FileSystem::replaceNodeByINodeNum(uint64_t _inodeNum, intptr_t _nodePtr) {
+void FileSystem::replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr) {
   lock_guard<mutex> lock_gurad(inodeMapMutex);
-  //Check if such a inode already exist
-  auto it = inodeMap.find(_inodeNum);
-  if(it == inodeMap.end()) {
-    fprintf(stderr, "replaceNodeByINodeNum(): no such a _inodeNum.\n");
-    fflush(stderr);
-  } else //remove it
-    inodeMap.erase(it->first);
 
-  auto res = inodeMap.insert(pair<uint64_t,intptr_t>(_inodeNum,_nodePtr));
-  if(!res.second) {
-    fprintf(stderr, "replaceNodeByINodeNum(): failed to insert the new node.\n");
-    fflush(stderr);
+  auto res = nodeInodeMap.find(_oldPtr);
+  if(res == nodeInodeMap.end())
+  {
+    LOG(ERROR)<<"Not a valid _nodePtr!";
+    return; //Not such a
   }
+
+  list<uint64_t> inodeValuesOldPtr;
+  for(uint64_t inode:res->second){
+    inodeMap.erase(inode);
+    if(!inodeMap.insert(pair<uint64_t,intptr_t>(inode,_newPtr)).second)
+      LOG(ERROR)<<"failed to insert the new node for Inode"<<inode;
+    inodeValuesOldPtr.push_back(inode);
+  }
+
+  //Insert all values of oldPtr in nodeInodeMap with _newPtr
+  if(!nodeInodeMap.insert(pair<intptr_t,list<uint64_t>>(_newPtr,inodeValuesOldPtr)).second)
+    LOG(ERROR)<<"Cannot insert _newPtr in the nodeInodeMap";
+  //and get rid of _oldPtr
+  nodeInodeMap.erase(_oldPtr);
 }
 
 void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
   lock_guard<mutex> lock_gurad(inodeMapMutex);
+  //Find ptr_t
+  auto res = inodeMap.find(_inodeNum);
+  if(res != inodeMap.end()){
+    intptr_t nodeVal = res->second;
+    auto inodesList = nodeInodeMap.find(nodeVal);
+    if(inodesList == nodeInodeMap.end())
+      LOG(ERROR)<<"Cannot find corresponding inodeList in nodeInodeMap";
+    else {
+      for(auto itr = inodesList->second.begin();itr != inodesList->second.end();){
+        if(*itr == _inodeNum)
+          itr = inodesList->second.erase(itr);
+        else
+          itr++;
+      }
+      //if inodesList size is zero we should get rid of this entry in nodeInodeMap as well
+      if(inodesList->second.size() == 0)
+        nodeInodeMap.erase(nodeVal);
+    }
+  }
+  else
+    LOG(ERROR)<<"Cannot find corresponding intptr_t in inodeMap";
+
+  //Finally remove _inode
   inodeMap.erase(_inodeNum);
 }
 

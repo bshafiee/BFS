@@ -848,11 +848,15 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
     LOG(ERROR)<<"File Not found:"<<taskIt->second.remoteFile;
     return;
   }
+
   //Write data to file
   FileNode* afterMove = nullptr;
   long result = fNode->writeHandler(dataPacket->data,offset,size,afterMove);
   if(afterMove)
     fNode = afterMove;
+  if(result == -1) // -1 Moving
+    return onWriteDataPacket(_packet);
+
   if(result <= 0 ){ //send a NACK
     taskIt->second.failed = true;
     LOG(ERROR)<<"write failed NOT ENOUGH MEMORY:"<< taskIt->second.remoteFile<<" MEMUTILIZATION:"<<MemoryContorller::getInstance().getMemoryUtilization();

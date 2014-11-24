@@ -38,11 +38,13 @@ struct ZooNode {
   	if(containedFiles.size() > 0)
   		output << "\n";
 
-		for(unsigned int i =0;i<containedFiles.size();i++) {
-			if(i==containedFiles.size()-1)
-				output << containedFiles[i];
+  	uint counter = 0;
+		for(auto it =containedFiles.begin();it!=containedFiles.end();it++) {
+			if(counter == containedFiles.size()-1)
+				output << *it;
 			else
-				output << containedFiles[i] << "\n";
+				output << *it << "\n";
+			counter++;
 		}
 		//std::string s = output.str();
 		//std::cout<<s<<std::endl;

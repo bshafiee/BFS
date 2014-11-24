@@ -342,9 +342,6 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   //Get associated FileNode*
   FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
-  /*LOG(ERROR)<<"INJAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-  errno = -EIO;
-return -EIO;*/
   long written = 0;
 
   if (node->isRemote())
@@ -362,15 +359,16 @@ return -EIO;*/
     FileNode* afterMove = nullptr;
     written = node->writeHandler(buf, offset, size, afterMove);
     if(afterMove) {//set fi->fh
-      FileSystem::getInstance().replaceNodeByINodeNum(fi->fh,(intptr_t)afterMove);
+      FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)node,(intptr_t)afterMove);
       node = afterMove;
     }
   }
 
   if (written != (long) size) {
-    LOG(ERROR)<<"Error in writing to:"<<node->getName()<< " IsRemote?"<<node->isRemote()<<" Code:"<<written;
+    //LOG(ERROR)<<"Error in writing to:"<<node->getName()<< " IsRemote?"<<node->isRemote()<<" Code:"<<written;
     if (written == -1) //Moving
-      return -EAGAIN;
+      //return -EAGAIN;
+      return swift_write(path,buf,size,offset,fi);
     else if(written == -2) // No space
       return -ENOSPC;
     else //Internal IO Error

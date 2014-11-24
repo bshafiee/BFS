@@ -426,7 +426,7 @@ bool FileNode::signalDelete(bool _informRemoteOwner) {
   //1) MustBeDeleted True
   mustDeleted = true;
   mustInformRemoteOwner = _informRemoteOwner;
-  LOG(ERROR)<<"SIGNAL DELETE:"<<key<<" isOpen?"<<isOpen();
+
   //2) Remove parent->thisnode link so it won't show up anymore
   FileNode* parent = findParent();
   if(parent)
@@ -453,6 +453,7 @@ bool FileNode::signalDelete(bool _informRemoteOwner) {
 
   delete this;//this will recursively call signalDelete on all kids of this node
 
+  LOG(ERROR)<<"SIGNAL DELETE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<key<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
   return resultRemote;
 }
 
@@ -668,6 +669,7 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
     usleep(1000);//sleep a little and try again;
     LOG(ERROR) <<"SLEEPING FOR MOVE";
     return -1;
+    //return writeHandler(_data,_offset,_size,_afterMoveNewNode);
   }
 
   long written = write(_data, _offset, _size);

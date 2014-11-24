@@ -13,6 +13,7 @@
 #include <atomic>
 #include <unordered_map>
 #include <mutex>
+#include <list>
 
 
 namespace FUSESwift {
@@ -29,7 +30,8 @@ class FileSystem: public Tree {
   FileNode* traversePathToParent(const std::string &_path);
   //inode handling
   std::atomic<uint64_t> inodeCounter;
-  std::unordered_map<uint64_t,intptr_t> inodeMap;
+  std::unordered_map<uint64_t,intptr_t> inodeMap;//inode to file map
+  std::unordered_map<intptr_t,std::list<uint64_t> > nodeInodeMap;//node to inodes map
   std::mutex inodeMapMutex;
 public:
   //Constants
@@ -82,7 +84,7 @@ public:
 
   intptr_t getNodeByINodeNum(uint64_t _inodeNum);
   uint64_t assignINodeNum(intptr_t _nodePtr);
-  void replaceNodeByINodeNum(uint64_t _inodeNum, intptr_t _nodePtr);
+  void replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr);
   void removeINodeEntry(uint64_t _inodeNum);
 };
 
