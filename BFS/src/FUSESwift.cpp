@@ -70,34 +70,34 @@ int swift_readlink(const char* path, char* buf, size_t size) {
 
 int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
   int retstat = 0;
-  if(DEBUG_MKNOD)
-    log_msg("\nbb_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n", path, mode, rdev);
+  LOG(ERROR)<<"MKNOD:"<<path;
 
   //Check if already exist! if yes truncate it!
 	string pathStr(path, strlen(path));
 	FileNode* node = FileSystem::getInstance().getNode(pathStr);
 	if (node != nullptr)
 	{
-		printf("\n Existin file! truncating to 0!");
+	  LOG(ERROR)<<("Failure, Existing file! truncating to 0!");
 		return swift_ftruncate(path,0,nullptr);
 	}
 
 	string name = FileSystem::getInstance().getFileNameFromPath(path);
   if(!FileSystem::getInstance().nameValidator(name)) {
     if(DEBUG_MKNOD)
-      log_msg("\nbb_mknod can't create file: invalid name:\"%s\"\n", path);
-    return EINVAL;
+      LOG(ERROR)<<"Failure, can't create file: invalid name:"<<path;
+    return -EINVAL;
   }
 
 	//Not existing
   if (S_ISREG(mode)) {
     if(MemoryContorller::getInstance().getMemoryUtilization() < 0.9) {
 
-      FileNode *newFile = FileSystem::getInstance().mkFile(pathStr,false);
+      FileNode *newFile = FileSystem::getInstance().mkFile(pathStr,false,true);
       if (newFile == nullptr) {
-        retstat = ENOENT;
-        log_msg("bb_mknod mkFile (newFile is nullptr)\n");
+        LOG(ERROR)<<"Failure, mkFile (newFile is nullptr)";
+        return -ENOENT;
       }
+
       //File created successfully
       newFile->setMode(mode); //Mode
       unsigned long now = time(0);
@@ -107,18 +107,21 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
       struct fuse_context fuseContext = *fuse_get_context();
       newFile->setGID(fuseContext.gid);    //gid
       newFile->setUID(fuseContext.uid);    //uid
+
+      newFile->close();//It's a create and open operation
     } else {//Remote file
-      LOG(ERROR) <<"NOT ENOUGH SPACE, GOINT TO CREATE REMOTE FILE. UTIL:"<<MemoryContorller::getInstance().getMemoryUtilization();
+      LOG(ERROR) <<"Failure, NOT ENOUGH SPACE, GOINT TO CREATE REMOTE FILE. UTIL:"<<MemoryContorller::getInstance().getMemoryUtilization();
       if(FileSystem::getInstance().createRemoteFile(pathStr))
         retstat = 0;
-      else
+      else{
+        LOG(ERROR) <<"Failure, create remote file failed.";
         retstat = -EIO;
+      }
     }
   } else {
-    retstat = ENOENT;
-    log_msg("bb_mknod expects regular file\n");
+    retstat = -ENOENT;
+    LOG(ERROR)<<"Failure, expects regular file";
   }
-
   return retstat;
 }
 
@@ -140,12 +143,12 @@ int swift_mkdir(const char* path, mode_t mode) {
     if(!FileSystem::getInstance().nameValidator(name)) {
       if(DEBUG_MKDIR)
         log_msg("\nbb_mkdir can't create directory: invalid name:\"%s\"\n", path);
-      return EINVAL;
+      return -EINVAL;
     }
     FileNode *newDir = FileSystem::getInstance().mkDirectory(pathStr,false);
     if (newDir == nullptr){
-      retstat = ENOENT;
-      log_msg("bb_mkdir mkdir (newDir is nullptr)\n");
+      LOG(ERROR)<<" mkdir (newDir is nullptr)";
+      return -ENOENT;
     }
     //Directory created successfully
     newDir->setMode(mode); //Mode
@@ -157,7 +160,7 @@ int swift_mkdir(const char* path, mode_t mode) {
     newDir->setGID(fuseContext.gid);    //gid
     newDir->setUID(fuseContext.uid);    //uid
   } else {
-    retstat = ENOENT;
+    retstat = -ENOENT;
     log_msg("bb_mkdir expects dir\n");
   }
 
@@ -175,10 +178,8 @@ int swift_unlink(const char* path) {
     log_msg("swift_unlink: Node not found: %s\n", path);
     return -ENOENT;
   }
-
-
-
-  if(!node->signalDelete(true))
+  LOG(ERROR)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getName()<<" isOpen?"<<node->isOpen()<<" isRemote():"<<node->isRemote();
+  if(!FileSystem::getInstance().signalDeleteNode(node,true))
     return -EIO;
 
   if(DEBUG_UNLINK)
@@ -201,7 +202,7 @@ int swift_rmdir(const char* path) {
   }
 
 
-  if(!node->signalDelete(true))
+  if(!FileSystem::getInstance().signalDeleteNode(node,true))
     return -EIO;
   if(DEBUG_RMDIR)
     log_msg("Removed nodes from %s dir.\n", path);
@@ -272,7 +273,10 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().getNode(pathStr);
   if (node == nullptr || node->mustBeDeleted()) {
-    log_msg("swift_utime error swift_open: Node not found: %s\n", path);
+    if(node == nullptr)
+      LOG(ERROR)<<"Failure, cannot Open Node not found: "<<path;
+    else
+      LOG(ERROR)<<"Failure, Node is delete."<<path;
     fi->fh = 0;
     return -ENOENT;
   }
@@ -280,6 +284,8 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
   if(res && inodeNum!=0) {
 		fi->fh = inodeNum;
+		LOG(ERROR)<<"ptr:"<<node;
+		LOG(ERROR)<<"OPEN:"<<node->getFullPath();
 		return 0;
   }
   else {
@@ -409,6 +415,8 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   //Node might get deleted after close! so no reference to it anymore!
   //Debug info backup
   string pathStr = node->getFullPath();
+  LOG(ERROR)<<"CLOSE: ptr:"<<node;
+  LOG(ERROR)<<node->getFullPath();
   //Now we can safetly close it!
   node->close();
   //we can earse ionode num from map as well
@@ -602,8 +610,24 @@ int swift_access(const char* path, int mask) {
   return retstat;
 }
 
-/*int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
-}*/
+int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+  if(S_ISREG(mode)) {
+    if(swift_open(path,fi) == 0)
+      return 0;//Success
+    dev_t dev = 0;
+    if(swift_mknod(path,mode,dev)==0)
+      return swift_open(path,fi);
+  } else if(S_ISDIR(mode)){
+    if(swift_opendir(path,fi) == 0)
+      return 0;
+    if(swift_mkdir(path,mode)==0)
+      return swift_opendir(path,fi);
+  } else
+    LOG(ERROR)<<"Failure, neither a directory nor a regular file.";
+
+  LOG(ERROR)<<"Failure, Error in create.";
+  return -EIO;
+}
 
 int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   log_msg("\nswift_ftruncate(path=\"%s\", fi:%p newsize:%zu )\n", path,fi,size);

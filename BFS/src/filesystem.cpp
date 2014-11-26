@@ -15,6 +15,7 @@
 #include "UploadQueue.h"
 #include "DownloadQueue.h"
 #include "ZooHandler.h"
+#include "MemoryController.h"
 
 using namespace std;
 using namespace Poco;
@@ -39,7 +40,7 @@ FileSystem& FileSystem::getInstance() {
   return mInstance;
 }
 
-FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _isRemote) {
+FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _isRemote, bool _open) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
   FileNode *file;
@@ -47,6 +48,8 @@ FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _i
     file = new FileNode(_name,_parent->getFullPath()+_name, false, _isRemote);
   else
     file = new FileNode(_name,_parent->getFullPath()+delimiter+_name, false, _isRemote);
+  if(_open)
+    file->open();
   auto res = _parent->childAdd(file);
   if (res.second) {
   	//Inform ZooHandler about new file if not remote
@@ -127,11 +130,11 @@ string getNameFromPath(const string &_path) {
   return tokenizer[tokenizer.count() - 1];
 }
 
-FileNode* FileSystem::mkFile(const string &_path,bool _isRemote) {
+FileNode* FileSystem::mkFile(const string &_path,bool _isRemote,bool _open) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
-  return mkFile(parent, name, _isRemote);
+  return mkFile(parent, name, _isRemote,_open);
 }
 
 FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
@@ -186,10 +189,11 @@ void FileSystem::destroy() {
   //Important, first kill download and upload thread
   DownloadQueue::getInstance().stopSynchronization();
   UploadQueue::getInstance().stopSynchronization();
+  //Empty InodeMap so no body can find anything!
+  inodeMapMutex.lock();
+  inodeMap.clear();
 
-  if(root)
-    root->signalDelete(false);
-  root = nullptr;
+  LOG(ERROR)<<"FILESYSTEM'S DEAD!";
 }
 
 bool FileSystem::tryRename(const string &_from,const string &_to) {
@@ -319,7 +323,7 @@ intptr_t FileSystem::getNodeByINodeNum(uint64_t _inodeNum) {
   lock_guard<mutex> lock_gurad(inodeMapMutex);
   auto res = inodeMap.find(_inodeNum);
   if(res != inodeMap.end())
-    return res->second;
+    return res->second.first;
   else
     return 0;
 }
@@ -327,13 +331,16 @@ intptr_t FileSystem::getNodeByINodeNum(uint64_t _inodeNum) {
 uint64_t FileSystem::assignINodeNum(intptr_t _nodePtr) {
   lock_guard<mutex> lock_gurad(inodeMapMutex);
   uint64_t nextInodeNum = ++inodeCounter;
+  if(unlikely(nextInodeNum == 0))//Not Zero
+    nextInodeNum = ++inodeCounter;
   if(inodeMap.find(nextInodeNum)!=inodeMap.end()) {
+    LOG(ERROR)<<"\nfileSystem(): inodeCounter overflow :(\n";
     fprintf(stderr, "fileSystem(): inodeCounter overflow :(\n");
     fflush(stderr);
     return 0;
   }
 
-  auto res = inodeMap.insert(pair<uint64_t,intptr_t>(nextInodeNum,_nodePtr));
+  auto res = inodeMap.insert(pair<uint64_t,pair<intptr_t,bool>>(nextInodeNum,pair<intptr_t,bool>(_nodePtr,false)));
   if(res.second) {
     //Insert to nodeInodemaps as well!
     auto nodeInodeItr = nodeInodeMap.find(_nodePtr);
@@ -365,7 +372,7 @@ void FileSystem::replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr) {
   list<uint64_t> inodeValuesOldPtr;
   for(uint64_t inode:res->second){
     inodeMap.erase(inode);
-    if(!inodeMap.insert(pair<uint64_t,intptr_t>(inode,_newPtr)).second)
+    if(!inodeMap.insert(pair<uint64_t,pair<intptr_t,bool>>(inode,pair<intptr_t,bool>(_newPtr,false))).second)
       LOG(ERROR)<<"failed to insert the new node for Inode"<<inode;
     inodeValuesOldPtr.push_back(inode);
   }
@@ -382,7 +389,7 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
   //Find ptr_t
   auto res = inodeMap.find(_inodeNum);
   if(res != inodeMap.end()){
-    intptr_t nodeVal = res->second;
+    intptr_t nodeVal = res->second.first;
     auto inodesList = nodeInodeMap.find(nodeVal);
     if(inodesList == nodeInodeMap.end())
       LOG(ERROR)<<"Cannot find corresponding inodeList in nodeInodeMap";
@@ -403,6 +410,107 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
 
   //Finally remove _inode
   inodeMap.erase(_inodeNum);
+}
+
+bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
+  //Grab locks
+  lock_guard<mutex> lk(deleteQueueMutex);
+  lock_guard<mutex> lock_gurad(inodeMapMutex);
+
+  //1) MustBeDeleted True
+  _node->mustDeleted = true;
+  _node->mustInformRemoteOwner = _informRemoteOwner;
+
+  //Check if this file is already deleted!
+  auto inodeList = nodeInodeMap.find((intptr_t)_node);
+  if(inodeList != nodeInodeMap.end()) {
+    for(uint64_t inode:inodeList->second) {
+      auto inodeIt = inodeMap.find(inode);
+      if(inodeIt == inodeMap.end())
+        LOG(ERROR)<<"Inconcsitency between inodeMap and nodeInodeMap!";
+      else if(inodeIt->second.second){
+        LOG(ERROR)<<"SIGNAL DELETE ALREADY DELETED: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+        return true;
+      }
+    }
+  }
+
+  //Check if already Exist
+  bool found = false;
+  for(FileNode* node:deleteQueue)
+    if(node == _node) { //Already has been called!
+      found = true;
+      //If is still open just return otherwise we gonna go to delete it!
+      if(_node->isOpen()){
+        LOG(ERROR)<<"SIGNAL DELETE FORLOOP: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+        return true;
+      }
+      else
+        break;//Going to fuck it!
+    }
+
+
+  //0) Add Node to the delete Queue
+  if(!found)
+    deleteQueue.push_back(_node);
+
+  //2) Remove parent->thisnode link so it won't show up anymore
+  if(!_node->hasInformedDelete){//Only once
+    FileNode* parent = findParent(_node->getFullPath());
+    if(parent)
+      parent->childRemove(_node->key);
+    //Nobody can open this file anymore!
+  }
+
+  //3)) Tell Backend that this is gone!
+  if(!_node->isRemote())
+    if(!_node->hasInformedDelete)//Only once
+    UploadQueue::getInstance().push(
+        new SyncEvent(SyncEventType::DELETE,nullptr,_node->getFullPath()));
+
+  //4)) Inform rest of World that I'm gone
+  if(!_node->isRemote())
+    if(!_node->hasInformedDelete)//Only once
+      ZooHandler::getInstance().publishListOfFiles();
+
+  _node->hasInformedDelete = true;
+  //5) if is open just return and we'll come back later
+  if(_node->isOpen()){
+    LOG(ERROR)<<"SIGNAL DELETE ISOPEN: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+    return true;//will be deleted on close
+  }
+
+
+  //6)) FILE DECONTAMINATION YOHAHHA :D
+  bool resultRemote = true;
+  if(_node->isRemote() && _informRemoteOwner)
+    resultRemote = _node->rmRemote();
+
+  //Remove from queue
+  for(auto it=deleteQueue.begin();it!=deleteQueue.end();it++)
+    if(*it == _node){
+      deleteQueue.erase(it);
+      break;
+    }
+
+  LOG(ERROR)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+
+  //Update nodeInodemap and inodemap
+  auto res = nodeInodeMap.find((intptr_t)_node);
+  if(res != nodeInodeMap.end()) {//File is still open
+    for(uint64_t inode:res->second) {
+      auto inodeIt = inodeMap.find(inode);
+      if(inodeIt == inodeMap.end())
+        LOG(ERROR)<<"Inconcsitency between inodeMap and nodeInodeMap!";
+      else
+        inodeIt->second.second = true; //Inidicate deleted
+    }
+  }
+
+  //Actual release of memory!
+  delete _node;//this will recursively call signalDelete on all kids of this node
+
+  return resultRemote;
 }
 
 } // namespace

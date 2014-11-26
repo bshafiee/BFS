@@ -13,13 +13,14 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <atomic>
 
 namespace FUSESwift {
 
 class MemoryContorller {
   double MAX_MEM_COEF = 0;
-  int64_t total;
-  int64_t max_allowed;
+  std::atomic<int64_t> total;
+  std::atomic<int64_t> max_allowed;
   MemoryContorller();
 public:
   static MemoryContorller& getInstance();

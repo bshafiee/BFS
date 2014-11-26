@@ -174,6 +174,7 @@ void MasterHandler::leadershipLoop() {
 			interval = maxSleep;
     usleep(interval);
   }
+  LOG(ERROR)<<"MASTERHANDLER LOOP DEAD!";
 }
 
 MasterHandler::~MasterHandler() {

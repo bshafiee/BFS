@@ -63,7 +63,6 @@ bool ZeroNetwork::initialize(const string& _device,unsigned int _MTU) {
 void ZeroNetwork::shutDown() {
 	if(pd!=nullptr)
 		pfring_close((pfring*)pd);
-	pd = nullptr;
 }
 
 int ZeroNetwork::send(char *_buffer,size_t _len) {

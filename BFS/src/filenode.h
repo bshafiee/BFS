@@ -14,6 +14,7 @@
 #include <vector>
 #include <mutex>
 #include <sys/stat.h>
+#include "filesystem.h"
 
 
 namespace FUSESwift {
@@ -35,6 +36,9 @@ struct ReadBuffer {
 };
 
 class FileNode: public Node {
+
+  friend FileSystem;
+
   const std::string uidKey   = "uid";//User ID
   const std::string gidKey   = "gid";//Group ID
   const std::string mtimeKey = "mtime";//Last modified time
@@ -51,6 +55,7 @@ class FileNode: public Node {
   unsigned int blockIndex;
   std::atomic<bool> needSync;
   std::atomic<bool> mustDeleted;//To indicate this file should be deleted after being closed
+  std::atomic<bool> hasInformedDelete;//To indicate if we have already informed the world about deleting this file or not(delete fucntion might be called several times on a file)
   std::atomic<bool> isRem;//indicates whether this node exist on the local RAM or on a remote machine
   std::atomic<bool> mustInformRemoteOwner;//To indicate if we should tell remote owner to remove or not(e.g zookeeper deletes don't need to do so).
   std::atomic<bool> moving;//to indicate if it's being moved to another node
@@ -140,7 +145,7 @@ public:
    * therefore, we indicate this file should be removed after all
    * the references to it being closed!
    */
-  bool signalDelete(bool _informRemoteOwner);
+  bool signalDelete2(bool _informRemoteOwner);
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   long readRemote(char* _data, size_t _offset, size_t _size);

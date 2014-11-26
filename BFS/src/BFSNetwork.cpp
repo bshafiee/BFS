@@ -38,6 +38,7 @@ taskMap<uint32_t,WriteSndTask*> BFSNetwork::truncateSendTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::createSendTasks(2000);
 taskMap<uint32_t,MoveConfirmTask*> BFSNetwork::moveConfirmSendTasks(1000);
 atomic<bool> BFSNetwork::isRunning(true);
+atomic<bool> BFSNetwork::rcvLoopDead(false);
 Queue<SndTask*> BFSNetwork::sendQueue;
 Queue<MoveTask*> BFSNetwork::moveQueue;
 thread * BFSNetwork::rcvThread = nullptr;
@@ -88,6 +89,10 @@ bool BFSNetwork::startNetwork() {
 
 void BFSNetwork::stopNetwork() {
 	isRunning.store(false);
+	moveQueue.stop();
+	sendQueue.stop();
+	pfring_breakloop((pfring*)pd);
+	while(!rcvLoopDead);//Wait until rcvloop is dead
 	shutDown();
 }
 
@@ -226,6 +231,9 @@ void BFSNetwork::sendLoop() {
 		//First element
 		SndTask* firstTask = sendQueue.front();
 
+		if(unlikely(!isRunning))
+		  break;
+
 		switch(firstTask->type) {
 			case SEND_TASK_TYPE::SEND_READ:
 				processReadSendTask(*(ReadSndTask*)firstTask);
@@ -238,6 +246,7 @@ void BFSNetwork::sendLoop() {
 				break;
 		}
 	}
+	LOG(ERROR)<<"SEND LOOP DEAD!";
 }
 
 void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
@@ -247,7 +256,7 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 	//Find file and lock it!
 	FileNode* fNode = FileSystem::getInstance().getNode(_task.localFile);
 	if(fNode == nullptr || _task.size == 0||
-	    fNode->isRemote()|| fNode->mustBeDeleted()) { //error just send a packet of size 0
+	    fNode->isRemote()|| !fNode->open()) { //error just send a packet of size 0
 		char buffer[MTU];
 		ReadResPacket *packet = (ReadResPacket*)buffer;
 		fillReadResPacket(packet,_task);
@@ -268,10 +277,9 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 
 		return;
 	}
+
 	uint64_t localOffset = 0;
 	//Now we have the file node!
-	//1)Open the file
-	fNode->open();
   while(left > 0) {
 	unsigned long howMuch = (left > DATA_LENGTH)?DATA_LENGTH:left;
   	//Make a response packet
@@ -324,11 +332,16 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 void BFSNetwork::moveLoop() {
   while(isRunning) {
     MoveTask* front = moveQueue.front();
+
+    if(unlikely(!isRunning))
+      break;
+
     processMoveTask(*front);
     delete front;
     front = nullptr;
     moveQueue.pop();
   }
+  LOG(ERROR)<<"MOVE LOOP DEAD!";
 }
 
 void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
@@ -346,9 +359,7 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
 
   //1) find file
   FileNode* file = FileSystem::getInstance().getNode(_moveTask.fileName);
-  if(file != nullptr) {
-    //2) Open file
-    file->open();
+  if(file != nullptr && file->open()) { //2) Open file
     //3)check size
     struct stat st;
     if(file->getStat(&st)) {
@@ -470,7 +481,10 @@ void BFSNetwork::rcvLoop() {
 		static uint64_t notmine = 0;*/
 
 		if(res <= 0){
-			LOG(ERROR)<<"Error in pfring_recv:"<<res;
+		  if(isRunning)
+		    LOG(ERROR)<<"Error in pfring_recv:"<<res;
+		  else
+		    break;
 			continue;
 		}
 		//rcv++;
@@ -563,6 +577,8 @@ void BFSNetwork::rcvLoop() {
 			  LOG(ERROR)<<"UNKNOWN OPCODE:"<<opCode;
 		}
 	}
+	LOG(ERROR)<<"RCV LOOP DEAD!";
+	rcvLoopDead.store(true);
 }
 
 /**
@@ -1132,7 +1148,7 @@ void BFSNetwork::onDeleteReqPacket(const u_char* _packet) {
     return;
   }
 
-  if(fNode->signalDelete(true)){
+  if(FileSystem::getInstance().signalDeleteNode(fNode,true)){
     deleteAck->size = htobe64(1);
   }
   //Send the ack on the wires
@@ -1407,12 +1423,14 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
       moveQueue.push(mvTask);
       return;//The response will be sent later
     } else { //overwrite file=>truncate to 0
-      existing->open();
-      res = existing->truncate(0);
-      existing->close();
+      if(existing->open()){
+        res = existing->truncate(0);
+        existing->close();
+      } else
+        res = false;
     }
   } else {
-    res = (FileSystem::getInstance().mkFile(fileName,false)!=nullptr)?true:false;
+    res = (FileSystem::getInstance().mkFile(fileName,false,false)!=nullptr)?true:false;
   }
 
   if(res)//Success

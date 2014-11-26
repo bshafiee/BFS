@@ -6,7 +6,7 @@
  */
 
 #include "SwiftBackend.h"
-#include "log.h"
+#include "LoggerInclude.h"
 #include <Object.h>
 #include <Container.h>
 #include <Poco/Net/HTTPClientSession.h>
@@ -30,7 +30,7 @@ bool SwiftBackend::initialize(Swift::AuthenticationInfo* _authInfo) {
     return false;
   SwiftResult<Account*>* res = Account::authenticate(*_authInfo,true);
   if(res->getError().code != SwiftError::SWIFT_OK) {
-    log_msg("SwiftError: %s\n",res->getError().toString().c_str());
+    LOG(ERROR)<<"SwiftError: "<<res->getError().toString();
     return false;
   }
 
@@ -41,7 +41,7 @@ bool SwiftBackend::initialize(Swift::AuthenticationInfo* _authInfo) {
 bool SwiftBackend::initDefaultContainer() {
   SwiftResult<vector<Container>*>* res = account->swiftGetContainers(true);
   if(res->getError().code != SwiftError::SWIFT_OK) {
-      log_msg("SwiftError: %s\n",res->getError().toString().c_str());
+      LOG(ERROR)<<"SwiftError: "<<res->getError().toString();
       return false;
   }
   for(auto it = res->getPayload()->begin(); it != res->getPayload()->end();it++)
@@ -63,7 +63,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       || defaultContainer == nullptr || _putEvent->node == nullptr)
     return false;
   //get lock delete so file won't be deleted
-  _putEvent->node->open();
+  if(!_putEvent->node->open())
+    return false;
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
@@ -85,8 +86,9 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(obj != nullptr) {
     //check MD5
     if(obj->getHash() == _putEvent->node->getMD5()) {//No change
-      log_msg("Sync: File:%s did not change with compare to remote version, MD5:%s\n",
-          _putEvent->node->getFullPath().c_str(),_putEvent->node->getMD5().c_str());
+      LOG(ERROR)<<"Sync: File:"<<_putEvent->node->getFullPath()<<
+          " did not change with compare to remote version, MD5:"<<
+          _putEvent->node->getMD5();
       //release file delete lock, so they can delete it
       _putEvent->node->close();
       delete res;
@@ -153,10 +155,20 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     }
 
     //get lock delete so file won't be deleted
-    _putEvent->node->open();
-    read = _putEvent->node->read(buff,offset,buffSize);
-    //get lock delete so file won't be deleted
-    _putEvent->node->close();
+    if(_putEvent->node->open()){
+      read = _putEvent->node->read(buff,offset,buffSize);
+      //get lock delete so file won't be deleted
+      _putEvent->node->close();
+    }
+    else{
+      _putEvent->node->close();
+      delete chunkedResult;
+      delete res;
+      if(shouldDeleteOBJ) delete obj;
+      delete []buff;
+      return false;
+    }
+
 
 
     offset += read;
@@ -185,9 +197,9 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
 
   //get lock delete so file won't be deleted
   _putEvent->node->open();
-  log_msg("Sync: File:%s sent:%zu bytes, filesize:%zu, MD5:%s ObjName:%s\n",
-    _putEvent->node->getFullPath().c_str(),offset,_putEvent->node->getSize(),
-    _putEvent->node->getMD5().c_str(),obj->getName().c_str());
+  LOG(ERROR)<<"Sync: File:"<<_putEvent->node->getFullPath()<<
+      " sent:"<<offset<<" bytes, filesize:"<<_putEvent->node->getSize()<<
+      ", MD5:"<< _putEvent->node->getMD5()<<" ObjName:"<<obj->getName();
   //get lock delete so file won't be deleted
   _putEvent->node->close();
 
@@ -202,7 +214,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     return true;
   }
   else {
-    log_msg("Error in swift: %s\n",response.getReason().c_str());
+    LOG(ERROR)<<"Error in swift: "<<response.getReason();
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
@@ -262,7 +274,7 @@ std::vector<BackendItem>* FUSESwift::SwiftBackend::list() {
 		return nullptr;
 	SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
 	if(res->getError().code != SwiftError::SWIFT_OK) {
-	  log_msg("Error in getting list of files in Swiftbackend:%s\n",res->getError().toString().c_str());
+	  LOG(ERROR)<<"Error in getting list of files in Swiftbackend:"<<res->getError().toString();
 		return nullptr;
 	}
 	vector<BackendItem>* listFiles = new vector<BackendItem>();
@@ -288,11 +300,11 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
       return false;
   Object obj(defaultContainer,convertToSwiftName(_removeEvent->fullPathBuffer));
   SwiftResult<std::istream*>* delResult = obj.swiftDeleteObject();
-  log_msg("Sync: remove fullpathBuffer:%s SwiftName:%s httpresponseMsg:%s\n",
-      _removeEvent->fullPathBuffer.c_str(),obj.getName().c_str(),
-      delResult->getResponse()->getReason().c_str());
+  LOG(ERROR)<<"Sync: remove fullpathBuffer:"<< _removeEvent->fullPathBuffer<<
+      " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
+      delResult->getResponse()->getReason();
   if(delResult->getError().code != SwiftError::SWIFT_OK) {
-    log_msg("Error in swift delete: %s\n",delResult->getError().toString().c_str());
+    LOG(ERROR)<<"Error in swift delete: "<<delResult->getError().toString();
     return false;
   }
   else
@@ -307,7 +319,7 @@ istream* SwiftBackend::get(const SyncEvent* _getEvent) {
   Object obj(defaultContainer,convertToSwiftName(_getEvent->fullPathBuffer));
   SwiftResult<std::istream*>* res = obj.swiftGetObjectContent();
   if(res->getError().code != SwiftError::SWIFT_OK) {
-    log_msg("Swift Error: Downloading obj:%s\n",res->getError().toString().c_str());
+    LOG(ERROR)<<"Swift Error: Downloading obj:"<<res->getError().toString();
     return nullptr;
   }
   else

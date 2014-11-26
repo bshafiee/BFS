@@ -22,14 +22,13 @@ namespace FUSESwift {
 
 FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):Node(_name,_fullPath),
     isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),
-    mustDeleted(false), isRem(_isRemote),
+    mustDeleted(false), hasInformedDelete(false),isRem(_isRemote),
     mustInformRemoteOwner(true), moving(false) {
 	/*if(_isRemote)
 		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
 
 FileNode::~FileNode() {
-  //Release readbuffer
   //delete readBuffer;
   for(auto it = dataList.begin();it != dataList.end();it++) {
     char *block = *it;
@@ -44,7 +43,7 @@ FileNode::~FileNode() {
     FileNode* child = (FileNode*)children.begin()->second;
     string key = children.begin()->first;
     if(child)
-      child->signalDelete(mustInformRemoteOwner);//children loop is not valid after one delete
+      FileSystem::getInstance().signalDeleteNode(child,mustInformRemoteOwner);//children loop is not valid after one delete
     //Sometimes it won't be delete so we'll delete it if exist
     children.erase(key);
     childrenSize--;
@@ -353,7 +352,7 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
   it = children.find(_newName);
   if(it != children.end()) {
     FileNode* existingNodes = (FileNode*)(it->second);
-    existingNodes->signalDelete(true);
+    FileSystem::getInstance().signalDeleteNode(existingNodes,true);
     //children.erase(it);
   }
 
@@ -385,8 +384,10 @@ void FileNode::close() {
   			this->setNeedSync(false);
 
   	//If all refrences to this files are deleted so it can be deleted
-  	if(mustDeleted)
-  	  signalDelete(mustInformRemoteOwner);//It's close now! so will be removed
+  	if(mustDeleted){
+  	  LOG(ERROR)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
+  	  FileSystem::getInstance().signalDeleteNode(this,mustInformRemoteOwner);//It's close now! so will be removed
+  	}
   }
   else {
     /*int refs = refCount;
@@ -406,7 +407,7 @@ void FUSESwift::FileNode::setNeedSync(bool _need) {
 }
 
 bool FileNode::isOpen() {
-  return refCount;
+  return refCount>0;
 }
 
 std::string FileNode::getMD5() {
@@ -422,10 +423,12 @@ std::string FileNode::getMD5() {
   return Poco::DigestEngine::digestToHex(md5.digest());
 }
 
-bool FileNode::signalDelete(bool _informRemoteOwner) {
+bool FileNode::signalDelete2(bool _informRemoteOwner) {
   //1) MustBeDeleted True
   mustDeleted = true;
   mustInformRemoteOwner = _informRemoteOwner;
+
+  LOG(ERROR)<<"SIGNAL DELETE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<key<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
 
   //2) Remove parent->thisnode link so it won't show up anymore
   FileNode* parent = findParent();
@@ -433,14 +436,14 @@ bool FileNode::signalDelete(bool _informRemoteOwner) {
     parent->childRemove(this->key);
   //Nobody can open this file anymore!
 
-  //3)) Inform rest of World that I'm gone
-  if(!isRemote())
-    ZooHandler::getInstance().publishListOfFiles();
-
   //4) if is open just return and we'll come back later
 	if(isOpen()){
 	  return true;//will be deleted on close
 	}
+
+  //3)) Inform rest of World that I'm gone
+  if(!isRemote())
+    ZooHandler::getInstance().publishListOfFiles();
 
 	//Not open so delete right away
 	bool resultRemote = true;
@@ -453,7 +456,7 @@ bool FileNode::signalDelete(bool _informRemoteOwner) {
 
   delete this;//this will recursively call signalDelete on all kids of this node
 
-  LOG(ERROR)<<"SIGNAL DELETE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<key<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
+  //LOG(ERROR)<<"SIGNAL DELETE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<key<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
   return resultRemote;
 }
 

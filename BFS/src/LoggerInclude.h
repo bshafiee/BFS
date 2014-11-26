@@ -11,7 +11,8 @@
 
 #define _ELPP_THREAD_SAFE 1
 #define _ELPP_STL_LOGGING 1
-#define _ELPP_STACKTRACE_ON_CRASH 1
+#define _ELPP_STACKTRACE_ON_CRASH 0
+#define _ELPP_DISABLE_DEFAULT_CRASH_HANDLING 1
 #include <easylogging++.h>
 
 

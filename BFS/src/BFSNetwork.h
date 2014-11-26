@@ -105,6 +105,14 @@ namespace FUSESwift {
 #define ACK_TIMEOUT 1000l//miliseconds
 #define HEADER_LEN 38
 
+#ifndef likely
+#define likely(x)       __builtin_expect((x),1)
+#endif
+
+#ifndef unlikely
+#define unlikely(x)     __builtin_expect((x),0)
+#endif
+
 
 struct __attribute__ ((__packed__)) ReadReqPacket {
 	unsigned char dstMac[6];
@@ -273,11 +281,15 @@ private:
   std::vector<T> queue;
   std::mutex mutex;
   std::condition_variable cond;
+  std::atomic<bool>isRunning;
  public:
+  Queue ():isRunning(true) {}
   T pop() {
     std::unique_lock<std::mutex> mlock(mutex);
     while (queue.empty()) {
       cond.wait(mlock);
+      if(unlikely(!isRunning))
+        return nullptr;
     }
     auto item = queue.front();
     queue.erase(queue.begin());
@@ -288,6 +300,8 @@ private:
 		std::unique_lock<std::mutex> mlock(mutex);
 		while (queue.empty()) {
 			cond.wait(mlock);
+			if(unlikely(!isRunning))
+        return nullptr;
 		}
 		auto item = queue.front();
 		return item;
@@ -331,6 +345,11 @@ private:
     std::lock_guard<std::mutex> lock(mutex);
   	return queue.size();
   }
+
+  void stop() {
+    isRunning = false;
+    cond.notify_all();
+  }
 };
 
 enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2,
@@ -356,6 +375,7 @@ private:
 	static unsigned char MAC[6];
 	//Variables
 	static std::atomic<bool> isRunning;
+	static std::atomic<bool> rcvLoopDead;
 	static taskMap<uint32_t,ReadRcvTask*> readRcvTasks;
 	static taskMap<uint32_t,ReadRcvTask*> attribRcvTasks;
 	static taskMap<uint32_t,WriteDataTask> writeDataTasks;

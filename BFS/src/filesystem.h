@@ -26,13 +26,18 @@ class FileSystem: public Tree {
   //Singleton instance
   static FileSystem *mInstance;
   FileSystem(FileNode* _root);
-  FileNode* searchNode(FileNode* _parent, std::string _name, bool _isDir);
   FileNode* traversePathToParent(const std::string &_path);
   //inode handling
   std::atomic<uint64_t> inodeCounter;
-  std::unordered_map<uint64_t,intptr_t> inodeMap;//inode to file map
+  std::unordered_map<uint64_t,std::pair<intptr_t,bool>> inodeMap;//inode to file map
   std::unordered_map<intptr_t,std::list<uint64_t> > nodeInodeMap;//node to inodes map
   std::mutex inodeMapMutex;
+  //Delete queue
+  std::mutex deleteQueueMutex;
+  std::list<FileNode*> deleteQueue;
+
+  FileNode* mkFile(FileNode* _parent, const std::string &_name,bool _isRemote,bool _open);
+  FileNode* mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote);
 public:
   //Constants
   static const size_t blockSize = 1024*512;
@@ -41,12 +46,8 @@ public:
   void initialize(FileNode* _root);
   static FileSystem& getInstance();
   virtual ~FileSystem();
-  FileNode* mkFile(FileNode* _parent, const std::string &_name,bool _isRemote);
-  FileNode* mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote);
-  FileNode* mkFile(const std::string &_path,bool _isRemote);
+  FileNode* mkFile(const std::string &_path,bool _isRemote,bool _open);
   FileNode* mkDirectory(const std::string &_path,bool _isRemote);
-  FileNode* searchFile(FileNode* _parent, const std::string &_name);
-  FileNode* searchDir(FileNode* _parent, const std::string &_name);
   FileNode* getNode(const std::string &_path);
   FileNode* findParent(const std::string &_path);
   std::string getFileNameFromPath(const std::string &_path);
@@ -86,6 +87,9 @@ public:
   uint64_t assignINodeNum(intptr_t _nodePtr);
   void replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr);
   void removeINodeEntry(uint64_t _inodeNum);
+
+  //Signal Delete Node
+  bool signalDeleteNode(FileNode* _node,bool _informRemoteOwner);
 };
 
 } /* namespace FUSESwift */

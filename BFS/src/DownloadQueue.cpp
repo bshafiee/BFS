@@ -62,12 +62,10 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	}
 	//Now create a file in FS
 	//handle directories
-	FileNode* parent = FileSystem::getInstance().createHierarchy(_event->fullPathBuffer);
 	string fileName = FileSystem::getInstance().getFileNameFromPath(_event->fullPathBuffer);
-	FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName,false);
-	newFile->open();
+	FileNode *newFile = FileSystem::getInstance().mkFile(fileName,false,true);
 	fprintf(stderr,"DOWNLOADING: %s\n",newFile->getFullPath().c_str());
-	newFile->close();
+	newFile->close();//create and open operation
 	//Make a fake event to check if the file has been deleted
 	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content

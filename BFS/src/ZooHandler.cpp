@@ -529,10 +529,10 @@ void ZooHandler::updateGlobalView() {
 		buffer = nullptr;
 	}
 
-	string glob;
+	/*string glob;
 	for(ZooNode node:globalView)
 	  glob+= "{"+node.toString()+"}\n";
-	LOG(ERROR)<<"GLOBAL VIEW UPDATED:"<<glob<<endl;
+	LOG(ERROR)<<"GLOBAL VIEW UPDATED:"<<glob<<endl;*/
 
 	//Now we have a fresh globalView! So update list of remote files if our FS!
 	updateRemoteFilesInFS();
@@ -570,10 +570,10 @@ void ZooHandler::updateRemoteFilesInFS() {
 		if(fileNode!=nullptr)
 			continue;
 		//Now create a file in FS
-		FileNode* parent = FileSystem::getInstance().createHierarchy(item.first);
 		string fileName = FileSystem::getInstance().getFileNameFromPath(item.first);
-		FileNode *newFile = FileSystem::getInstance().mkFile(parent, fileName,true);
+		FileNode *newFile = FileSystem::getInstance().mkFile(fileName,true,true);
 		newFile->setRemoteHostMAC(item.second.MAC);
+		newFile->close();//create and open operation
 		printf("created:%s hostName:%s MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
 				item.first.c_str(),item.second.hostName.c_str(),item.second.MAC[0],
 				item.second.MAC[1],item.second.MAC[2],item.second.MAC[3],
@@ -618,7 +618,7 @@ void ZooHandler::updateRemoteFilesInFS() {
 	  if(!exist) {
 	    //LOG(ERROR)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
 	    //fflush(stderr);
-	    file->signalDelete(false);
+	    FileSystem::getInstance().signalDeleteNode(file,false);
 	  }
 	}
 
@@ -721,6 +721,7 @@ void ZooHandler::stopZooHandler() {
   sessionState = ZOO_EXPIRED_SESSION_STATE;
   zookeeper_close(zh);
   zh = nullptr;
+  LOG(ERROR)<<"ZOOHANDLER LOOP DEAD!";
 }
 
 }	//Namespace
