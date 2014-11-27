@@ -372,7 +372,7 @@ bool FileNode::open() {
   return true;
 }
 
-void FileNode::close() {
+void FileNode::close(uint64_t _inodeNum) {
   refCount--;
   /**
    * add event to sync queue if all the refrences to this file
@@ -394,6 +394,9 @@ void FileNode::close() {
     bool needs = needSync;
     log_msg("UPDATE Event File:%s  but: refCount:%d  needSync:%d\n",getFullPath().c_str(),refs,needs);*/
   }
+
+  //we can earse ionode num from map as well
+  FileSystem::getInstance().removeINodeEntry(_inodeNum);
 }
 
 bool FUSESwift::FileNode::getNeedSync() {
@@ -681,7 +684,7 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
 
     string filePath = getFullPath();
     setMoving(true);//Nobody is going to write to this file anymore
-    close();
+    close(0);
 
     if(FileSystem::getInstance().moveToRemoteNode(this)) {
       FileNode *newNode = FileSystem::getInstance().getNode(filePath);

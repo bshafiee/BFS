@@ -138,7 +138,7 @@ public:
 
   bool isDirectory();
   bool open();
-  void close();
+  void close(uint64_t _inodeNum);
   bool isOpen();
   /**
    * When a file is being removed it might be open yet!

@@ -145,6 +145,7 @@ FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
 }
 
 FileNode* FileSystem::getNode(const std::string &_path) {
+  lock_guard<mutex> lk(deleteQueueMutex);
   //Root
   if (_path == FileSystem::delimiter)
     return root;
@@ -405,8 +406,11 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
         nodeInodeMap.erase(nodeVal);
     }
   }
-  else
-    LOG(ERROR)<<"Cannot find corresponding intptr_t in inodeMap";
+  else{
+    if(_inodeNum != 0)
+      int ia;
+    LOG(ERROR)<<"Cannot find corresponding intptr_t in inodeMap:"<<_inodeNum;
+  }
 
   //Finally remove _inode
   inodeMap.erase(_inodeNum);

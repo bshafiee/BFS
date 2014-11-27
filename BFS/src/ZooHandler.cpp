@@ -572,8 +572,9 @@ void ZooHandler::updateRemoteFilesInFS() {
 		//Now create a file in FS
 		string fileName = FileSystem::getInstance().getFileNameFromPath(item.first);
 		FileNode *newFile = FileSystem::getInstance().mkFile(fileName,true,true);
+		uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
 		newFile->setRemoteHostMAC(item.second.MAC);
-		newFile->close();//create and open operation
+		newFile->close(inodeNum);//create and open operation
 		printf("created:%s hostName:%s MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
 				item.first.c_str(),item.second.hostName.c_str(),item.second.MAC[0],
 				item.second.MAC[1],item.second.MAC[2],item.second.MAC[3],

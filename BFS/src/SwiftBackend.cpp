@@ -65,6 +65,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   //get lock delete so file won't be deleted
   if(!_putEvent->node->open())
     return false;
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)_putEvent->node);
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
@@ -77,7 +78,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   //CheckEvent validity
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
     //release file delete lock, so they can delete it
-    _putEvent->node->close();
+    _putEvent->node->close(inodeNum);
     delete res;
     return false;
   }
@@ -90,7 +91,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
           " did not change with compare to remote version, MD5:"<<
           _putEvent->node->getMD5();
       //release file delete lock, so they can delete it
-      _putEvent->node->close();
+      _putEvent->node->close(inodeNum);
       delete res;
       return true;
     }
@@ -106,7 +107,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   ostream *outStream = nullptr;
 
   if(_putEvent->node->mustBeDeleted()){
-    _putEvent->node->close();
+    _putEvent->node->close(inodeNum);
     delete res;
     if(shouldDeleteOBJ)delete obj;
     return false;
@@ -120,11 +121,9 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     if(shouldDeleteOBJ) delete obj;
     delete res;
     //release file delete lock, so they can delete it
-    _putEvent->node->close();
+    _putEvent->node->close(inodeNum);
     return false;
   }
-  //release file delete lock, so they can delete it
-  _putEvent->node->close();
 
   //Ready to write (write each time a blocksize)
   uint64_t buffSize = 1024l*1024l*10l;
@@ -133,11 +132,9 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   long read = 0;
   //FileNode *node = _putEvent->node;
   do {
-    //node = FileSystem::getInstance().getNode(nameBackup);
-    //if(node == nullptr)
-      //break;
     //CheckEvent validity
     if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
+      _putEvent->node->close(inodeNum);
       delete chunkedResult;
       if(shouldDeleteOBJ) delete obj;
       delete res;
@@ -146,7 +143,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     }
 
     if(_putEvent->node->mustBeDeleted()){//Check Delete
-      _putEvent->node->close();
+      _putEvent->node->close(inodeNum);
       delete chunkedResult;
       delete res;
       if(shouldDeleteOBJ) delete obj;
@@ -155,20 +152,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     }
 
     //get lock delete so file won't be deleted
-    if(_putEvent->node->open()){
-      read = _putEvent->node->read(buff,offset,buffSize);
-      //get lock delete so file won't be deleted
-      _putEvent->node->close();
-    }
-    else{
-      _putEvent->node->close();
-      delete chunkedResult;
-      delete res;
-      if(shouldDeleteOBJ) delete obj;
-      delete []buff;
-      return false;
-    }
-
+    read = _putEvent->node->read(buff,offset,buffSize);
 
 
     offset += read;
@@ -177,36 +161,19 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   while(read > 0);
 
   if(_putEvent->node->mustBeDeleted()){//Check Delete
-    _putEvent->node->close();
+    _putEvent->node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
     delete []buff;
     return false;
   }
-
-
-  if(_putEvent->node->mustBeDeleted()){//Check Delete
-    _putEvent->node->close();
-    delete chunkedResult;
-    delete res;
-    if(shouldDeleteOBJ) delete obj;
-    delete []buff;
-    return false;
-  }
-
-  //get lock delete so file won't be deleted
-  _putEvent->node->open();
-  LOG(ERROR)<<"Sync: File:"<<_putEvent->node->getFullPath()<<
-      " sent:"<<offset<<" bytes, filesize:"<<_putEvent->node->getSize()<<
-      ", MD5:"<< _putEvent->node->getMD5()<<" ObjName:"<<obj->getName();
-  //get lock delete so file won't be deleted
-  _putEvent->node->close();
 
   //Now send object
   Poco::Net::HTTPResponse response;
   chunkedResult->getPayload()->receiveResponse(response);
   if(response.getStatus() == response.HTTP_CREATED) {
+    _putEvent->node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
@@ -215,6 +182,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   }
   else {
     LOG(ERROR)<<"Error in swift: "<<response.getReason();
+    _putEvent->node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;

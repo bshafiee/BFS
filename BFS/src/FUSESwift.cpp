@@ -45,9 +45,10 @@ int swift_getattr(const char *path, struct stat *stbuff) {
   if(!node->open())//protect against delete
     return -ENOENT;
 
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
   bool res = node->getStat(stbuff);
   //Fill Stat struct
-  node->close();
+  node->close(inodeNum);
 
   if(DEBUG_GET_ATTRIB)
     log_stat(stbuff);
@@ -98,6 +99,8 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
         return -ENOENT;
       }
 
+      uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+
       //File created successfully
       newFile->setMode(mode); //Mode
       unsigned long now = time(0);
@@ -108,7 +111,7 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
       newFile->setGID(fuseContext.gid);    //gid
       newFile->setUID(fuseContext.uid);    //uid
 
-      newFile->close();//It's a create and open operation
+      newFile->close(inodeNum);//It's a create and open operation
     } else {//Remote file
       LOG(ERROR) <<"Failure, NOT ENOUGH SPACE, GOINT TO CREATE REMOTE FILE. UTIL:"<<MemoryContorller::getInstance().getMemoryUtilization();
       if(FileSystem::getInstance().createRemoteFile(pathStr))
@@ -418,9 +421,9 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   LOG(ERROR)<<"CLOSE: ptr:"<<node;
   LOG(ERROR)<<node->getFullPath();
   //Now we can safetly close it!
-  node->close();
+  node->close(fi->fh);
   //we can earse ionode num from map as well
-  FileSystem::getInstance().removeINodeEntry(fi->fh);
+  //FileSystem::getInstance().removeINodeEntry(fi->fh);
   if(DEBUG_RELEASE) {
     log_msg("\nbb_release(name=\"%s\", fi=0x%08x) \n", pathStr.c_str(), fi);
     log_fi(fi);
@@ -499,6 +502,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 
   if(!node->open())//protect against clsoe
     return -ENOENT;
+  uint64_t inodeNumDIR = FileSystem::getInstance().assignINodeNum((intptr_t)node);
 
   int retstat = 0;
 
@@ -521,22 +525,24 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     if(!entry->open()) {//protect against delete
       continue;
     }
+    uint64_t inodeNumEntry = FileSystem::getInstance().assignINodeNum((intptr_t)entry);
+
     entry->getStat(&st);
     if (filler(buf, entry->getName().c_str(), &st, 0)) {
       log_msg("swift_readdir filler error\n");
-      entry->close();//protect against delete
-      node->close();
+      entry->close(inodeNumDIR);//protect against delete
+      node->close(inodeNumEntry);
       node->childrenUnlock();
-      return EIO;
+      return -EIO;
     }
-    entry->close();//protect against delete
+    entry->close(inodeNumEntry);//protect against delete
   }
   node->childrenUnlock();
 
   if(DEBUG_READDIR)
     log_msg("readdir successful: %d entry on Path:%s\n", node->childrenSize(),node->getName().c_str());
 
-  node->close();
+  node->close(inodeNumDIR);
 
   return retstat;
 }
@@ -554,9 +560,9 @@ int swift_releasedir(const char* path, struct fuse_file_info* fi) {
   FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
   //Update modification time
   node->setMTime(time(0));
-  node->close();
+  node->close(fi->fh);
   //we can earse ionode num from map as well
-  FileSystem::getInstance().removeINodeEntry(fi->fh);
+  //FileSystem::getInstance().removeINodeEntry(fi->fh);
 
   if(DEBUG_RELEASEDIR) {
     log_msg("\nbb_releasedir(path=\"%s\", fi=0x%08x) isStillOpen?%d \n", path, fi, node->isOpen());
@@ -651,12 +657,13 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
 
   if(!node->open())
     return -ENOENT;
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
   bool res;
   if(node->isRemote())
     res = node->truncateRemote(size);
   else
     res = node->truncate(size);
-  node->close();
+  node->close(inodeNum);
 
   if(!res) {
     log_msg("error swift_ftruncate: truncate failed: %s newSize:%zu\n", path,node->getSize());

@@ -278,6 +278,9 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 		return;
 	}
 
+	//File is Open so assign inode number
+	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+
 	uint64_t localOffset = 0;
 	//Now we have the file node!
   while(left > 0) {
@@ -324,7 +327,7 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
   }
 
   //close file
-  fNode->close();
+  fNode->close(inodeNum);
   _task.size = total;
 
 }
@@ -360,6 +363,7 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
   //1) find file
   FileNode* file = FileSystem::getInstance().getNode(_moveTask.fileName);
   if(file != nullptr && file->open()) { //2) Open file
+    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)file);
     //3)check size
     struct stat st;
     if(file->getStat(&st)) {
@@ -407,7 +411,7 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
       LOG(ERROR) <<"Get Remote File Stat FAILED:"<<_moveTask.fileName;
     }
 
-    file->close();
+    file->close(inodeNum);
   } else {
     LOG(ERROR) <<"Cannot find fileNode:"<<_moveTask.fileName;
   }
@@ -887,7 +891,7 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 	if(offset+size  == taskIt->second.size+taskIt->second.offset) {
 	  //set sync flag and Close file
 	  fNode->setNeedSync(true);
-	  fNode->close();
+	  fNode->close(taskIt->second.inodeNum);
 		//Send ACK
 		char buffer[MTU];
 		WriteDataPacket *writeAck = (WriteDataPacket *)buffer;
@@ -937,7 +941,9 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
   else {
     //Open file
     if(fNode->open()) {//Will be closed when the write operation is finished.
-      //Put it on the rcvTask map!
+      uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+      writeTask.inodeNum = inodeNum;
+      //Put it on writeDataTask!
       auto resPair = writeDataTasks.insert(writeTask.fileID,writeTask);
       if(resPair.second){
         return;
@@ -947,7 +953,7 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
     }
   }
 
-  fNode->close();//Close file
+  //fNode->close();//Close file
   //FAILED! send NACK
   //Send ACK
   char buffer[MTU];
@@ -1066,10 +1072,11 @@ void BFSNetwork::onAttribReqPacket(const u_char *_packet) {
 	string fileName(reqPacket->fileName);
 	FileNode* fNode = FileSystem::getInstance().getNode(fileName);
 	if(fNode!=nullptr && fNode->open()) {
+	  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
 		//Offset is irrelevant here and we use it for indicating success for failure
 		attribResPacket->offset = be64toh(1);
 		fNode->getStat((struct stat*)attribResPacket->data);
-		fNode->close();
+		fNode->close(inodeNum);
 	}
 	else{
 		attribResPacket->offset = be64toh(0);//zero is zero anyway...
@@ -1279,11 +1286,12 @@ void BFSNetwork::onTruncateReqPacket(const u_char* _packet) {
     LOG(ERROR)<<" File Not found:"<<fileName;
     return;
   }
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
 
   LOG(ERROR)<<"AVAILBLE MEMORY BEF: "<<MemoryContorller::getInstance().getAvailableMemory();
 
   bool res = fNode->truncate(newSize);
-  fNode->close();
+  fNode->close(inodeNum);
 
   if(res)//Success
     truncateAck->size = htobe64(newSize);
@@ -1424,8 +1432,9 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
       return;//The response will be sent later
     } else { //overwrite file=>truncate to 0
       if(existing->open()){
+        uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)existing);
         res = existing->truncate(0);
-        existing->close();
+        existing->close(inodeNum);
       } else
         res = false;
     }

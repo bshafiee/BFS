@@ -222,6 +222,7 @@ struct WriteDataTask {
 	uint32_t fileID;
 	uint64_t offset;
 	uint64_t size;
+	uint64_t inodeNum;
 	bool failed;
 	unsigned char requestorMac[6];
 };

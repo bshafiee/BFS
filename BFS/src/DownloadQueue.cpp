@@ -63,9 +63,10 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	//Now create a file in FS
 	//handle directories
 	string fileName = FileSystem::getInstance().getFileNameFromPath(_event->fullPathBuffer);
-	FileNode *newFile = FileSystem::getInstance().mkFile(fileName,false,true);
+	FileNode *newFile = FileSystem::getInstance().mkFile(fileName,false,true);//open
+	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
 	fprintf(stderr,"DOWNLOADING: %s\n",newFile->getFullPath().c_str());
-	newFile->close();//create and open operation
+
 	//Make a fake event to check if the file has been deleted
 	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content
@@ -74,8 +75,10 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	while(iStream->eof() == false) {
 	  iStream->read(buff,FileSystem::blockSize);
 
-	  if(!newFile->open())
-	    break;
+	  if(newFile->mustBeDeleted()){
+	    newFile->close(inodeNum);
+	    return;
+	  }
 
 	  FileNode* afterMove = nullptr;
     int retCode = newFile->writeHandler(buff,offset,iStream->gcount(),afterMove);
@@ -87,13 +90,14 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
     //Check space availability
 	  if(retCode < 0) {
 	    log_msg("Error in writing file:%s, probably no diskspace, Code:%d\n",newFile->getFullPath().c_str(),retCode);
-	    newFile->close();
+	    newFile->close(inodeNum);
 	    return;
 	  }
 
-	  newFile->close();
 	  offset += iStream->gcount();
 	}
+
+	newFile->close(inodeNum);
 }
 
 void DownloadQueue::processDownloadMetadata(const SyncEvent* _event) {
