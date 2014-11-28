@@ -140,12 +140,6 @@ public:
   bool open();
   void close(uint64_t _inodeNum);
   bool isOpen();
-  /**
-   * When a file is being removed it might be open yet!
-   * therefore, we indicate this file should be removed after all
-   * the references to it being closed!
-   */
-  bool signalDelete2(bool _informRemoteOwner);
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   long readRemote(char* _data, size_t _offset, size_t _size);

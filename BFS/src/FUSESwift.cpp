@@ -35,15 +35,12 @@ int swift_getattr(const char *path, struct stat *stbuff) {
     log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n", path, stbuff);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance().getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr) {
     if(DEBUG_GET_ATTRIB)
       log_msg("swift_getattr: Node not found: %s\n", path);
     return -ENOENT;
   }
-
-  if(!node->open())//protect against delete
-    return -ENOENT;
 
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
   bool res = node->getStat(stbuff);
@@ -75,9 +72,13 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
 
   //Check if already exist! if yes truncate it!
 	string pathStr(path, strlen(path));
-	FileNode* node = FileSystem::getInstance().getNode(pathStr);
+	FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
 	if (node != nullptr)
 	{
+	  //Close it! so it can be removed if needed
+    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+    node->close(inodeNum);
+
 	  LOG(ERROR)<<("Failure, Existing file! truncating to 0!");
 		return swift_ftruncate(path,0,nullptr);
 	}
@@ -176,14 +177,21 @@ int swift_unlink(const char* path) {
 
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance().getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_unlink: Node not found: %s\n", path);
     return -ENOENT;
   }
+  //Close it! so it can be removed if needed
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  node->close(inodeNum);
+
   LOG(ERROR)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getName()<<" isOpen?"<<node->isOpen()<<" isRemote():"<<node->isRemote();
-  if(!FileSystem::getInstance().signalDeleteNode(node,true))
+  if(!FileSystem::getInstance().signalDeleteNode(node,true)){
+    LOG(ERROR)<<"DELETE FAILED FOR:"<<path;
     return -EIO;
+  }
+  ZooHandler::getInstance().requestUpdateGlobalView();
 
   if(DEBUG_UNLINK)
     //log_msg("Removed %d nodes from %s file.\n", remNodes, path);
@@ -198,15 +206,21 @@ int swift_rmdir(const char* path) {
 
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance().getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_rmdir: Node not found: %s\n", path);
     return -ENOENT;
   }
 
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  node->close(inodeNum);
 
-  if(!FileSystem::getInstance().signalDeleteNode(node,true))
+  if(!FileSystem::getInstance().signalDeleteNode(node,true)){
+    LOG(ERROR)<<"DELETE FAILED FOR:"<<path;
     return -EIO;
+  }
+  ZooHandler::getInstance().requestUpdateGlobalView();
+
   if(DEBUG_RMDIR)
     log_msg("Removed nodes from %s dir.\n", path);
 
@@ -274,7 +288,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
     log_msg("\nbb_open(path=\"%s\", fi=0x%08x fh=0x%08x)\n", path, fi,fi->fh);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance().getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr || node->mustBeDeleted()) {
     if(node == nullptr)
       LOG(ERROR)<<"Failure, cannot Open Node not found: "<<path;
@@ -283,12 +297,12 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
     fi->fh = 0;
     return -ENOENT;
   }
-  bool res = node->open();
+
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
-  if(res && inodeNum!=0) {
+  if(inodeNum!=0) {
 		fi->fh = inodeNum;
-		LOG(ERROR)<<"ptr:"<<node;
-		LOG(ERROR)<<"OPEN:"<<node->getFullPath();
+		//LOG(ERROR)<<"ptr:"<<node;
+		//LOG(ERROR)<<"OPEN:"<<node->getFullPath();
 		return 0;
   }
   else {
@@ -418,8 +432,8 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   //Node might get deleted after close! so no reference to it anymore!
   //Debug info backup
   string pathStr = node->getFullPath();
-  LOG(ERROR)<<"CLOSE: ptr:"<<node;
-  LOG(ERROR)<<node->getFullPath();
+  //LOG(ERROR)<<"CLOSE: ptr:"<<node;
+  //LOG(ERROR)<<node->getFullPath();
   //Now we can safetly close it!
   node->close(fi->fh);
   //we can earse ionode num from map as well
@@ -458,15 +472,15 @@ int swift_opendir(const char* path, struct fuse_file_info* fi) {
     log_msg("\nbb_opendir(path=\"%s\", fi=0x%08x)\n", path, fi);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance().getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_opendir: swift_opendir: Node not found: %s\n", path);
     fi->fh = 0;
     return -ENOENT;
   }
-  bool res = node->open();
+
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
-    if(res && inodeNum != 0) {
+  if(inodeNum != 0) {
     fi->fh = inodeNum;
     return 0;
   } else {
@@ -491,7 +505,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
   else if(path != nullptr) {
     //Get associated FileNode*
     string pathStr(path, strlen(path));
-    node = FileSystem::getInstance().getNode(pathStr);
+    node = FileSystem::getInstance().findAndOpenNode(pathStr);
   }
   else
     node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
@@ -500,8 +514,6 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
   if(node == nullptr)
     return -ENOENT;
 
-  if(!node->open())//protect against clsoe
-    return -ENOENT;
   uint64_t inodeNumDIR = FileSystem::getInstance().assignINodeNum((intptr_t)node);
 
   int retstat = 0;
@@ -616,7 +628,7 @@ int swift_access(const char* path, int mask) {
   return retstat;
 }
 
-int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+/*int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
   if(S_ISREG(mode)) {
     if(swift_open(path,fi) == 0)
       return 0;//Success
@@ -633,13 +645,13 @@ int swift_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
 
   LOG(ERROR)<<"Failure, Error in create.";
   return -EIO;
-}
+}*/
 
 int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   log_msg("\nswift_ftruncate(path=\"%s\", fi:%p newsize:%zu )\n", path,fi,size);
   //Get associated FileNode*
   string pathStr(path, strlen(path));
-  FileNode* node = FileSystem::getInstance().getNode(pathStr);
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr) {
     log_msg("swift_ftruncate: error swift_ftruncate: Node not found: %s\n", path);
     return -ENOENT;
@@ -647,17 +659,18 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   else
     log_msg("swift_ftruncate: Truncating:%s from:%zu to:%zu bytes\n", path,node->getSize(),size);
 
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+
   //Checking Space availability
   size_t diff = size - node->getSize();
   if(diff > 0)
     if(!MemoryContorller::getInstance().checkPossibility(diff)) {
       log_msg("error swift_ftruncate: truncate failed(not enough space): %s newSize:%zu\n", path,node->getSize());
-      return ENOSPC;
+      node->close(inodeNum);
+      return -ENOSPC;
     }
 
-  if(!node->open())
-    return -ENOENT;
-  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+
   bool res;
   if(node->isRemote())
     res = node->truncateRemote(size);

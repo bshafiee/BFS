@@ -38,7 +38,6 @@ public:
   bool push(SyncEvent* _node);
   SyncEvent* pop();
   long size();
-  size_t workloadSize();
   virtual void startSynchronization() = 0;
   virtual void stopSynchronization() = 0;
   inline bool containsEvent(const SyncEvent* _event);

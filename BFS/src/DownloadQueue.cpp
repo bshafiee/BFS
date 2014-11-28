@@ -40,8 +40,8 @@ void DownloadQueue::addZooTask(vector<string>assignments) {
 
 	//Now we have actully some files to sync(download)
 	for(auto it=assignments.begin();it!=assignments.end();it++) {
-		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,nullptr,*it));
-		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,nullptr,*it));
+		push(new SyncEvent(SyncEventType::DOWNLOAD_CONTENT,*it));
+		push(new SyncEvent(SyncEventType::DOWNLOAD_METADATA,*it));
 		//log_msg("DOWNLOAD QUEUE: pushed %s Event.\n",it->c_str());
 	}
 }
@@ -49,10 +49,14 @@ void DownloadQueue::addZooTask(vector<string>assignments) {
 void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	if(_event == nullptr || _event->fullPathBuffer.length()==0)
 		return;
-	FileNode* fileNode = FileSystem::getInstance().getNode(_event->fullPathBuffer);
+	FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(_event->fullPathBuffer);
 	//If File exist then we won't download it!
-	if(fileNode!=nullptr)
+	if(fileNode!=nullptr){
+	  //Close it! so it can be removed if needed
+    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fileNode);
+    fileNode->close(inodeNum);
 	  return;
+	}
 	//Ask backend to download the file for us
 	Backend *backend = BackendManager::getActiveBackend();
 	istream *iStream = backend->get(_event);
@@ -141,7 +145,7 @@ void DownloadQueue::processEvent(const SyncEvent* _event) {
 		break;
 	default:
 		log_msg("INVALID Event: file:%s TYPE:%S\n",
-				_event->node->getFullPath().c_str(),
+				_event->fullPathBuffer.c_str(),
 				SyncEvent::getEnumString(_event->type).c_str());
 	}
 }

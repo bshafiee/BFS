@@ -42,8 +42,10 @@ FILE *log_open() {
 }
 
 void log_close() {
-  fclose(bb_data->logfile);
-  delete bb_data;
+  if(bb_data && bb_data->logfile) {
+    fclose(bb_data->logfile);
+    delete bb_data;
+  }
 }
 
 void log_msg(const char *format, ...) {

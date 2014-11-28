@@ -102,7 +102,7 @@ namespace FUSESwift {
  *
  */
 
-#define ACK_TIMEOUT 1000l//miliseconds
+#define ACK_TIMEOUT 5000l//miliseconds
 #define HEADER_LEN 38
 
 #ifndef likely
@@ -408,7 +408,7 @@ private:
 	/** Write Operation **/
 	static void processWriteSendTask(WriteSndTask& _task);
 	static void fillWriteDataPacket(WriteDataPacket *_packet,
-			const WriteSndTask &_writeTask);
+			const WriteSndTask &_writeTask,uint64_t _size);
 	static void fillWriteReqPacket(WriteReqPacket* _packet, const unsigned
 			char _dstMAC[6], const WriteSndTask& _sndTask);
 	static void onWriteDataPacket(const u_char *_packet);

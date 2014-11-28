@@ -6,7 +6,7 @@ password = behrooz
 auth_url = http://10.42.0.83:5000/v2.0/tokens
 tenant_name = kos
 #what percentage of system memory to use? (0,1]
-max_mem_coef = 0.6;
+max_mem_coef = 0.00007;
 #zero networking device
 zero_network_dev=eth2
 #Zookeeper configuration

@@ -23,7 +23,7 @@ using namespace Poco;
 namespace FUSESwift {
 
 //initialize static variables
-std::string FileSystem::delimiter = "/";
+const std::string FileSystem::delimiter = "/";
 
 FileSystem::FileSystem(FileNode* _root) :
     Tree(_root), root(_root), inodeCounter(1) {
@@ -144,11 +144,20 @@ FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
   return mkDirectory(parent, name,_isRemote);
 }
 
-FileNode* FileSystem::getNode(const std::string &_path) {
+FileNode* FileSystem::findAndOpenNode(const std::string &_path) {
   lock_guard<mutex> lk(deleteQueueMutex);
+
+  if(unlikely(_path == "")){
+    LOG(ERROR)<<"Invalid find File Request:"<<_path;
+    return nullptr;
+  }
   //Root
-  if (_path == FileSystem::delimiter)
-    return root;
+  if (_path == FileSystem::delimiter){
+    if(root->open())
+      return root;
+    else
+      return nullptr;
+  }
   //Traverse FileSystem Hierarchies
   StringTokenizer tokenizer(_path, FileSystem::delimiter);
   auto it = tokenizer.begin();
@@ -162,7 +171,11 @@ FileNode* FileSystem::getNode(const std::string &_path) {
     Node* node = start->childFind(*it);
     start = (node == nullptr) ? nullptr : (FileNode*) node;
   }
-  return start;
+
+  if(start!=nullptr)
+    if(start->open())
+      return start;
+  return nullptr;
 }
 
 FileNode* FileSystem::findParent(const string &_path) {
@@ -198,7 +211,7 @@ void FileSystem::destroy() {
 }
 
 bool FileSystem::tryRename(const string &_from,const string &_to) {
-  FileNode* node = getNode(_from);
+  FileNode* node = findAndOpenNode(_from);
   if(node == nullptr)
     return false;
 
@@ -214,11 +227,15 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
   if(parentNode == nullptr)
     return false;
 
+  //Close it! so it can be removed if needed
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  node->close(inodeNum);
+
   //Ask  parent to delete this node
   bool result = parentNode->renameChild(node,newName);
   //Add syncQueue event
   if(result)
-    UploadQueue::getInstance().push(new SyncEvent(SyncEventType::RENAME,node,_from));
+    UploadQueue::getInstance().push(new SyncEvent(SyncEventType::RENAME,_from));
   return result;
 }
 
@@ -317,6 +334,8 @@ bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
   if(mostFreeNode.freeSpace < _localFile->getSize()*2) //Could not find a node with enough space :(
     return false;
+  //First advertise the list of files you have to make sure the dst node will see this file
+  ZooHandler::getInstance().publishListOfFiles();
   return BFSNetwork::createRemoteFile(_localFile->getFullPath(),mostFreeNode.MAC);
 }
 
@@ -407,8 +426,6 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
     }
   }
   else{
-    if(_inodeNum != 0)
-      int ia;
     LOG(ERROR)<<"Cannot find corresponding intptr_t in inodeMap:"<<_inodeNum;
   }
 
@@ -469,13 +486,20 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   //3)) Tell Backend that this is gone!
   if(!_node->isRemote())
     if(!_node->hasInformedDelete)//Only once
-    UploadQueue::getInstance().push(
-        new SyncEvent(SyncEventType::DELETE,nullptr,_node->getFullPath()));
+      if(!_node->isMoving())//Not moving nodes
+        UploadQueue::getInstance().push(
+            new SyncEvent(SyncEventType::DELETE,_node->getFullPath()));
 
   //4)) Inform rest of World that I'm gone
   if(!_node->isRemote())
     if(!_node->hasInformedDelete)//Only once
       ZooHandler::getInstance().publishListOfFiles();
+
+  bool resultRemote = true;
+  if(_node->isRemote() && _informRemoteOwner)
+    if(!_node->hasInformedDelete){
+      resultRemote = _node->rmRemote();
+    }
 
   _node->hasInformedDelete = true;
   //5) if is open just return and we'll come back later
@@ -486,9 +510,6 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
 
 
   //6)) FILE DECONTAMINATION YOHAHHA :D
-  bool resultRemote = true;
-  if(_node->isRemote() && _informRemoteOwner)
-    resultRemote = _node->rmRemote();
 
   //Remove from queue
   for(auto it=deleteQueue.begin();it!=deleteQueue.end();it++)
@@ -497,19 +518,21 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       break;
     }
 
-  LOG(ERROR)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+  LOG(ERROR)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
 
   //Update nodeInodemap and inodemap
-  auto res = nodeInodeMap.find((intptr_t)_node);
-  if(res != nodeInodeMap.end()) {//File is still open
-    for(uint64_t inode:res->second) {
-      auto inodeIt = inodeMap.find(inode);
-      if(inodeIt == inodeMap.end())
-        LOG(ERROR)<<"Inconcsitency between inodeMap and nodeInodeMap!";
-      else
-        inodeIt->second.second = true; //Inidicate deleted
+  //if(!_node->isMoving()) {
+    auto res = nodeInodeMap.find((intptr_t)_node);
+    if(res != nodeInodeMap.end()) {//File is still open
+      for(uint64_t inode:res->second) {
+        auto inodeIt = inodeMap.find(inode);
+        if(inodeIt == inodeMap.end())
+          LOG(ERROR)<<"Inconcsitency between inodeMap and nodeInodeMap!";
+        else
+          inodeIt->second.second = true; //Inidicate deleted
+      }
     }
-  }
+  //}
 
   //Actual release of memory!
   delete _node;//this will recursively call signalDelete on all kids of this node

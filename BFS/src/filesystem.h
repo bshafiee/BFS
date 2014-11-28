@@ -41,14 +41,14 @@ class FileSystem: public Tree {
 public:
   //Constants
   static const size_t blockSize = 1024*512;
-  static std::string delimiter;
+  static const std::string delimiter;
   //Functions
   void initialize(FileNode* _root);
   static FileSystem& getInstance();
   virtual ~FileSystem();
   FileNode* mkFile(const std::string &_path,bool _isRemote,bool _open);
   FileNode* mkDirectory(const std::string &_path,bool _isRemote);
-  FileNode* getNode(const std::string &_path);
+  FileNode* findAndOpenNode(const std::string &_path);
   FileNode* findParent(const std::string &_path);
   std::string getFileNameFromPath(const std::string &_path);
   void destroy();

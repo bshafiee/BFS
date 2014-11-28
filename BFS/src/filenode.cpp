@@ -375,18 +375,22 @@ bool FileNode::open() {
 void FileNode::close(uint64_t _inodeNum) {
   refCount--;
   /**
-   * add event to sync queue if all the refrences to this file
+   * add event to sync queue if all the references to this file
    * are closed and it actually needs updating!
    */
+  if(refCount < 0){
+    LOG(ERROR)<<"SPURIOUS CLOSE"<<key;
+  }
   if(refCount == 0) {
-  	if(needSync)
-  		if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this,this->getFullPath())))
+  	if(!mustDeleted && needSync)
+  		if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this->getFullPath())))
   			this->setNeedSync(false);
 
   	//If all refrences to this files are deleted so it can be deleted
   	if(mustDeleted){
   	  LOG(ERROR)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
   	  FileSystem::getInstance().signalDeleteNode(this,mustInformRemoteOwner);//It's close now! so will be removed
+  	  ZooHandler::getInstance().requestUpdateGlobalView();
   	}
   }
   else {
@@ -424,43 +428,6 @@ std::string FileNode::getMD5() {
   //last block might not be full
   md5.update(dataList[dataList.size()-1],blockIndex);
   return Poco::DigestEngine::digestToHex(md5.digest());
-}
-
-bool FileNode::signalDelete2(bool _informRemoteOwner) {
-  //1) MustBeDeleted True
-  mustDeleted = true;
-  mustInformRemoteOwner = _informRemoteOwner;
-
-  LOG(ERROR)<<"SIGNAL DELETE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<key<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
-
-  //2) Remove parent->thisnode link so it won't show up anymore
-  FileNode* parent = findParent();
-  if(parent)
-    parent->childRemove(this->key);
-  //Nobody can open this file anymore!
-
-  //4) if is open just return and we'll come back later
-	if(isOpen()){
-	  return true;//will be deleted on close
-	}
-
-  //3)) Inform rest of World that I'm gone
-  if(!isRemote())
-    ZooHandler::getInstance().publishListOfFiles();
-
-	//Not open so delete right away
-	bool resultRemote = true;
-	if(isRemote() && _informRemoteOwner)
-	  resultRemote = rmRemote();
-
-	//SELF DECONTAMINATION YOHAHHA :D
-  if(!isRemote())
-    UploadQueue::getInstance().push(new SyncEvent(SyncEventType::DELETE,nullptr,getFullPath()));
-
-  delete this;//this will recursively call signalDelete on all kids of this node
-
-  //LOG(ERROR)<<"SIGNAL DELETE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<key<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
-  return resultRemote;
 }
 
 bool FileNode::isRemote() {
@@ -687,8 +654,12 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
     close(0);
 
     if(FileSystem::getInstance().moveToRemoteNode(this)) {
-      FileNode *newNode = FileSystem::getInstance().getNode(filePath);
+      FileNode *newNode = FileSystem::getInstance().findAndOpenNode(filePath);
       if(newNode == nullptr|| !newNode->isRemote()) {
+        //Close it! so it can be removed if needed
+        newNode = FileSystem::getInstance().findAndOpenNode(filePath);
+        uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newNode);
+        newNode->close(inodeNum);
         LOG(ERROR)<<"HollyShit! we just moved "
             "this file:"<<filePath<<" to a remote node! but "
             "Does not exist or is not remote";
@@ -696,7 +667,7 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
       } else {
         // all good ;)
         _afterMoveNewNode = newNode;
-        newNode->open();
+        //newNode->open();//Already opened by findAndOpen
         return newNode->writeRemote(_data, _offset, _size);
       }
     } else {
@@ -707,6 +678,7 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
     }
   }
   //Successfull Write
+  setNeedSync(true);
   return written;
 }
 

@@ -63,11 +63,4 @@ long SyncQueue::size() {
   return list.size();
 }
 
-size_t SyncQueue::workloadSize() {
-  size_t total = 0;
-  for(auto it = list.begin(); it != list.end();++it)
-    total += (*it)->node->getSize();
-  return total;
-}
-
 } /* namespace FUSESwift */

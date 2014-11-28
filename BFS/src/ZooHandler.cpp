@@ -410,7 +410,7 @@ void ZooHandler::publishListOfFiles() {
 	if (sessionState != ZOO_CONNECTED_STATE
 	    || (electionState != ElectionState::LEADER
 	        && electionState != ElectionState::READY)) {
-		//printf("publishListOfFiles(): invalid sessionstate or electionstate\n");
+		LOG(ERROR)<<"publishListOfFiles(): invalid sessionstate or electionstate";
 		return;
 	}
 
@@ -425,15 +425,16 @@ void ZooHandler::publishListOfFiles() {
 	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
 	    str.length(), -1);
 	if (callRes != ZOK) {
-		//printf("publishListOfFiles(): zoo_set failed:%s\n", zerror(callRes));
+	  LOG(ERROR)<<"publishListOfFiles(): zoo_set failed:"<< zerror(callRes);
 		return;
 	}
 
 	//LOG(ERROR)<<"publishListOfFiles successfully:"<<str<<endl;
+	LOG(ERROR)<<"publishListOfFiles successfully.";
 }
 
 std::vector<ZooNode> ZooHandler::getGlobalView() {
-  shared_lock<shared_timed_mutex> lk(lockGlobalView);
+  lock_guard<mutex> lk(lockGlobalView);
 	return globalView;
 }
 
@@ -445,12 +446,12 @@ std::vector<ZooNode> ZooHandler::getGlobalView() {
  * 4)update globalView
  **/
 void ZooHandler::updateGlobalView() {
-  std::unique_lock<std::shared_timed_mutex> lk(lockGlobalView);
+  lock_guard<mutex> lk(lockGlobalView);
 
 	if (sessionState != ZOO_CONNECTED_STATE
 	    || (electionState != ElectionState::LEADER
 	        && electionState != ElectionState::READY)) {
-		printf("updateGlobalView(): invalid sessionstate or electionstate\n");
+		LOG(ERROR)<<"updateGlobalView(): invalid sessionstate or electionstate";
 		return;
 	}
 
@@ -460,8 +461,7 @@ void ZooHandler::updateGlobalView() {
 	String_vector children;
 	int callResult = zoo_wget_children(zh, electionZNode.c_str(), electionFolderWatcher,nullptr, &children);
 	if (callResult != ZOK) {
-		printf("updateGlobalView(): zoo_wget_children failed:%s\n",
-		    zerror(callResult));
+	  LOG(ERROR)<<"updateGlobalView(): zoo_wget_children failed:"<<zerror(callResult);
 		return;
 	}
 	//2)get content of each node and set watch on them
@@ -486,8 +486,7 @@ void ZooHandler::updateGlobalView() {
 		vector<string> nodeFiles;
 		char *tok = strtok(buffer, "\n");
 		if (tok == NULL) {
-			printf("updateGlobalView(): strtok failed. Malform data at:%s\n",
-			    node.c_str());
+		  LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
 			delete[] buffer;
 			buffer = nullptr;
 			continue;
@@ -496,8 +495,7 @@ void ZooHandler::updateGlobalView() {
 
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
-			printf("updateGlobalView(): strtok failed. Malform data at:%s\n",
-					node.c_str());
+		  LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
 			delete[] buffer;
 			buffer = nullptr;
 			continue;
@@ -509,8 +507,7 @@ void ZooHandler::updateGlobalView() {
 
 		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
-			printf("updateGlobalView(): strtok failed. Malform data at:%s\n",
-			    node.c_str());
+		  LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
 			delete[] buffer;
 			buffer = nullptr;
 			continue;
@@ -565,10 +562,13 @@ void ZooHandler::updateRemoteFilesInFS() {
 	}
 
 	for(pair<string,ZooNode> item: newRemoteFiles){
-		FileNode* fileNode = FileSystem::getInstance().getNode(item.first);
+		FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(item.first);
 		//If File exist then we won't create it!
-		if(fileNode!=nullptr)
+		if(fileNode!=nullptr){
+		  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fileNode);
+		  fileNode->close(inodeNum);
 			continue;
+		}
 		//Now create a file in FS
 		string fileName = FileSystem::getInstance().getFileNameFromPath(item.first);
 		FileNode *newFile = FileSystem::getInstance().mkFile(fileName,true,true);
@@ -584,15 +584,18 @@ void ZooHandler::updateRemoteFilesInFS() {
 	//Now remove the localRemoteFiles(remote files which have a pointer in our
 	// fs locally) which don't exist anymore
 	for(string fileName:localFiles) {
-	  FileNode* file = FileSystem::getInstance().getNode(fileName);
+	  FileNode* file = FileSystem::getInstance().findAndOpenNode(fileName);
 	  if(file == nullptr){
 	    fprintf(stderr,"updateRemoteFilesInFS(): ERROR, cannot find "
 	        "corresponding node in filesystem for:%s\n",fileName.c_str());
 	    continue;
 	  }
+	  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)file);
 
-	  if(!file->isRemote())
+	  if(!file->isRemote()){
+	    file->close(inodeNum);
 	    continue;
+	  }
 
 	  bool exist = false;
 	  for(ZooNode node:globalView){
@@ -619,6 +622,7 @@ void ZooHandler::updateRemoteFilesInFS() {
 	  if(!exist) {
 	    //LOG(ERROR)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
 	    //fflush(stderr);
+	    file->close(inodeNum);
 	    FileSystem::getInstance().signalDeleteNode(file,false);
 	  }
 	}
@@ -629,7 +633,8 @@ void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
 	if (type == ZOO_CHANGED_EVENT) {
 		string pathStr(path);
-		//printf("Node %s changed! updating globalview...\n", path);
+		printf("Node %s changed! updating globalview...\n", path);
+		LOG(ERROR)<<"Node "<<path<<" changed! updating globalview...";
 		getInstance().updateGlobalView();
 	}
 }

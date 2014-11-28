@@ -21,7 +21,6 @@
 #include "MasterHandler.h"
 #include "ZooNode.h"
 #include "BFSNetwork.h"
-#include <shared_mutex>
 
 
 namespace FUSESwift {
@@ -46,7 +45,7 @@ private:
 	ElectionState electionState;
 	LeaderOffer leaderOffer;
 	//A hashmap too keep track of which file is at which node!<nodeaddress,list of files>
-	std::shared_timed_mutex lockGlobalView;
+	std::mutex lockGlobalView;
 	std::vector<ZooNode> globalView;
 	//Private Constructor
 	ZooHandler();

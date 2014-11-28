@@ -60,25 +60,25 @@ bool SwiftBackend::initDefaultContainer() {
 
 bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(_putEvent == nullptr || account == nullptr
-      || defaultContainer == nullptr || _putEvent->node == nullptr)
+      || defaultContainer == nullptr || _putEvent->fullPathBuffer == "")
     return false;
-  //get lock delete so file won't be deleted
-  if(!_putEvent->node->open())
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(_putEvent->fullPathBuffer);
+  if(node == nullptr)
     return false;
-  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)_putEvent->node);
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
   if(res->getPayload() != nullptr)
     for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
-      if((*it).getName() == convertToSwiftName(_putEvent->node->getFullPath())) {
+      if((*it).getName() == convertToSwiftName(node->getFullPath())) {
         obj = &(*it);
       }
 
   //CheckEvent validity
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
     //release file delete lock, so they can delete it
-    _putEvent->node->close(inodeNum);
+    node->close(inodeNum);
     delete res;
     return false;
   }
@@ -86,28 +86,28 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   //Check if Obj already exist
   if(obj != nullptr) {
     //check MD5
-    if(obj->getHash() == _putEvent->node->getMD5()) {//No change
-      LOG(ERROR)<<"Sync: File:"<<_putEvent->node->getFullPath()<<
+    if(obj->getHash() == node->getMD5()) {//No change
+      LOG(ERROR)<<"Sync: File:"<<node->getFullPath()<<
           " did not change with compare to remote version, MD5:"<<
-          _putEvent->node->getMD5();
+          node->getMD5();
       //release file delete lock, so they can delete it
-      _putEvent->node->close(inodeNum);
+      node->close(inodeNum);
       delete res;
       return true;
     }
   }
   else {
     shouldDeleteOBJ = true;
-    obj = new Object(defaultContainer,convertToSwiftName(_putEvent->node->getFullPath()));
+    obj = new Object(defaultContainer,convertToSwiftName(node->getFullPath()));
   }
 
   //upload chunk by chunk
   //Make a back up of file name in case it gets deleted while uploading
-  string nameBackup = _putEvent->node->getName();
+  string nameBackup = node->getName();
   ostream *outStream = nullptr;
 
-  if(_putEvent->node->mustBeDeleted()){
-    _putEvent->node->close(inodeNum);
+  if(node->mustBeDeleted()){
+    node->close(inodeNum);
     delete res;
     if(shouldDeleteOBJ)delete obj;
     return false;
@@ -121,7 +121,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     if(shouldDeleteOBJ) delete obj;
     delete res;
     //release file delete lock, so they can delete it
-    _putEvent->node->close(inodeNum);
+    node->close(inodeNum);
     return false;
   }
 
@@ -134,7 +134,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   do {
     //CheckEvent validity
     if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
-      _putEvent->node->close(inodeNum);
+      node->close(inodeNum);
       delete chunkedResult;
       if(shouldDeleteOBJ) delete obj;
       delete res;
@@ -142,8 +142,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       return false;
     }
 
-    if(_putEvent->node->mustBeDeleted()){//Check Delete
-      _putEvent->node->close(inodeNum);
+    if(node->mustBeDeleted()){//Check Delete
+      node->close(inodeNum);
       delete chunkedResult;
       delete res;
       if(shouldDeleteOBJ) delete obj;
@@ -152,7 +152,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     }
 
     //get lock delete so file won't be deleted
-    read = _putEvent->node->read(buff,offset,buffSize);
+    read = node->read(buff,offset,buffSize);
 
 
     offset += read;
@@ -160,8 +160,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   }
   while(read > 0);
 
-  if(_putEvent->node->mustBeDeleted()){//Check Delete
-    _putEvent->node->close(inodeNum);
+  if(node->mustBeDeleted()){//Check Delete
+    node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
@@ -173,7 +173,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   Poco::Net::HTTPResponse response;
   chunkedResult->getPayload()->receiveResponse(response);
   if(response.getStatus() == response.HTTP_CREATED) {
-    _putEvent->node->close(inodeNum);
+    node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
@@ -182,7 +182,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   }
   else {
     LOG(ERROR)<<"Error in swift: "<<response.getReason();
-    _putEvent->node->close(inodeNum);
+    node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
@@ -249,11 +249,14 @@ std::vector<BackendItem>* FUSESwift::SwiftBackend::list() {
 	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
 	  //Check if this object already is downloaded
 	  FileNode* node =
-	      FileSystem::getInstance().getNode(convertFromSwiftName((*it).getName()));
+	      FileSystem::getInstance().findAndOpenNode(convertFromSwiftName((*it).getName()));
 	  //TODO check last modified time not MD5
 	  //if(node!=nullptr && node->getMD5() == (*it)->getHash())
-	  if(node!=nullptr)
+	  if(node!=nullptr){
+	    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+	    node->close(inodeNum);
 	    continue;//existing node
+	  }
 	  else {
 	    BackendItem item(convertFromSwiftName(it->getName()),it->getLength(),it->getHash(),it->getLastModified());
 	    listFiles->push_back(item);
@@ -268,11 +271,11 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
       return false;
   Object obj(defaultContainer,convertToSwiftName(_removeEvent->fullPathBuffer));
   SwiftResult<std::istream*>* delResult = obj.swiftDeleteObject();
-  LOG(ERROR)<<"Sync: remove fullpathBuffer:"<< _removeEvent->fullPathBuffer<<
+  /*LOG(ERROR)<<"Sync: remove fullpathBuffer:"<< _removeEvent->fullPathBuffer<<
       " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
-      delResult->getResponse()->getReason();
+      delResult->getResponse()->getReason();*/
   if(delResult->getError().code != SwiftError::SWIFT_OK) {
-    LOG(ERROR)<<"Error in swift delete: "<<delResult->getError().toString();
+    //LOG(ERROR)<<"Error in swift delete: "<<delResult->getError().toString();
     return false;
   }
   else

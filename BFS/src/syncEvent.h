@@ -17,7 +17,7 @@ enum class SyncEventType {RENAME,DELETE,UPDATE_CONTENT,UPDATE_METADATA,DOWNLOAD_
 
 struct SyncEvent {
   SyncEventType type;
-  FileNode* node;
+  //FileNode* node;
   /**
    * this is used because when the job is posted to queue we still
    * have the name and node in memory, but lated it'll be removed
@@ -26,11 +26,9 @@ struct SyncEvent {
    */
   std::string fullPathBuffer;
 
-  SyncEvent (SyncEventType _type,FileNode* _node, std::string _fullPathBuffer = ""):type(_type),node(_node),
-      fullPathBuffer(_fullPathBuffer){}
+  SyncEvent (SyncEventType _type, std::string _fullPathBuffer = ""):type(_type),fullPathBuffer(_fullPathBuffer){}
   bool operator == (const SyncEvent& a) const {
-    if(this->node == a.node &&
-       this->type == a.type &&
+    if(this->type == a.type &&
        this->fullPathBuffer == a.fullPathBuffer)
       return true;
     else
@@ -56,7 +54,7 @@ struct SyncEvent {
     }
   }
   std::string print() {
-    std::string output = "Node:"+ node->getName() + " Type:" + getEnumString(type)
+    std::string output = "Type:" + getEnumString(type)
                     + " DeleteEventFullPath:" + fullPathBuffer;
     return output;
   }
