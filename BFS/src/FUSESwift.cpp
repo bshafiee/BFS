@@ -289,7 +289,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
-  if (node == nullptr || node->mustBeDeleted()) {
+  if (node == nullptr) {
     if(node == nullptr)
       LOG(ERROR)<<"Failure, cannot Open Node not found: "<<path;
     else
@@ -354,7 +354,17 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
     return -EIO;
   }
 }
-
+int swift_write_error_tolerant(const char* path, const char* buf, size_t size, off_t offset,
+    struct fuse_file_info* fi) {
+  int retry = 3;
+  while(retry>0) {
+    int res = swift_write(path, buf, size, offset,fi);
+    if (res != -EIO)
+	return res;
+    retry--;
+  }
+  return -EIO;
+}
 int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
   //Handle path

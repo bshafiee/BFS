@@ -596,6 +596,8 @@ void ZooHandler::updateRemoteFilesInFS() {
 	    file->close(inodeNum);
 	    continue;
 	  }
+          
+	  file->close(inodeNum);
 
 	  bool exist = false;
 	  for(ZooNode node:globalView){
@@ -622,7 +624,6 @@ void ZooHandler::updateRemoteFilesInFS() {
 	  if(!exist) {
 	    //LOG(ERROR)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
 	    //fflush(stderr);
-	    file->close(inodeNum);
 	    FileSystem::getInstance().signalDeleteNode(file,false);
 	  }
 	}

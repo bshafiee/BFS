@@ -369,11 +369,13 @@ bool FileNode::open() {
   if(mustDeleted)
     return false;
   refCount++;
+  //LOG(ERROR)<<"Open:"<<key<<" refCount:"<<refCount;
   return true;
 }
 
 void FileNode::close(uint64_t _inodeNum) {
   refCount--;
+  //LOG(ERROR)<<"Close:"<<key<<" refCount:"<<refCount;
   /**
    * add event to sync queue if all the references to this file
    * are closed and it actually needs updating!
@@ -657,7 +659,6 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
       FileNode *newNode = FileSystem::getInstance().findAndOpenNode(filePath);
       if(newNode == nullptr|| !newNode->isRemote()) {
         //Close it! so it can be removed if needed
-        newNode = FileSystem::getInstance().findAndOpenNode(filePath);
         uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newNode);
         newNode->close(inodeNum);
         LOG(ERROR)<<"HollyShit! we just moved "
