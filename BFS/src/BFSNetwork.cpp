@@ -270,8 +270,11 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 			retry--;
 		}
 
-		if(fNode!=nullptr && fNode->isRemote())
+		if(fNode!=nullptr && fNode->isRemote()){
+			uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+			fNode->close(inodeNum);
 		  LOG(ERROR)<<"Request to read a remote file from a non responsible node.";
+		}
 
 		return;
 	}
@@ -315,7 +318,7 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
   	}
   	if(!retry) {
   		LOG(ERROR) <<"Failed to send packet through ZeroNetwork:"<<_task.localFile;
-  		//fclose(fd);
+  	  fNode->close(inodeNum);
   		return;
   	}
   	//Increment info
@@ -891,7 +894,7 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 
 	//Check if we received the write data completely
 	if(offset+size  == taskIt->second.size+taskIt->second.offset) {
-	  LOG(ERROR)<<"Write FINISH, size:"<<size<<" FileID:"<<fileID<<" written:"<<result<<" file:"<<taskIt->second.remoteFile;
+	  //LOG(ERROR)<<"Write FINISH, size:"<<size<<" FileID:"<<fileID<<" written:"<<result<<" file:"<<taskIt->second.remoteFile;
 	  //set sync flag and Close file
 	  fNode->setNeedSync(true);
 	  fNode->close(taskIt->second.inodeNum);
@@ -939,7 +942,7 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
 	memcpy(writeTask.requestorMac,reqPacket->srcMac,6);
 	writeTask.remoteFile = string(reqPacket->fileName);
 
-	LOG(ERROR)<<"GOT write Request:"<<writeTask.remoteFile<<" FileID:"<<writeTask.fileID<<" size:"<<writeTask.size;
+	//LOG(ERROR)<<"GOT write Request:"<<writeTask.remoteFile<<" FileID:"<<writeTask.fileID<<" size:"<<writeTask.size;
 
   //Find file and lock it!
   FileNode* fNode = FileSystem::getInstance().findAndOpenNode(writeTask.remoteFile);
@@ -954,8 +957,10 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
     if(resPair.second){
       return;
     }
-    else
+    else{
       LOG(ERROR)<<"error in inserting task to writeRcvTasks!size:"<<writeDataTasks.size();
+      fNode->close(inodeNum);
+    }
 
   }
 
@@ -1552,11 +1557,10 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
   //Try to figure out if this is going to be a new file remotely or if it's a
   //truncate or a move operation!
   FileNode *fNode = FileSystem::getInstance().findAndOpenNode(_remoteFile);
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+  if(fNode!=nullptr)
+  	fNode->close(inodeNum);//Close it! so it can be removed if needed
   if(fNode != nullptr && !fNode->isRemote()) { //This is a move operation
-    //Close it! so it can be removed if needed
-    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
-    fNode->close(inodeNum);
-
     unique_lock < mutex > ack_lk(task.ack_m);
     while (!task.ack_ready) {
       task.ack_cv.wait(ack_lk);

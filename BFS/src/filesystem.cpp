@@ -504,7 +504,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   _node->hasInformedDelete = true;
   //5) if is open just return and we'll come back later
   if(_node->isOpen()){
-    LOG(ERROR)<<"SIGNAL DELETE ISOPEN: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+    LOG(ERROR)<<"SIGNAL DELETE ISOPEN: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
     return true;//will be deleted on close
   }
 
