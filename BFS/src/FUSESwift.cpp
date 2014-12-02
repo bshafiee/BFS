@@ -361,6 +361,7 @@ int swift_write_error_tolerant(const char* path, const char* buf, size_t size, o
     int res = swift_write(path, buf, size, offset,fi);
     if (res != -EIO)
 	return res;
+    LOG(ERROR)<<"write failed for:"<<path<<" retrying:"<<(3-retry+1)<<" Time.";
     retry--;
   }
   return -EIO;
