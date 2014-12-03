@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <vector>
+#include <list>
 #include <queue>
 #include <sys/stat.h>
 #include "ZeroNetwork.h"
@@ -154,6 +155,9 @@ struct ReadRcvTask {
 	 * always read in multiples of page size no matter what's the file size)
 	 **/
 	uint64_t totalRead;
+
+	uint64_t expectedOffset;
+	std::vector<uint64_t> droppedPackets;
 	/** Synchronization **/
 	bool ready = false;
 	std::mutex m;
@@ -189,13 +193,14 @@ struct SndTask {
 
 struct ReadSndTask : SndTask{
 	ReadSndTask ():SndTask(SEND_TASK_TYPE::SEND_READ),size(-1),
-			offset(-1),localFile(""),fileID(0),data(nullptr){}
+			offset(-1),localFile(""),fileID(0),data(nullptr),acked(false){}
 	uint64_t size;
 	uint64_t offset;
 	std::string localFile;
 	uint32_t fileID;
 	unsigned char requestorMac[6];
 	void* data;
+	std::atomic<bool> acked;
 };
 
 struct WriteSndTask : SndTask{
@@ -347,10 +352,24 @@ private:
   	return queue.size();
   }
 
+  const bool empty() {
+    std::lock_guard<std::mutex> lock(mutex);
+    return queue.empty();
+  }
+
   void stop() {
     isRunning = false;
     cond.notify_all();
   }
+
+  void lock() {
+    mutex.lock();
+  }
+
+  void unLock() {
+    mutex.unlock();
+  }
+
 };
 
 enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2,
@@ -359,7 +378,8 @@ enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2,
 													ATTRIB_RESPONSE = 7, DELETE_REQUEST = 8,
 													DELETE_RESPONSE = 9, TRUNCATE_REQUEST = 10,
 													TRUNCATE_RESPONSE = 11, CREATE_REQUEST = 12,
-													CREATE_RESPONSE = 13, UNKNOWN = 0};
+													CREATE_RESPONSE = 13, READ_ACK = 14,
+													READ_RETRY = 15, UNKNOWN = 0};
 
 class BFSNetwork : ZeroNetwork{
 private:
@@ -401,10 +421,15 @@ private:
 	/** Read Operation **/
 	static void onReadResPacket(const u_char *_packet);
 	static void onReadReqPacket(const u_char *_packet);
+	static void onReadRetPacket(const u_char *_packet);
+	static void onReadAckPacket(const u_char *_packet);
 	static void fillReadReqPacket(ReadReqPacket *_packet,const
 			unsigned char _dstMAC[6], const ReadRcvTask &_rcvTask,uint32_t _fileID);
 	static void fillReadResPacket(ReadResPacket *_packet, const ReadSndTask &_sndTask);
 	static void processReadSendTask(ReadSndTask& _task);
+	static void sendReadAck(const ReadResPacket* _packet);
+	static void sendReadRetransmitRequest(const std::vector<uint64_t>& _droppedOffsets,
+      const ReadResPacket* _packet,const ReadRcvTask* _task);
 	/** Write Operation **/
 	static void processWriteSendTask(WriteSndTask& _task);
 	static void fillWriteDataPacket(WriteDataPacket *_packet,

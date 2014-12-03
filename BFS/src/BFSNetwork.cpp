@@ -156,8 +156,6 @@ void BFSNetwork::fillReadResPacket(ReadResPacket* _packet,const ReadSndTask& _sn
 	_packet->offset = htobe64(_sndTask.offset);
 	// size
 	_packet->size = htobe64(_sndTask.size);
-	/*//Data
-	memcpy(_packet->data,(unsigned char*)_sndTask.data+_sndTask.offset,_sndTask.size);*/
 }
 
 
@@ -179,7 +177,9 @@ long BFSNetwork::readRemoteFile(void* _dstBuffer, size_t _size, size_t _offset,
 	task.fileID = getNextFileID();
 	task.remoteFile = _remoteFile;
 	task.ready = false;
+	task.expectedOffset = _offset;
 	task.totalRead = 0;//reset total read
+	task.droppedPackets.clear();
 
 	//Send file request
 	char buffer[MTU];
@@ -219,9 +219,6 @@ long BFSNetwork::readRemoteFile(void* _dstBuffer, size_t _size, size_t _offset,
 	result = task.totalRead;
 	lk.unlock();
 
-
-	//remove it from queue
-	readRcvTasks.erase(resPair.first);
 	return result;
 }
 
@@ -281,33 +278,34 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 
 	//File is Open so assign inode number
 	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
-
-	uint64_t localOffset = 0;
+	bool error = false;
+	char buffer[MTU];
 	//Now we have the file node!
   while(left > 0) {
 	unsigned long howMuch = (left > DATA_LENGTH)?DATA_LENGTH:left;
   	//Make a response packet
   	_task.size = howMuch;
-  	char buffer[MTU];
   	ReadResPacket *packet = (ReadResPacket*)buffer;
   	//fillReadResPacket(packet,_task);
   	char *dstBuf = (char*)(packet->data);
   	long readCount = fNode->read(dstBuf,(size_t)_task.offset,(size_t)howMuch);
-  	//memcpy(_packet->data,(unsigned char*)_sndTask.data+_sndTask.offset,_sndTask.size);
-  	if(readCount <= 0){
+
+  	if(readCount < 0){ //Error
   		_task.size = 0;
+  		_task.offset = 0;
   		packet->size = 0;
   		left = 0;
   		howMuch = 0;
+  		error = true;
   	}
   	else {
   		_task.size = readCount;
   		howMuch = readCount;
+  		if(readCount == 0)//EOF
+  		  left = 0;
   	}
   	//Update packet content
   	fillReadResPacket(packet,_task);
-  	//Update packet offset with local offset
-  	//packet->offset = htobe64(localOffset);
 
   	//Now send it
   	int retry = 3;
@@ -323,8 +321,32 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
   	}
   	//Increment info
   	_task.offset += howMuch;
-  	localOffset += howMuch;
   	left -= howMuch;
+  }
+
+  //If no error has happened, wait for the ack
+  if(!error) {
+    //Wait for the ack!
+    Timer timer;
+    timer.begin();
+    int counter = 100;
+    while(!_task.acked && counter>0){
+      //Retransmit last packet
+      int retry = 3;
+      while(retry > 0) {
+        if(send(buffer,MTU) == MTU)
+          break;
+        retry--;
+      }
+      if(!retry)
+        LOG(ERROR) <<"Failed to send last packet for ack through ZeroNetwork"<<_task.localFile;
+      //Check Timer
+      if(timer.elapsedMillis() >= ACK_TIMEOUT) {
+        LOG(ERROR) <<"ReadSndTask Timeout :("<<_task.localFile<<" ElapsedMillis:"<<timer.elapsedMillis();
+        break;
+      }
+      counter--;
+    }
   }
 
   //close file
@@ -463,6 +485,10 @@ static inline BFS_OPERATION toBFSOperation(uint32_t op){
       return BFS_OPERATION::CREATE_REQUEST;
     case 13:
       return BFS_OPERATION::CREATE_RESPONSE;
+    case 14:
+      return BFS_OPERATION::READ_ACK;
+    case 15:
+      return BFS_OPERATION::READ_RETRY;
 	}
 	return BFS_OPERATION::UNKNOWN;
 }
@@ -529,7 +555,10 @@ void BFSNetwork::rcvLoop() {
 		pfring_stats((pfring*)pd,&stats );
 		static uint64_t dropped = 0;
 		if(stats.drop - dropped > 0) {
-		  onReadResPacket(nullptr);
+		  //onReadResPacket(nullptr);
+		  LOG(ERROR)<<stats.drop - dropped<<" Packets were dropped!";
+		  fprintf(stderr,"RcvLoop(): %zu packets were dropped.\n",stats.drop - dropped);
+		  fflush(stderr);
 		  dropped = stats.drop;
 		}
 
@@ -579,6 +608,12 @@ void BFSNetwork::rcvLoop() {
       case BFS_OPERATION::CREATE_RESPONSE:
         onCreateResPacket(_packet);
         break;
+      case BFS_OPERATION::READ_ACK:
+        onReadAckPacket(_packet);
+        break;
+      case BFS_OPERATION::READ_RETRY:
+        onReadRetPacket(_packet);
+        break;
 			default:
 			  LOG(ERROR)<<"UNKNOWN OPCODE:"<<opCode;
 		}
@@ -599,24 +634,6 @@ void BFSNetwork::rcvLoop() {
  *
  **/
 void FUSESwift::BFSNetwork::onReadResPacket(const u_char* _packet) {
-  if(_packet == nullptr) { //a drop has happened!
-    int counter = 0;
-    readRcvTasks.lock();
-    for ( auto it = readRcvTasks.begin(); it != readRcvTasks.end(); ++it ) {
-      ReadRcvTask* task = it->second;
-      task->totalRead = 0;
-
-      unique_lock<std::mutex> lk(task->m);
-      task->ready = true;
-      lk.unlock();
-      task->cv.notify_one();
-      counter++;
-    }
-    readRcvTasks.unlock();
-    LOG(ERROR)<<"\n\n\n\n\n\n\n\n\n\ndrop happened:"<<counter<<"\n\n\n\n\n\n\n\n\n\n\n";
-    return;
-  }
-
 	ReadResPacket *resPacket = (ReadResPacket*)_packet;
 	//Parse Packet Network order first!
 	resPacket->offset = be64toh(resPacket->offset);
@@ -627,8 +644,14 @@ void FUSESwift::BFSNetwork::onReadResPacket(const u_char* _packet) {
 	auto taskIt = readRcvTasks.find(resPacket->fileID);
 	readRcvTasks.lock();
 	if(taskIt == readRcvTasks.end()) {
-	  LOG(ERROR)<<"No valid Task for this Packet. FileID:"<<resPacket->fileID;
 	  readRcvTasks.unlock();
+	  //This might happen due to losing a read ack packet
+	  //But we should check! the size and offset must not be zero simultaneously!
+	  if(resPacket->size || resPacket->offset)
+	    sendReadAck(resPacket);
+	  else
+	    LOG(ERROR)<<"No valid Task for this Packet. FileID:"<<resPacket->fileID;
+
 		return;
 	}
 
@@ -639,21 +662,219 @@ void FUSESwift::BFSNetwork::onReadResPacket(const u_char* _packet) {
 	  if(taskIt->first != task->fileID|| taskIt->first!= resPacket->fileID|| task->fileID!= resPacket->fileID)
 	    LOG(ERROR)<<"Key:"<< taskIt->first<<" elementID:"<<task->fileID<<" packetID:"<<resPacket->fileID<<" second:%p"<<task;
 
-		memcpy((char*)task->dstBuffer+delta,resPacket->data,resPacket->size);
+	  if(delta >= task->size || (delta+resPacket->size) > task->size)
+	    LOG(ERROR)<<"HOLLLYYYYYYYYYYY MOLLLYYYYYYYYY";
 
+		memcpy((char*)task->dstBuffer+delta,resPacket->data,resPacket->size);
 	}
 
-	//Check if finished, signal conditional variable!
-	//If total amount of required data was read or a package of size 0 is received!
-	if(resPacket->offset+resPacket->size == task->offset+task->size ||
-			resPacket->size == 0) {
-	  task->totalRead = resPacket->offset - task->offset + resPacket->size;
+	if(resPacket->offset != task->expectedOffset &&
+	    (resPacket->offset+resPacket->size != task->offset+task->size)) {//Not the last packet
+	  //If exist in the dropped queue means it's a retransmission!
+	  bool found = false;
+	  for(auto it = task->droppedPackets.begin();it != task->droppedPackets.end();it++){
+	    if(*it == resPacket->offset){
+	      found = true;
+	      task->droppedPackets.erase(it);
+	      break;
+	    }
+	  }
+	  if(!found){//A drop has happened! keep track of it!
+	    task->droppedPackets.push_back(task->expectedOffset);
+	  }
+	}
+	//In order transmission!
+  task->expectedOffset = resPacket->offset + resPacket->size;
+
+
+  //Check if error has happened on the other side
+  if(resPacket->size == 0 && resPacket->offset == 0) {
+    LOG(ERROR)<<"ERROR IN READING FILEID:"<<task->fileID;
+    task->totalRead = 0;//Signal error
     unique_lock<std::mutex> lk(task->m);
     task->ready = true;
     lk.unlock();
     task->cv.notify_one();
+    readRcvTasks.unlock();
+    //Remove task from ReadTaskMap
+    readRcvTasks.erase(taskIt);
+    return;
+  }
+
+	//Check if finished, signal conditional variable!
+	if(resPacket->offset+resPacket->size == task->offset+task->size ||
+	    resPacket->size == 0) {//EOF
+	  //Check if we have had any drop
+	  if(!task->droppedPackets.empty()) {
+	    //Send Read retransmit request!
+	    LOG(ERROR)<<task->droppedPackets.size()<<
+	        " packets were dropped while reading:"<<task->remoteFile
+	        <<" FileID:"<<task->fileID;
+	    sendReadRetransmitRequest(task->droppedPackets,resPacket,task);
+	  } else { //No drop so we are good!
+	    //Send Ack
+	    sendReadAck(resPacket);
+	    //Return to user
+      task->totalRead = resPacket->offset - task->offset + resPacket->size;
+      unique_lock<std::mutex> lk(task->m);
+      task->ready = true;
+      lk.unlock();
+      task->cv.notify_one();
+      //Unlock readRcvTasks so it can be delete
+      readRcvTasks.unlock();
+      //Remove task from the TaskMap
+      readRcvTasks.erase(taskIt);
+      return;
+	  }
 	}
 	readRcvTasks.unlock();
+}
+
+void FUSESwift::BFSNetwork::onReadRetPacket(const u_char* _packet) {
+  ReadReqPacket *reqPacket = (ReadReqPacket*)_packet;
+
+  uint64_t offset = be64toh(reqPacket->offset);
+  uint64_t size = be64toh(reqPacket->size);
+  uint32_t fileID = ntohl(reqPacket->fileID);
+  string localFile = string(reqPacket->fileName);
+
+
+  //error just send a packet of size 0
+  char buffer[MTU];
+  ReadResPacket *resPacket = (ReadResPacket*)buffer;
+  //First fill header
+  fillBFSHeader((char*)resPacket,reqPacket->srcMac);
+  resPacket->opCode = htonl((uint32_t)BFS_OPERATION::READ_RESPONSE);
+  resPacket->fileID = htonl(fileID);
+  resPacket->offset = 0; //Signaling error
+  resPacket->size = 0; //Signaling error
+
+  //Find file and lock it!
+  FileNode* fNode = FileSystem::getInstance().findAndOpenNode(localFile);
+  if(fNode == nullptr || fNode->isRemote()) {
+    //Now send it
+    int retry = 3;
+    while(retry > 0) {
+      if(send(buffer,MTU) == MTU)
+        break;
+      retry--;
+    }
+    if(!retry)
+      LOG(ERROR)<<"Failed to send ReadRetransmitResponse,fileID:"<<fileID
+        <<" MissedOffset:"<<offset;
+
+    if(fNode!=nullptr && fNode->isRemote()){ //Close the file
+      uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+      fNode->close(inodeNum);
+      LOG(ERROR)<<"Retransmit Request to read a remote file from a non responsible node.";
+    }
+    return;
+  }
+  //File is open
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+
+  //fillReadResPacket(packet,_task);
+  char *dstBuf = (char*)(resPacket->data);
+  long readCount = fNode->read(dstBuf,(size_t)offset,(size_t)size);
+  fNode->close(inodeNum);//Close immediately
+
+  resPacket->offset = htobe64(offset);
+  resPacket->size = htobe64(readCount);
+
+  if(readCount < 0){ //Error
+    resPacket->offset = 0; //Signaling error
+    resPacket->size = 0; //Signaling error
+  }
+
+  //Now send it
+  int retry = 3;
+  while(retry > 0) {
+    if(send(buffer,MTU) == MTU)
+      break;
+    retry--;
+  }
+
+  if(!retry)
+    LOG(ERROR) <<"Failed to send retransmit read packet through ZeroNetwork:"
+      <<localFile<<" fileID:"<<fileID;
+}
+
+void BFSNetwork::sendReadRetransmitRequest(const vector<uint64_t>& _droppedOffsets,
+    const ReadResPacket* _packet,const ReadRcvTask* _task) {
+  char buffer[MTU];
+  ReadReqPacket *readRetransmit = (ReadReqPacket *)buffer;
+  fillBFSHeader((char*)readRetransmit,_packet->srcMac);
+  readRetransmit->opCode = htonl((uint32_t)BFS_OPERATION::READ_RETRY);
+  //set fileID
+  readRetransmit->fileID = htonl(_packet->fileID);
+  //Set file name
+  strncpy(readRetransmit->fileName,_task->remoteFile.c_str(),_task->remoteFile.length());
+  readRetransmit->fileName[_task->remoteFile.length()]= '\0';
+
+  for(uint64_t missedOffset:_droppedOffsets) { //Send for each missed packet
+    readRetransmit->offset = htobe64(missedOffset);
+    //the length of a packet(last packet might be smaller actually)
+    readRetransmit->size = htobe64(DATA_LENGTH);
+    if(missedOffset + DATA_LENGTH > _task->offset+_task->size)
+      readRetransmit->size = htobe64( _task->offset+_task->size-missedOffset );
+    /*if(readRetransmit->size == 0)
+      continue;//No request for size of 0!*/
+    int retry = 3;
+    while(retry > 0) {
+      if(send(buffer,MTU) == MTU)
+        break;
+      retry--;
+    }
+    if(!retry)
+      LOG(ERROR)<<"Failed to send ReadRetransmitRequest,fileID:"<<_packet->fileID
+        <<" MissedOffset:"<<missedOffset;
+  }
+}
+
+void BFSNetwork::sendReadAck(const ReadResPacket* _packet) {
+  //Send ACK
+  char buffer[MTU];
+  ReadReqPacket *readAck = (ReadReqPacket *)buffer;
+  fillBFSHeader((char*)readAck,_packet->srcMac);
+  readAck->opCode = htonl((uint32_t)BFS_OPERATION::READ_ACK);
+  //set fileID
+  readAck->fileID = htonl(_packet->fileID);
+
+  int retry = 3;
+  while(retry > 0) {
+    if(send(buffer,MTU) == MTU)
+      break;
+    retry--;
+  }
+  if(!retry)
+    LOG(ERROR)<<"Failed to send READACKPacket,fileID:"<<_packet->fileID;
+}
+
+void FUSESwift::BFSNetwork::onReadAckPacket(const u_char* _packet) {
+  ReadReqPacket *reqPacket = (ReadReqPacket*)_packet;
+
+  uint32_t fileID = ntohl(reqPacket->fileID);
+
+  /**
+   * If the first task in send Queue is the desired one
+   * then good if not, it has been probably timeout or already acked!
+   */
+  sendQueue.lock();
+  for(auto it = sendQueue.begin();it!=sendQueue.end();it++) {
+
+    if(*it!=nullptr && (*it)->type == SEND_TASK_TYPE::SEND_READ) {
+      ReadSndTask* readSndTask = (ReadSndTask*)(*it);
+      if(readSndTask->fileID == fileID) {
+        readSndTask->acked.store(true);
+        sendQueue.unLock();
+        return;
+      }
+    }
+  }
+  sendQueue.unLock();
+
+  /*LOG(ERROR)<<" Got Ack for fileID:"<<fileID<<" But no corresponding"
+      " ReadSndTask in the sendQueue.";*/
 }
 
 /**
@@ -674,6 +895,7 @@ void FUSESwift::BFSNetwork::onReadReqPacket(const u_char* _packet) {
 	task->offset = be64toh(reqPacket->offset);
 	task->size = be64toh(reqPacket->size);
 	task->fileID = ntohl(reqPacket->fileID);
+	task->acked = false;
 	memcpy(task->requestorMac,reqPacket->srcMac,6);
 
 	//Push it on the Queue
@@ -1019,7 +1241,7 @@ void FUSESwift::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
 
 uint32_t BFSNetwork::getNextFileID() {
   if(fileIDCounter>4294967290)
-    LOG(ERROR)<<"\n\n\n\n\n\n\n\n\nFILE ID GONE WITH THE FUCK\n\n\n\n\n\n\n";
+    LOG(ERROR)<<"\n\n\n\n\n\n\n\n\nerror: FILE ID GONE WITH THE FUCK\n\n\n\n\n\n\n";
   return fileIDCounter++;
 }
 
