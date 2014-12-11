@@ -5,6 +5,7 @@
 // Copyright   : 2014 Behrooz
 //============================================================================
 
+#include "Global.h"
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -27,9 +28,9 @@
 #include <sys/xattr.h>
 #endif
 
-#include <Account.h>
-#include <Container.h>
-#include <Object.h>
+#include <Swift/Account.h>
+#include <Swift/Container.h>
+#include <Swift/Object.h>
 #include <iostream>
 #include <istream>
 #include <Poco/StreamCopier.h>
@@ -46,9 +47,12 @@
 #include "MemoryController.h"
 #include "SettingManager.h"
 #include "BFSNetwork.h"
+#include "BFSTcpServer.h"
 #include "MasterHandler.h"
 #include "ZooHandler.h"
+#include "Timer.h"
 #include <thread>
+
 
 //Initialize logger
 #include "LoggerInclude.h"
@@ -119,7 +123,11 @@ void shutdown(void* userdata) {
   LOG(INFO) <<"Leaving...";
   //Log Close
   log_close();
+#ifdef BFS_ZERO
   BFSNetwork::stopNetwork();
+#else
+  BFSTcpServer::stop();
+#endif
   ZooHandler::getInstance().stopZooHandler();
   MasterHandler::stopLeadership();
   FileSystem::getInstance().destroy();
@@ -147,36 +155,6 @@ void outOfMemHandler() {
   shutdown(nullptr);
 }
 
-atomic<int> global(0);
-void readRemote() {
-  //size_t len = 1024l*1024l*1024l;
-  size_t len = 102400;
-  unsigned char mac[6] = {0x90,0xe2,0xba,0x35,0x22,0xd8};
-  char * buffer = new char[len];
-  //long res = BFSNetwork::readRemoteFile((void*)buffer,len,(size_t)0,string("/RNA"),mac);
-  //long res = BFSNetwork::writeRemoteFile(buffer,len,123,"/RNA",mac);
-  //struct stat attBuff;
-  //long res = BFSNetwork::readRemoteFileAttrib(&attBuff,string("/RNA"),mac);
-  //long res = BFSNetwork::deleteRemoteFile(string("/2G"),mac);
-  //long res = BFSNetwork::truncateRemoteFile(string("/trunc"),len,mac);
-  long res = BFSNetwork::createRemoteFile(string("/trunc2"),mac);
-
-
-  LOG(INFO) <<"READ DONE:"<<res<<" "<<++global;
-  delete []buffer;
-  //buffer = nullptr;
-}
-
-void testRemoteRead() {
-  sleep(1);
-  for(int i=0;i<1;i++) {
-    //usleep(100);
-    //readRemote();
-    new thread(readRemote);
-  }
-  //readRemote();
-}
-
 void initLogger(int argc, char *argv[]) {
   _START_EASYLOGGINGPP(argc, argv);
   // Load configuration from file
@@ -189,11 +167,31 @@ void initLogger(int argc, char *argv[]) {
   el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
 }
 
+void readRemote(){
+  sleep(5);
+  FUSESwift::Timer t;
+  t.begin();
+  long len = 1024l*1024l*1024l;
+  char* buff= new char[len];
+#ifdef BFS_ZERO
+  unsigned char mac[6]={0x00,0x24,0x8c,0x05,0xee,0xdd};//Kali
+  //unsigned char mac[6]={0x90,0xe2,0xba,0x33,0x59,0xfa};//Behrooz
+  long res = BFSNetwork::readRemoteFile(buff,len,0,"/1G",mac);
+#else
+  long res = BFSTcpServer::readRemoteFile(buff,len,0,"/1G","10.42.0.83",5555);
+#endif
+  memcpy(buff,buff,len);
+  t.end();
+  cout<<endl<<"Read Result:"<<endl<<flush;
+  cout<<"Read "<<res<<" bytes in:"<<t.elapsedMillis()<<" milli, RATE:"<<((res*8ll)/(1024ll*1024ll))/(t.elapsedMillis()/1000.00)<<endl<<flush;
+  cout<<endl;
+}
+
 int main(int argc, char *argv[]) {
   initLogger(argc,argv);
 	//Load configs first
 	SettingManager::load("config");
-
+	//new thread(readRemote);
 	//Set signal handlers
 	signal(SIGINT, sigproc);
 	signal(SIGTERM, sigproc);
@@ -240,13 +238,19 @@ int main(int argc, char *argv[]) {
   LOG(INFO) <<"BFS Available Memory:" << MemoryContorller::getInstance().getAvailableMemory()/1024/1024 << " MB";
   LOG(ERROR) <<"Memory Utilization:" << MemoryContorller::getInstance().getMemoryUtilization()*100<< "%";
 
+
+#ifdef BFS_ZERO
   //Start BFS Network(before zoo, zoo uses mac info from this package)
 	if(!BFSNetwork::startNetwork()) {
 	  LOG(ERROR) <<"Cannot initialize ZeroNetworking!";
 		shutdown(nullptr);
 	}
-
-	//testRemoteRead();
+#else
+	if(!BFSTcpServer::start()) {
+	  LOG(ERROR) <<"Cannot initialize TCPNetworking!";
+    shutdown(nullptr);
+	}
+#endif
 
   // turn over control to fuse
 	LOG(INFO) <<"calling fuse_main";

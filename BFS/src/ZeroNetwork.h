@@ -7,6 +7,7 @@
 
 #ifndef ZERONETWORK_H_
 #define ZERONETWORK_H_
+#include "Global.h"
 #include <string>
 
 namespace FUSESwift {

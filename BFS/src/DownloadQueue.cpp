@@ -14,6 +14,7 @@
 #include <iostream>
 #include <mutex>
 #include "MemoryController.h"
+#include "LoggerInclude.h"
 
 using namespace std;
 
@@ -66,8 +67,13 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	}
 	//Now create a file in FS
 	//handle directories
-	string fileName = FileSystem::getInstance().getFileNameFromPath(_event->fullPathBuffer);
-	FileNode *newFile = FileSystem::getInstance().mkFile(fileName,false,true);//open
+  FileSystem::getInstance().createHierarchy(_event->fullPathBuffer);
+	FileNode *newFile = FileSystem::getInstance().mkFile(_event->fullPathBuffer,false,true);//open
+	if(newFile == nullptr){
+	  LOG(ERROR)<<"Failed to create a newNode:"<<_event->fullPathBuffer;
+	  fprintf(stderr,"Failed to create a newNode:%s\n",_event->fullPathBuffer.c_str());
+	  return;
+	}
 	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
 	fprintf(stderr,"DOWNLOADING: %s\n",newFile->getFullPath().c_str());
 

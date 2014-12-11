@@ -7,7 +7,7 @@
 
 #ifndef FILESYSTEM_H_
 #define FILESYSTEM_H_
-
+#include "Global.h"
 #include "tree.h"
 #include <vector>
 #include <atomic>
@@ -31,9 +31,9 @@ class FileSystem: public Tree {
   std::atomic<uint64_t> inodeCounter;
   std::unordered_map<uint64_t,std::pair<intptr_t,bool>> inodeMap;//inode to file map
   std::unordered_map<intptr_t,std::list<uint64_t> > nodeInodeMap;//node to inodes map
-  std::mutex inodeMapMutex;
+  std::recursive_mutex inodeMapMutex;
   //Delete queue
-  std::mutex deleteQueueMutex;
+  std::recursive_mutex deleteQueueMutex;
   std::list<FileNode*> deleteQueue;
 
   FileNode* mkFile(FileNode* _parent, const std::string &_name,bool _isRemote,bool _open);

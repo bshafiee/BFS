@@ -3,12 +3,15 @@ CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
 CXXSOURCES = $(wildcard src/*.cpp)
 OBJS =	$(CXXSOURCES:%.cpp=%.o)
 
+#defines
+DEFINES=-DBFS_ZERO=1
+
 #Includes
-LFLAGS=-Ilib/json -Ilib/zookeeper/include/zookeeper -Ilib/libSwift/include/swift -Ilib/poco/include -I/usr/local/include/fuse -Ilib/logger
+LFLAGS=-Ilib/logger
 CXXFLAGS+= $(LFLAGS)
 
 #Libraries
-LD = -Llib/poco/lib -Llib/libSwift/lib -L/usr/local/lib -Llib/zookeeper/lib
+LD = -L/usr/local/lib 
 CXXFLAGS+=$(LD)
 
 LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma
@@ -16,7 +19,8 @@ LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfri
 TARGET =	BFS
 #CXX=clang++
 $(TARGET):	$(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
+	$(CXX) $(DEFINES) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
+	gksudo setcap cap_net_admin+eip $(TARGET)
 	
 $(OBJS):
 	$(CXX) -MMD $(CXXFLAGS) -c -o $@ $(@:.o=.cpp) $(LIBS)	

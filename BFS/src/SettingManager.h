@@ -7,6 +7,7 @@
 
 #ifndef SETTINGMANAGER_H_
 #define SETTINGMANAGER_H_
+#include "Global.h"
 #include <unordered_map>
 #include <string>
 
@@ -18,7 +19,8 @@ static const std::string CONFIG_KEY_SWIFT_PASSWORD = "password";
 static const std::string CONFIG_KEY_SWIFT_URL = "auth_url";
 static const std::string CONFIG_KEY_SWIFT_TENANT = "tenant_name";
 static const std::string CONFIG_KEY_MAX_MEM_COEF = "max_mem_coef";
-static const std::string CONFIG_KEY_ZERO_NETWORK_DEV = "zero_network_dev";
+static const std::string CONFIG_KEY_ZERO_NETWORK_DEV = "network_dev";
+static const std::string CONFIG_KEY_TCP_PORT = "tcp_port";
 static const std::string CONFIG_KEY_ZOO_SERVER_URL = "zoo_server_url";
 static const std::string CONFIG_KEY_ZOO_ELECTION_ZNODE = "zoo_election_znode";
 static const std::string CONFIG_KEY_ZOO_ASSIGNMENT_ZNODE = "zoo_assignment_znode";

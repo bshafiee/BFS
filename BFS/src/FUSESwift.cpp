@@ -68,13 +68,14 @@ int swift_readlink(const char* path, char* buf, size_t size) {
 
 int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
   int retstat = 0;
-  LOG(ERROR)<<"MKNOD:"<<path;
+
 
   //Check if already exist! if yes truncate it!
 	string pathStr(path, strlen(path));
 	FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
 	if (node != nullptr)
 	{
+	  LOG(ERROR)<<"MKNOD:"<<path<<" exist, closing and truncating:"<<node;
 	  //Close it! so it can be removed if needed
     uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
     node->close(inodeNum);
@@ -111,6 +112,8 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
       struct fuse_context fuseContext = *fuse_get_context();
       newFile->setGID(fuseContext.gid);    //gid
       newFile->setUID(fuseContext.uid);    //uid
+
+      LOG(ERROR)<<"MKNOD:"<<path<<" created Locally, returning:"<<newFile;
 
       newFile->close(inodeNum);//It's a create and open operation
     } else {//Remote file
@@ -186,7 +189,7 @@ int swift_unlink(const char* path) {
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
   node->close(inodeNum);
 
-  LOG(ERROR)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getName()<<" isOpen?"<<node->isOpen()<<" isRemote():"<<node->isRemote();
+  LOG(ERROR)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getName()<<" isOpen?"<<node->concurrentOpen()<<" isRemote():"<<node->isRemote();
   if(!FileSystem::getInstance().signalDeleteNode(node,true)){
     LOG(ERROR)<<"DELETE FAILED FOR:"<<path;
     return -EIO;
@@ -508,24 +511,17 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
   //Get associated FileNode*
   FileNode* node = nullptr;
   //Handle path
-  if(path == nullptr && fi->fh == 0)
+  if(fi->fh == 0)
   {
     log_msg("\nswift_readdir: fi->fh is null\n");
     return ENOENT;
   }
-  else if(path != nullptr) {
-    //Get associated FileNode*
-    string pathStr(path, strlen(path));
-    node = FileSystem::getInstance().findAndOpenNode(pathStr);
-  }
-  else
-    node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
+  //Get Node
+  node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
   if(node == nullptr)
     return -ENOENT;
-
-  uint64_t inodeNumDIR = FileSystem::getInstance().assignINodeNum((intptr_t)node);
 
   int retstat = 0;
 
@@ -553,8 +549,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     entry->getStat(&st);
     if (filler(buf, entry->getName().c_str(), &st, 0)) {
       log_msg("swift_readdir filler error\n");
-      entry->close(inodeNumDIR);//protect against delete
-      node->close(inodeNumEntry);
+      entry->close(inodeNumEntry);//protect against delete
       node->childrenUnlock();
       return -EIO;
     }
@@ -564,8 +559,6 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 
   if(DEBUG_READDIR)
     log_msg("readdir successful: %d entry on Path:%s\n", node->childrenSize(),node->getName().c_str());
-
-  node->close(inodeNumDIR);
 
   return retstat;
 }

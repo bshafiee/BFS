@@ -7,7 +7,7 @@
 
 #ifndef TREE_H_
 #define TREE_H_
-
+#include "Global.h"
 #include "node.h"
 
 namespace FUSESwift {

@@ -7,6 +7,7 @@
 
 #ifndef BACKENDMANAGER_H_
 #define BACKENDMANAGER_H_
+#include "Global.h"
 #include <vector>
 #include "Backend.h"
 

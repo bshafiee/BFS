@@ -8,10 +8,11 @@
 #ifndef ZOOHANDLER_H_
 #define ZOOHANDLER_H_
 
+#include "Global.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <zookeeper.h>
-#include <proto.h>
+#include <zookeeper/zookeeper.h>
+#include <zookeeper/proto.h>
 #include <ctime>
 #include <string>
 #include <errno.h>

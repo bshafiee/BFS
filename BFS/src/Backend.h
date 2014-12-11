@@ -8,6 +8,7 @@
 #ifndef BACKEND_H_
 #define BACKEND_H_
 
+#include "Global.h"
 #include <cstring>
 #include "syncEvent.h"
 #include <vector>

@@ -7,8 +7,8 @@
 
 #include "SwiftBackend.h"
 #include "LoggerInclude.h"
-#include <Object.h>
-#include <Container.h>
+#include <Swift/Object.h>
+#include <Swift/Container.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPResponse.h>
 #include "filesystem.h"
@@ -66,6 +66,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(node == nullptr)
     return false;
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  node->isUPLOADING  = true;
+  LOG(ERROR)<<"GOT: "<<node<<" to upload!How many Open?"<<node->concurrentOpen();
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
@@ -77,11 +79,26 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
 
   //CheckEvent validity
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
-    //release file delete lock, so they can delete it
-    node->close(inodeNum);
     delete res;
+    //release file delete lock, so they can delete it
+    node->isUPLOADING  = false;
+    node->close(inodeNum);
     return false;
   }
+  //If file is open just return! because if it's a write this is a waste if
+  //it's a read this will slow it down!
+  if(node->concurrentOpen() > 1){
+    fprintf(stderr,"\nSAVED AN UPLOAD: %s\n\n",node->getName().c_str());
+    fflush(stderr);
+    //release file delete lock, so they can delete it
+    node->setNeedSync(true);//Reschedule again
+    delete res;
+    node->isUPLOADING  = false;
+    node->close(inodeNum);
+    return false;
+  }
+
+
   bool shouldDeleteOBJ = false;
   //Check if Obj already exist
   if(obj != nullptr) {
@@ -90,9 +107,10 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       LOG(ERROR)<<"Sync: File:"<<node->getFullPath()<<
           " did not change with compare to remote version, MD5:"<<
           node->getMD5();
-      //release file delete lock, so they can delete it
-      node->close(inodeNum);
+
       delete res;
+      node->isUPLOADING  = false;
+      node->close(inodeNum);
       return true;
     }
   }
@@ -107,9 +125,10 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   ostream *outStream = nullptr;
 
   if(node->mustBeDeleted()){
-    node->close(inodeNum);
     delete res;
     if(shouldDeleteOBJ)delete obj;
+    node->isUPLOADING  = false;
+    node->close(inodeNum);
     return false;
   }
 
@@ -121,6 +140,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     if(shouldDeleteOBJ) delete obj;
     delete res;
     //release file delete lock, so they can delete it
+    node->isUPLOADING  = false;
     node->close(inodeNum);
     return false;
   }
@@ -134,20 +154,24 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   do {
     //CheckEvent validity
     if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
-      node->close(inodeNum);
       delete chunkedResult;
       if(shouldDeleteOBJ) delete obj;
       delete res;
       delete []buff;
+      buff = nullptr;
+      node->isUPLOADING  = false;
+      node->close(inodeNum);
       return false;
     }
 
     if(node->mustBeDeleted()){//Check Delete
-      node->close(inodeNum);
       delete chunkedResult;
       delete res;
       if(shouldDeleteOBJ) delete obj;
       delete []buff;
+      buff = nullptr;
+      node->isUPLOADING  = false;
+      node->close(inodeNum);
       return false;
     }
 
@@ -160,12 +184,15 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   }
   while(read > 0);
 
+  delete []buff;
+  buff = nullptr;
+
   if(node->mustBeDeleted()){//Check Delete
-    node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
-    delete []buff;
+    node->isUPLOADING  = false;
+    node->close(inodeNum);
     return false;
   }
 
@@ -173,22 +200,23 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   Poco::Net::HTTPResponse response;
   chunkedResult->getPayload()->receiveResponse(response);
   if(response.getStatus() == response.HTTP_CREATED) {
-    node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
-    delete []buff;
+    node->isUPLOADING  = false;
+    node->close(inodeNum);
     return true;
   }
   else {
     LOG(ERROR)<<"Error in swift: "<<response.getReason();
-    node->close(inodeNum);
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
-    delete []buff;
+    node->isUPLOADING  = false;
+    node->close(inodeNum);
     return false;
   }
+  LOG(ERROR)<<"\n\n\nGOSHHHHHHHH UNREACHABLEEEEEEEEEEEEEEEEE\n\n\n\n555555555555555\nZZZ\n";
 }
 
 bool SwiftBackend::put_metadata(const SyncEvent* _putMetaEvent) {

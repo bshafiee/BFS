@@ -7,7 +7,7 @@
 
 #ifndef FILENODE_H_
 #define FILENODE_H_
-
+#include "Global.h"
 #include "node.h"
 #include <map>
 #include <atomic>
@@ -60,6 +60,8 @@ class FileNode: public Node {
   std::atomic<bool> mustInformRemoteOwner;//To indicate if we should tell remote owner to remove or not(e.g zookeeper deletes don't need to do so).
   std::atomic<bool> moving;//to indicate if it's being moved to another node
   unsigned char remoteHostMAC[6];
+  std::string remoteIP;
+  uint32_t remotePort;
   //Read/Write Lock
   std::recursive_mutex ioMutex;
   //Metadata Lock
@@ -94,8 +96,11 @@ public:
   FileNode* findParent();
   size_t getSize();
   bool isRemote();
+  int concurrentOpen();
   const unsigned char* getRemoteHostMAC();
   void setRemoteHostMAC(const unsigned char *_mac);
+  void setRemoteIP(const std::string &_ip);
+  void setRemotePort(const uint32_t _port);
   bool mustBeDeleted();
   bool isMoving();
   void setMoving(bool _isMoving);
@@ -149,6 +154,8 @@ public:
   void makeLocal();
   void makeRemote();
   void deallocate();
+
+  std::atomic<bool> isUPLOADING;
 };
 
 } /* namespace FUSESwift */

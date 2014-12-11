@@ -7,6 +7,7 @@
 
 #ifndef UPLOADQUEUE_H_
 #define UPLOADQUEUE_H_
+#include "Global.h"
 #include "SyncQueue.h"
 
 namespace FUSESwift {

@@ -19,6 +19,7 @@
 #include "string.h"
 #include "ZeroNetwork.h"
 #include "SettingManager.h"
+#include "BFSTcpServer.h"
 
 using namespace std;
 
@@ -237,10 +238,16 @@ bool ZooHandler::makeOffer() {
 	 * zoo_create(zh,(electionZNode).c_str(),"Election Offers",
 	 strlen("Election Offers"),&ZOO_OPEN_ACL_UNSAFE ,0,newNodePath,newNodePathLen);*/
 	//ZooNode
-	vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
+	//vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
+	vector<string> listOfFiles;//Empty list of files
 	//Create a ZooNode
+#ifdef BFS_ZERO
 	ZooNode zooNode(getHostName(),
-	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC());
+	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
+#else
+	ZooNode zooNode(getHostName(),
+	      MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
+#endif
 	//Send data
 	string str = zooNode.toString();
 	int result = zoo_create(zh, (electionZNode + "/" + "n_").c_str(), str.c_str(),
@@ -418,8 +425,13 @@ void ZooHandler::publishListOfFiles() {
 	//Traverse FileSystem Hierarchies
 
 	//Create a ZooNode
+#ifdef BFS_ZERO
 	ZooNode zooNode(getHostName(),
-	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC());
+	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
+#else
+  ZooNode zooNode(getHostName(),
+      MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
+#endif
 	//Send data
 	string str = zooNode.toString();
 	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
@@ -430,7 +442,7 @@ void ZooHandler::publishListOfFiles() {
 	}
 
 	//LOG(ERROR)<<"publishListOfFiles successfully:"<<str<<endl;
-	LOG(ERROR)<<"publishListOfFiles successfully.";
+	//LOG(ERROR)<<"publishListOfFiles successfully.";
 }
 
 std::vector<ZooNode> ZooHandler::getGlobalView() {
@@ -506,6 +518,24 @@ void ZooHandler::updateGlobalView() {
 				&mac[3], &mac[4], &mac[5]);
 
 		tok = strtok(NULL, "\n");
+    if (tok == NULL) {
+      LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
+      delete[] buffer;
+      buffer = nullptr;
+      continue;
+    }
+    string ip(tok);
+
+    tok = strtok(NULL, "\n");
+    if (tok == NULL) {
+      LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
+      delete[] buffer;
+      buffer = nullptr;
+      continue;
+    }
+    string port(tok);
+
+		tok = strtok(NULL, "\n");
 		if (tok == NULL) {
 		  LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
 			delete[] buffer;
@@ -520,7 +550,7 @@ void ZooHandler::updateGlobalView() {
 			tok = strtok(NULL, "\n");
 		}
 		//4)update globalView
-		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles,mac);
+		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles,mac,ip,stoul(port));
 		globalView.push_back(zoonode);
 		delete[] buffer;
 		buffer = nullptr;
@@ -574,6 +604,8 @@ void ZooHandler::updateRemoteFilesInFS() {
 		FileNode *newFile = FileSystem::getInstance().mkFile(fileName,true,true);
 		uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
 		newFile->setRemoteHostMAC(item.second.MAC);
+		newFile->setRemoteIP(item.second.ip);
+		newFile->setRemotePort(item.second.port);
 		newFile->close(inodeNum);//create and open operation
 		printf("created:%s hostName:%s MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
 				item.first.c_str(),item.second.hostName.c_str(),item.second.MAC[0],
@@ -635,7 +667,7 @@ void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
 	if (type == ZOO_CHANGED_EVENT) {
 		string pathStr(path);
 		printf("Node %s changed! updating globalview...\n", path);
-		LOG(ERROR)<<"Node "<<path<<" changed! updating globalview...";
+		//LOG(ERROR)<<"Node "<<pathStr<<" changed! updating globalview...";
 		getInstance().updateGlobalView();
 	}
 }
@@ -712,7 +744,7 @@ ZooNode ZooHandler::getMostFreeNode() {
   vector<ZooNode>globalView = getGlobalView();
   if(globalView.size() == 0) {
     vector<string> emptyVector;
-    ZooNode emptyNode(string(""),0,emptyVector,nullptr);
+    ZooNode emptyNode(string(""),0,emptyVector,nullptr,"",0);
     return emptyNode;
   }
   //Now sort ourZoo by Free Space descendingly!

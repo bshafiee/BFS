@@ -7,6 +7,7 @@
 
 #ifndef DOWNLOADQUEUE_H_
 #define DOWNLOADQUEUE_H_
+#include "Global.h"
 #include "SyncQueue.h"
 #include "Backend.h"
 

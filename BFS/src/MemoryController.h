@@ -7,7 +7,7 @@
 
 #ifndef MEMORYCONTROLLER_H_
 #define MEMORYCONTROLLER_H_
-
+#include "Global.h"
 #include <unistd.h>
 #include <ios>
 #include <iostream>

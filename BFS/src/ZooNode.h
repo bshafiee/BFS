@@ -7,6 +7,8 @@
 
 #ifndef ZOONODE_H_
 #define ZOONODE_H_
+
+#include "Global.h"
 #include <string>
 #include <vector>
 #include <sstream>
@@ -20,10 +22,12 @@ struct ZooNode {
   unsigned long freeSpace;
   std::vector<std::string> containedFiles;
   unsigned char MAC[6];
+  std::string ip;
+  uint32_t port;
 
   ZooNode(std::string _hostName,unsigned long _freeSpace,
-  				std::vector<std::string> _containedFiles,const unsigned char *_mac):hostName(_hostName),
-					freeSpace(_freeSpace),containedFiles(_containedFiles) {
+  				std::vector<std::string> _containedFiles,const unsigned char *_mac,std::string _ip,uint32_t _port):hostName(_hostName),
+					freeSpace(_freeSpace),containedFiles(_containedFiles),ip(_ip),port(_port) {
   	if(_mac != nullptr)
   		memcpy(MAC,_mac,sizeof(char)*6);
   }
@@ -34,6 +38,8 @@ struct ZooNode {
   	char macBuff[100];
   	sprintf(macBuff,"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",MAC[0],MAC[1],MAC[2],MAC[3],MAC[4],MAC[5]);
   	output << macBuff<< "\n";
+  	output << ip << "\n";
+  	output << port << "\n";
   	output << freeSpace;
   	if(containedFiles.size() > 0)
   		output << "\n";

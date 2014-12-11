@@ -5,6 +5,7 @@
  *      Author: Behrooz
  */
 
+#include "Global.h"
 #include <chrono>
 
 #ifndef SRC_TIMER_H_

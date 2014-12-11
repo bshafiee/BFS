@@ -16,6 +16,7 @@
 #include "DownloadQueue.h"
 #include "ZooHandler.h"
 #include "MemoryController.h"
+#include "BFSTcpServer.h"
 
 using namespace std;
 using namespace Poco;
@@ -145,7 +146,7 @@ FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
 }
 
 FileNode* FileSystem::findAndOpenNode(const std::string &_path) {
-  lock_guard<mutex> lk(deleteQueueMutex);
+  lock_guard<recursive_mutex> lk(deleteQueueMutex);
 
   if(unlikely(_path == "")){
     LOG(ERROR)<<"Invalid find File Request:"<<_path;
@@ -325,7 +326,11 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
   if(mostFreeNode.freeSpace == 0)//GetMostFreeNode could not find a node
     return false;
+#ifdef BFS_ZERO
   bool res = BFSNetwork::createRemoteFile(_name,mostFreeNode.MAC);
+#else
+  bool res = BFSTcpServer::createRemoteFile(_name,mostFreeNode.ip,mostFreeNode.port);
+#endif
   ZooHandler::getInstance().requestUpdateGlobalView();
   return res;
 }
@@ -336,11 +341,15 @@ bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
     return false;
   //First advertise the list of files you have to make sure the dst node will see this file
   ZooHandler::getInstance().publishListOfFiles();
+#ifdef BFS_ZERO
   return BFSNetwork::createRemoteFile(_localFile->getFullPath(),mostFreeNode.MAC);
+#else
+  return BFSTcpServer::moveFileToRemoteNode(_localFile->getFullPath(),mostFreeNode.ip,mostFreeNode.port);
+#endif
 }
 
 intptr_t FileSystem::getNodeByINodeNum(uint64_t _inodeNum) {
-  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
   auto res = inodeMap.find(_inodeNum);
   if(res != inodeMap.end())
     return res->second.first;
@@ -349,7 +358,7 @@ intptr_t FileSystem::getNodeByINodeNum(uint64_t _inodeNum) {
 }
 
 uint64_t FileSystem::assignINodeNum(intptr_t _nodePtr) {
-  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
   uint64_t nextInodeNum = ++inodeCounter;
   if(unlikely(nextInodeNum == 0))//Not Zero
     nextInodeNum = ++inodeCounter;
@@ -380,7 +389,7 @@ uint64_t FileSystem::assignINodeNum(intptr_t _nodePtr) {
 }
 
 void FileSystem::replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr) {
-  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
 
   auto res = nodeInodeMap.find(_oldPtr);
   if(res == nodeInodeMap.end())
@@ -405,7 +414,7 @@ void FileSystem::replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr) {
 }
 
 void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
-  lock_guard<mutex> lock_gurad(inodeMapMutex);
+  lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
   //Find ptr_t
   auto res = inodeMap.find(_inodeNum);
   if(res != inodeMap.end()){
@@ -435,22 +444,20 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
 
 bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   //Grab locks
-  lock_guard<mutex> lk(deleteQueueMutex);
-  lock_guard<mutex> lock_gurad(inodeMapMutex);
-
-  //1) MustBeDeleted True
-  _node->mustDeleted = true;
-  _node->mustInformRemoteOwner = _informRemoteOwner;
+  lock_guard<recursive_mutex> lk(deleteQueueMutex);
+  lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
 
   //Check if this file is already deleted!
   auto inodeList = nodeInodeMap.find((intptr_t)_node);
   if(inodeList != nodeInodeMap.end()) {
     for(uint64_t inode:inodeList->second) {
       auto inodeIt = inodeMap.find(inode);
-      if(inodeIt == inodeMap.end())
+      if(inodeIt == inodeMap.end()){
         LOG(ERROR)<<"Inconcsitency between inodeMap and nodeInodeMap!";
+        exit(-1);
+      }
       else if(inodeIt->second.second){
-        LOG(ERROR)<<"SIGNAL DELETE ALREADY DELETED: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+        LOG(ERROR)<<"SIGNAL DELETE ALREADY DELETED: Ptr:"<<(FileNode*)_node;
         return true;
       }
     }
@@ -463,15 +470,19 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       found = true;
       //If is still open just return otherwise we gonna go to delete it!
       if(_node->isOpen()){
-        LOG(ERROR)<<"SIGNAL DELETE FORLOOP: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+        LOG(ERROR)<<"SIGNAL DELETE FORLOOP: Key:"<<_node->key<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
         return true;
       }
       else
         break;//Going to fuck it!
     }
 
+  //0) MustBeDeleted True
+  _node->mustDeleted = true;
+  _node->mustInformRemoteOwner = _informRemoteOwner;
 
-  //0) Add Node to the delete Queue
+
+  //1) Add Node to the delete Queue
   if(!found)
     deleteQueue.push_back(_node);
 
@@ -504,7 +515,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   _node->hasInformedDelete = true;
   //5) if is open just return and we'll come back later
   if(_node->isOpen()){
-    LOG(ERROR)<<"SIGNAL DELETE ISOPEN: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" isOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+    LOG(ERROR)<<"SIGNAL DELETE ISOPEN Key:"<<_node->key<<" howmanyOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
     return true;//will be deleted on close
   }
 

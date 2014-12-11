@@ -286,7 +286,7 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vec
 		//First try to set if does not exist create it!
 		//int callRes = zoo_set(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),value.length(),-1);
 		//if(callRes == ZNONODE) {//Does not exist!
-			char buffer[100];
+			char buffer[1000];
 			strcpy(buffer,path.c_str());
 			int createRes = zoo_create(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),
 																 value.length(),&ZOO_OPEN_ACL_UNSAFE,ZOO_EPHEMERAL,buffer,sizeof(buffer));

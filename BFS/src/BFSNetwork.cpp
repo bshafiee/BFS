@@ -29,7 +29,8 @@ using namespace std;
 
 /** static members **/
 string BFSNetwork::DEVICE= "eth0";
-unsigned char BFSNetwork::MAC[6];
+unsigned char BFSNetwork::MAC[6] = {0,0,0,0,0,0};
+atomic<bool> BFSNetwork::macInitialized(false);
 taskMap<uint32_t,ReadRcvTask*> BFSNetwork::readRcvTasks(2000);
 taskMap<uint32_t,WriteDataTask> BFSNetwork::writeDataTasks(2000);
 taskMap<uint32_t,ReadRcvTask*> BFSNetwork::attribRcvTasks(2000);
@@ -60,6 +61,7 @@ bool BFSNetwork::startNetwork() {
 	//Get Mac Address
 	int mtu = -1;
 	getMacAndMTU(DEVICE,MAC,mtu);
+	macInitialized.store(true);
 	DATA_LENGTH = mtu - HEADER_LEN;
 	if(!ZeroNetwork::initialize(DEVICE,mtu))
 		return false;
@@ -534,7 +536,7 @@ void BFSNetwork::rcvLoop() {
 		}
 
 
-		/** Seems we got a relative packet! **/
+		/** Seems we got a relavent packet! **/
 		//Check opcode
 		//NO MATTER PACKET TYPE< OPCODE INDEX IS FIXED
 		uint32_t opCode = ((WriteReqPacket*)_packet)->opCode;;
@@ -1024,6 +1026,10 @@ uint32_t BFSNetwork::getNextFileID() {
 }
 
 const unsigned char* BFSNetwork::getMAC() {
+  if(!macInitialized){
+    getMacAndMTU(DEVICE,MAC,MTU);
+    macInitialized.store(true);
+  }
 	return MAC;
 }
 

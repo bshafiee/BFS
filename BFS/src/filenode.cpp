@@ -15,6 +15,8 @@
 #include "MemoryController.h"
 #include "BFSNetwork.h"
 #include "ZooHandler.h"
+#include "BFSTcpServer.h"
+#include "Timer.h"
 
 using namespace std;
 
@@ -23,7 +25,7 @@ namespace FUSESwift {
 FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):Node(_name,_fullPath),
     isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),
     mustDeleted(false), hasInformedDelete(false),isRem(_isRemote),
-    mustInformRemoteOwner(true), moving(false) {
+    mustInformRemoteOwner(true), moving(false), isUPLOADING(false) {
 	/*if(_isRemote)
 		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
@@ -96,6 +98,9 @@ void FileNode::setName(std::string _newName) {
 }
 
 long FileNode::read(char* &_data, size_t _offset, size_t _size) {
+  //Acquire lock
+  lock_guard <recursive_mutex> lock(ioMutex);
+
   if(_offset == size)
     return 0;
 
@@ -368,31 +373,40 @@ bool FileNode::isDirectory() {
 bool FileNode::open() {
   if(mustDeleted)
     return false;
+
+
   refCount++;
-  //LOG(ERROR)<<"Open:"<<key<<" refCount:"<<refCount;
+
+  LOG(ERROR)<<"Open:"<<key<<" refCount:"<<refCount<<" ptr:"<<this;
   return true;
 }
 
 void FileNode::close(uint64_t _inodeNum) {
   refCount--;
-  //LOG(ERROR)<<"Close:"<<key<<" refCount:"<<refCount;
+
+  LOG(ERROR)<<"Close refCount:"<<refCount<<" ptr:"<<this;
   /**
    * add event to sync queue if all the references to this file
    * are closed and it actually needs updating!
    */
   if(refCount < 0){
-    LOG(ERROR)<<"SPURIOUS CLOSE"<<key;
+    LOG(ERROR)<<"SPURIOUS CLOSE:"<<key<<" ptr:"<<this;
   }
   if(refCount == 0) {
-  	if(!mustDeleted && needSync)
-  		if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this->getFullPath())))
-  			this->setNeedSync(false);
-
   	//If all refrences to this files are deleted so it can be deleted
+
   	if(mustDeleted){
-  	  LOG(ERROR)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<isOpen()<<" isRemote():"<<isRemote();
+  	  LOG(ERROR)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<refCount<<" isRemote():"<<isRemote()<<" ptr:"<<this<<" isuploading:"<<isUPLOADING;
   	  FileSystem::getInstance().signalDeleteNode(this,mustInformRemoteOwner);//It's close now! so will be removed
+  	  /// NOTE AFTER THIS LINE ALL OF DATA IN THIS FILE ARE INVALID ///
   	  ZooHandler::getInstance().requestUpdateGlobalView();
+  	} else{//Should not be deleted
+      if(needSync && !isRemote()){
+        if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this->getFullPath())))
+          this->setNeedSync(false);
+        else
+          LOG(ERROR)<<"\n\n\nHOLLY SHITTTTTTTTTTTTTTTTTTTTTT\n\n\n\n"<<key;
+      }
   	}
   }
   else {
@@ -410,9 +424,8 @@ bool FUSESwift::FileNode::getNeedSync() {
 }
 
 void FUSESwift::FileNode::setNeedSync(bool _need) {
-  //Acquire lock
-  lock_guard <recursive_mutex> lock(ioMutex);
   needSync = _need;
+  //LOG(ERROR)<<"NeedSync:"<<_need<<" for:"<<key;
 }
 
 bool FileNode::isOpen() {
@@ -422,6 +435,7 @@ bool FileNode::isOpen() {
 std::string FileNode::getMD5() {
   if(size <= 0)
     return "";
+  lock_guard<recursive_mutex> lk(ioMutex);
   Poco::MD5Engine md5;
   md5.reset();
   size_t blockSize = FileSystem::blockSize;
@@ -435,12 +449,26 @@ std::string FileNode::getMD5() {
 bool FileNode::isRemote() {
 	return isRem;
 }
+
+int FileNode::concurrentOpen(){
+  return refCount;
+}
+
 const unsigned char* FileNode::getRemoteHostMAC() {
 	return this->remoteHostMAC;
 }
 
 void FileNode::setRemoteHostMAC(const unsigned char *_mac) {
-	memcpy(this->remoteHostMAC,_mac,6*sizeof(char));
+  if(_mac!=nullptr)
+    memcpy(this->remoteHostMAC,_mac,6*sizeof(char));
+}
+
+void FileNode::setRemoteIP(const string &_ip) {
+  remoteIP = _ip;
+}
+
+void FileNode::setRemotePort(const uint32_t _port) {
+  remotePort = _port;
 }
 
 bool FileNode::getStat(struct stat *stbuff) {
@@ -464,7 +492,11 @@ bool FileNode::getStat(struct stat *stbuff) {
 		return true;
 	}
 	else{
+#ifdef BFS_ZERO
 		bool res = BFSNetwork::readRemoteFileAttrib(stbuff,this->getFullPath(),remoteHostMAC);
+#else
+		bool res = BFSTcpServer::attribRemoteFile(stbuff,this->getFullPath(),remoteIP,remotePort);
+#endif
 		if(!res){
 		  //fprintf(stderr,"ISFILEOPEN? %d   ",isOpen());
 		  string test;
@@ -560,15 +592,28 @@ long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 		}
 	}*/
 	//fprintf(stderr,"RemtoeRead Req!\n");
-
+#ifdef BFS_ZERO
 	return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
+#else
+	Timer t;
+  t.begin();
+	long res = BFSTcpServer::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
+	t.end();
+  //cout<<"RECV DONE IN:"<<t.elapsedMicro()<<" microseconds."<<endl;
+  return res;
+#endif
 }
 
 long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
 	if(_size == 0)
 	  return 0;
+#ifdef BFS_ZERO
 	unsigned long written = BFSNetwork::writeRemoteFile(
 	    _data,_size,_offset,this->getFullPath(),remoteHostMAC);
+#else
+	unsigned long written = BFSTcpServer::writeRemoteFile(
+	      _data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
+#endif
 	if(written!=_size)
 	  return -3;//ACK error
 	else
@@ -576,11 +621,19 @@ long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
 }
 
 bool FileNode::rmRemote() {
+#ifdef BFS_ZERO
   return BFSNetwork::deleteRemoteFile(getFullPath(),remoteHostMAC);
+#else
+  return BFSTcpServer::deleteRemoteFile(getFullPath(),remoteIP,remotePort);
+#endif
 }
 
 bool FileNode::truncateRemote(size_t size) {
+#ifdef BFS_ZERO
   return BFSNetwork::truncateRemoteFile(getFullPath(),size, remoteHostMAC);
+#else
+  return BFSTcpServer::truncateRemoteFile(getFullPath(),size, remoteIP,remotePort);
+#endif
 }
 
 void FileNode::makeLocal() {

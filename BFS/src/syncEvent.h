@@ -7,7 +7,7 @@
 
 #ifndef SYNCEVENT_H_
 #define SYNCEVENT_H_
-
+#include "Global.h"
 #include "filenode.h"
 #include "cstring"
 

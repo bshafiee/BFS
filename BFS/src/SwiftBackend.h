@@ -7,10 +7,10 @@
 
 #ifndef SWIFTBACKEND_H_
 #define SWIFTBACKEND_H_
-
+#include "Global.h"
 #include "Backend.h"
-#include <Authentication.h>
-#include <Account.h>
+#include <Swift/Authentication.h>
+#include <Swift/Account.h>
 #include <tuple>
 
 namespace FUSESwift {

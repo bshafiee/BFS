@@ -7,6 +7,7 @@
 
 #ifndef LEADEROFFER_H_
 #define LEADEROFFER_H_
+#include "Global.h"
 #include <string>
 
 namespace FUSESwift {

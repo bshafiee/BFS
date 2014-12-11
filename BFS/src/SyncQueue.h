@@ -7,7 +7,7 @@
 
 #ifndef SYNCQUEUE_H_
 #define SYNCQUEUE_H_
-
+#include "Global.h"
 #include <vector>
 #include "filenode.h"
 #include "syncEvent.h"

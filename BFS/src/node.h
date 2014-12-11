@@ -7,7 +7,7 @@
 
 #ifndef NODE_H_
 #define NODE_H_
-
+#include "Global.h"
 #include <unordered_map>
 #include <string>
 #include <mutex>

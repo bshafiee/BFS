@@ -8,7 +8,7 @@
 #ifndef BFSNETWORK_H_
 #define BFSNETWORK_H_
 
-
+#include "Global.h"
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -374,6 +374,7 @@ private:
 	static const unsigned char BFS_PROTO_BYTE1 = 0xaa;
 	static const unsigned char BFS_PROTO_BYTE2 = 0xaa;
 	static unsigned char MAC[6];
+	static std::atomic<bool> macInitialized;
 	//Variables
 	static std::atomic<bool> isRunning;
 	static std::atomic<bool> rcvLoopDead;

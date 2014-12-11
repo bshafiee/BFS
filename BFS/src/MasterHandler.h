@@ -7,7 +7,7 @@
 
 #ifndef MASTERHANDLER_H_
 #define MASTERHANDLER_H_
-
+#include "Global.h"
 #include <atomic>
 #include <vector>
 #include "BackendManager.h"

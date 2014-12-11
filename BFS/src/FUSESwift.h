@@ -7,7 +7,7 @@
 
 #ifndef FUSESWIFT_H_
 #define FUSESWIFT_H_
-
+#include "Global.h"
 #include <fuse.h>
 #include "log.h"
 #include "filesystem.h"

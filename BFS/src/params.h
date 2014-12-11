@@ -10,7 +10,7 @@
 
 #ifndef _PARAMS_H_
 #define _PARAMS_H_
-
+#include "Global.h"
 // maintain bbfs state in here
 #include <limits.h>
 #include <stdio.h>
