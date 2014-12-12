@@ -106,7 +106,7 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 
 	  offset += iStream->gcount();
 	}
-
+	newFile->setNeedSync(false);//We have just created this file so it's upload flag false
 	newFile->close(inodeNum);
 }
 

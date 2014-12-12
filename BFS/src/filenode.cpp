@@ -377,14 +377,14 @@ bool FileNode::open() {
 
   refCount++;
 
-  LOG(ERROR)<<"Open:"<<key<<" refCount:"<<refCount<<" ptr:"<<this;
+  //LOG(ERROR)<<"Open:"<<key<<" refCount:"<<refCount<<" ptr:"<<this;
   return true;
 }
 
 void FileNode::close(uint64_t _inodeNum) {
   refCount--;
 
-  LOG(ERROR)<<"Close refCount:"<<refCount<<" ptr:"<<this;
+  //LOG(ERROR)<<"Close refCount:"<<refCount<<" ptr:"<<this;
   /**
    * add event to sync queue if all the references to this file
    * are closed and it actually needs updating!

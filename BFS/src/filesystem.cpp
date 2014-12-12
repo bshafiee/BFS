@@ -435,7 +435,8 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
     }
   }
   else{
-    LOG(ERROR)<<"Cannot find corresponding intptr_t in inodeMap:"<<_inodeNum;
+    if(_inodeNum!=0)//used during move operation(exception)
+      LOG(ERROR)<<"Cannot find corresponding intptr_t in inodeMap:"<<_inodeNum;
   }
 
   //Finally remove _inode

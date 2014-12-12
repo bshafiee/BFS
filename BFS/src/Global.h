@@ -10,7 +10,7 @@
 
 
 //Determines Networking mode
-#define BFS_ZERO 1
+//#define BFS_ZERO 1
 
 
 #endif /* SRC_GLOBAL_H_ */

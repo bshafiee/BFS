@@ -103,16 +103,20 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   //Check if Obj already exist
   if(obj != nullptr) {
     //check MD5
-    if(obj->getHash() == node->getMD5()) {//No change
+    /**
+     * when we are here we defenitely need update so it's vain to calculate MD5
+     * which is both time consuming and need write lock and kills
+     * write performance;threfore I just got rid of it.
+     */
+    /*if(obj->getHash() == node->getMD5()) {//No change
       LOG(ERROR)<<"Sync: File:"<<node->getFullPath()<<
-          " did not change with compare to remote version, MD5:"<<
-          node->getMD5();
+          " did not change with compare to remote version."<<obj->getHash();
 
       delete res;
       node->isUPLOADING  = false;
       node->close(inodeNum);
       return true;
-    }
+    }*/
   }
   else {
     shouldDeleteOBJ = true;
@@ -217,6 +221,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     return false;
   }
   LOG(ERROR)<<"\n\n\nGOSHHHHHHHH UNREACHABLEEEEEEEEEEEEEEEEE\n\n\n\n555555555555555\nZZZ\n";
+  return false;
 }
 
 bool SwiftBackend::put_metadata(const SyncEvent* _putMetaEvent) {

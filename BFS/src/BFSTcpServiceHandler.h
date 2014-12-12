@@ -23,6 +23,7 @@
 #define unlikely(x)     __builtin_expect((x),0)
 #endif
 
+namespace BFSTCPNetworkTypes {
 /** Request Packet Structures **/
 struct __attribute__ ((__packed__)) ReqPacket {
   uint32_t opCode;//4 byte
@@ -49,16 +50,14 @@ struct __attribute__ ((__packed__)) AttribResPacket: public ResPacket {
   uint64_t attribSize;
 };
 
+typedef ResPacket WriteResPacket;
 typedef ResPacket DeleteResPacket;
 typedef ResPacket TruncateResPacket;
 typedef ResPacket CreateResPacket;
+typedef ResPacket MoveResPacket;
 
 struct __attribute__ ((__packed__)) ReadResPacket: public ResPacket {
   uint64_t readSize;
-};
-
-struct __attribute__ ((__packed__)) WriteResPacket: public ResPacket {
-  uint64_t writtenSize;
 };
 
 /** BFS REMOTE OPERATION **/
@@ -67,6 +66,10 @@ enum class BFS_REMOTE_OPERATION {
   DELETE = 4, TRUNCATE = 5, CREATE = 6,
   MOVE = 7, UNKNOWN = 0
 };
+
+}//end of BFSTCPNetworkTypes
+
+using namespace BFSTCPNetworkTypes;
 
 class BFSTcpServiceHandler {
   Poco::Net::StreamSocket socket;
@@ -86,6 +89,7 @@ class BFSTcpServiceHandler {
   void onTruncateRequest(u_char *_packet);
   void onCreateRequest(u_char *_packet);
   void onMoveRequest(u_char *_packet);
+  int64_t processMoveRequest(std::string _fileName);
   /** Helper **/
   BFS_REMOTE_OPERATION toBFSRemoteOperation(uint32_t _opCode);
 public:

@@ -10,6 +10,7 @@
 #include "SettingManager.h"
 #include <Poco/Net/SocketAcceptor.h>
 #include "LoggerInclude.h"
+#include "ZooHandler.h"
 #include <string.h> /* for strncpy */
 #include <iostream>
 #include <string.h>
@@ -18,7 +19,7 @@
 using namespace Poco;
 using namespace Poco::Net;
 using namespace std;
-using namespace FUSESwift;
+using namespace BFSTCPNetworkTypes;
 
 
 SocketReactor *BFSTcpServer::reactor = nullptr;
@@ -130,7 +131,7 @@ int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
     socket.connect(addres);
     //socket.setKeepAlive(true);
   }catch(Exception &e){
-    cout<<"Error in createing socket to:"<<_ip<<":"<<_port<<endl<<flush;
+    cout<<"Error in createing socket to:"<<_ip<<":"<<_port<<" why?"<<e.message()<<endl<<flush;
     return -2;
   }
 
@@ -171,8 +172,8 @@ int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
       uint64_t total = 0;
       uint64_t left = resPacket.readSize;
 
-      FUSESwift::Timer t;
-      t.begin();
+      /*FUSESwift::Timer t;
+      t.begin();*/
 
       do {
         count = socket.receiveBytes((void*)((char*)_dstBuffer+total),left);
@@ -181,9 +182,12 @@ int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
       } while(left > 0 && count);
 
 
-      t.end();
-      cout<<" Read:"<<total<<" bytes in:"<<t.elapsedMillis()<<" millis"<<endl<<flush;
+      /*t.end();
+      cout<<" Read:"<<total<<" bytes in:"<<t.elapsedMillis()<<" millis"<<endl<<flush;*/
 
+      try {
+        socket.close();
+      } catch(...){}
       if(total != resPacket.readSize)
         return -4;
       else
@@ -195,9 +199,16 @@ int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
       }catch(...){}
       return -2;
     }
-  } else if(resPacket.statusCode == 200 && resPacket.readSize == 0)//EOF
+  } else if(resPacket.statusCode == 200 && resPacket.readSize == 0){//EOF
+    try {
+      socket.close();
+    } catch(...){}
     return 0;
+  }
   //Unsuccessful
+  try {
+    socket.close();
+  } catch(...){}
   return resPacket.statusCode;
 }
 
@@ -239,11 +250,10 @@ int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
   }
 
   //Now send real write data
-  char* buf = new char[_size];
   try {
     uint64_t left = _size;
     do{
-      int sent = socket.sendBytes(buf+(_size-left),left);
+      int sent = socket.sendBytes((char*)_srcBuffer+(_size-left),left);
       left -= sent;
       if(sent <= 0){//Error
         cout<<"ERROR in sending write data, asked to send:"<<left<<" but sent:"<<sent<<endl<<std::flush;
@@ -251,10 +261,12 @@ int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
       }
     }while(left);
   }catch(Exception &e){
+    try {
+      socket.close();
+    } catch(...){}
     cout<<"Error in sending write data:"<<_remoteFile<<":"<<e.message()<<endl<<std::flush;
     return -2;
   }
-  //socket.sendUrgent(1);
 
   //Now read writeStatus
   WriteResPacket resPacket;
@@ -262,12 +274,18 @@ int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
     socket.receiveBytes((void*)&resPacket,sizeof(WriteResPacket));
   }catch(Exception &e){
     cout<<"Error in receiving write status packet"<<_remoteFile<<": "<<e.message()<<endl<<std::flush;
+    try {
+      socket.close();
+    } catch(...){}
     return -2;
   }
 
+  try {
+    socket.close();
+  } catch(...){}
+
   resPacket.statusCode = be64toh(resPacket.statusCode);
-  resPacket.writtenSize = be64toh(resPacket.writtenSize);
-  if(resPacket.statusCode == 200 && resPacket.writtenSize == _size)
+  if(resPacket.statusCode == 200)
     return _size;
   else
     return resPacket.statusCode;//Unsuccessful
@@ -330,6 +348,9 @@ int64_t BFSTcpServer::attribRemoteFile(struct stat* attBuff,
         left -= count;
       } while(left > 0 && count);
 
+      try {
+        socket.close();
+      } catch(...){}
       if(total != resPacket.attribSize)
         return -4;
       else
@@ -342,24 +363,232 @@ int64_t BFSTcpServer::attribRemoteFile(struct stat* attBuff,
       return -2;
     }
   }
+  try {
+    socket.close();
+  } catch(...){}
   //Unsuccessful
   return resPacket.statusCode;
 }
 
 int64_t BFSTcpServer::deleteRemoteFile(const std::string& remoteFile,
     const std::string& _ip, uint _port) {
+  if(remoteFile.length() > 1024){
+      LOG(ERROR)<<"Filename too long!";
+    return false;
+  }
+
+  StreamSocket socket;
+  try {
+   SocketAddress addres(_ip,_port);
+   socket.connect(addres);
+   socket.setKeepAlive(true);
+  }catch(Exception &e){
+   cout<<"Error in creating socket to:"<<_ip<<":"<<_port<<endl<<flush;
+   return -2;
+  }
+
+  //Create a request
+  DeleteReqPacket deleteReqPacket;
+  strncpy(deleteReqPacket.fileName,remoteFile.c_str(),remoteFile.length());
+  deleteReqPacket.fileName[remoteFile.length()]= '\0';
+  deleteReqPacket.opCode = htonl((uint32_t)BFS_REMOTE_OPERATION::DELETE);
+
+  //Send Packet
+  try {
+   socket.sendBytes((void*)&deleteReqPacket,sizeof(DeleteReqPacket));
+  }catch(Exception &e){
+   cout<<"Error in sending Delete request"<<remoteFile<<": "<<e.message()<<endl<<std::flush;
+   try {
+     socket.close();
+   }catch(...){}
+   return -2;
+  }
+
+  //Now Delete Status
+  DeleteResPacket resPacket;
+  try {
+    socket.receiveBytes((void*)&resPacket,sizeof(DeleteResPacket));
+  }catch(Exception &e){
+    cout<<"Error in receiving Delete status packet"<<remoteFile<<": "<<e.message()<<endl<<std::flush;
+    try{
+      socket.close();
+    }catch(...){}
+    return -2;
+  }
+
+  try {
+    socket.close();
+  } catch(...){}
+  resPacket.statusCode = be64toh(resPacket.statusCode);
+  return resPacket.statusCode;
 }
 
-int64_t BFSTcpServer::truncateRemoteFile(const std::string& _remoteFile,
+int64_t BFSTcpServer::truncateRemoteFile(const std::string& remoteFile,
     size_t _newSize,const std::string& _ip, uint _port) {
+  if(remoteFile.length() > 1024){
+      LOG(ERROR)<<"Filename too long!";
+    return false;
+  }
+
+  StreamSocket socket;
+  try {
+   SocketAddress addres(_ip,_port);
+   socket.connect(addres);
+   socket.setKeepAlive(true);
+  }catch(Exception &e){
+   cout<<"Error in creating socket to:"<<_ip<<":"<<_port<<endl<<flush;
+   return -2;
+  }
+
+  //Create a request
+  TruncReqPacket truncReqPacket;
+  strncpy(truncReqPacket.fileName,remoteFile.c_str(),remoteFile.length());
+  truncReqPacket.fileName[remoteFile.length()]= '\0';
+  truncReqPacket.opCode = htonl((uint32_t)BFS_REMOTE_OPERATION::TRUNCATE);
+  truncReqPacket.size = htobe64(_newSize);
+
+  //Send Packet
+  try {
+   socket.sendBytes((void*)&truncReqPacket,sizeof(TruncReqPacket));
+  }catch(Exception &e){
+   cout<<"Error in sending Truncate request"<<remoteFile<<": "<<e.message()<<endl<<std::flush;
+   try {
+     socket.close();
+   }catch(...){}
+   return -2;
+  }
+
+  //Now Truncate Status
+  TruncateResPacket resPacket;
+  try {
+    socket.receiveBytes((void*)&resPacket,sizeof(TruncateResPacket));
+  }catch(Exception &e){
+    cout<<"Error in receiving Truncate status packet"<<remoteFile<<": "<<e.message()<<endl<<std::flush;
+    try{
+      socket.close();
+    }catch(...){}
+    return -2;
+  }
+  try {
+    socket.close();
+  } catch(...){}
+
+  resPacket.statusCode = be64toh(resPacket.statusCode);
+  return resPacket.statusCode;
 }
 
 int64_t BFSTcpServer::createRemoteFile(const std::string& remoteFile,
     const std::string& _ip, uint _port) {
+  if(remoteFile.length() > 1024){
+      LOG(ERROR)<<"Filename too long!";
+    return false;
+  }
+
+  StreamSocket socket;
+  try {
+   SocketAddress addres(_ip,_port);
+   socket.connect(addres);
+   socket.setKeepAlive(true);
+  }catch(Exception &e){
+   cout<<"Error in creating socket to:"<<_ip<<":"<<_port<<endl<<flush;
+   return -2;
+  }
+
+  //Create a request
+  CreateReqPacket createReqPacket;
+  strncpy(createReqPacket.fileName,remoteFile.c_str(),remoteFile.length());
+  createReqPacket.fileName[remoteFile.length()]= '\0';
+  createReqPacket.opCode = htonl((uint32_t)BFS_REMOTE_OPERATION::CREATE);
+
+  //Send Packet
+  try {
+   socket.sendBytes((void*)&createReqPacket,sizeof(CreateReqPacket));
+  }catch(Exception &e){
+   cout<<"Error in sending Create request"<<remoteFile<<": "<<e.message()<<endl<<std::flush;
+   try {
+     socket.close();
+   }catch(...){}
+   return -2;
+  }
+
+  //Now Create Status
+  CreateResPacket resPacket;
+  try {
+    socket.receiveBytes((void*)&resPacket,sizeof(CreateResPacket));
+  }catch(Exception &e){
+    cout<<"Error in receiving Create status packet"<<remoteFile<<": "<<e.message()<<endl<<std::flush;
+    try{
+      socket.close();
+    }catch(...){}
+    return -2;
+  }
+
+  try {
+    socket.close();
+  } catch(...){}
+
+  resPacket.statusCode = be64toh(resPacket.statusCode);
+  return resPacket.statusCode;
 }
 
 int64_t BFSTcpServer::moveFileToRemoteNode(const std::string& file,
     const std::string& _ip, uint _port) {
+  if(file.length() > 1024){
+      LOG(ERROR)<<"Filename too long!";
+    return false;
+  }
+
+  StreamSocket socket;
+  try {
+   SocketAddress addres(_ip,_port);
+   socket.connect(addres);
+   socket.setKeepAlive(true);
+  }catch(Exception &e){
+   cout<<"Error in creating socket to:"<<_ip<<":"<<_port<<endl<<flush;
+   return -2;
+  }
+
+  //Create a request
+  MoveReqPacket moveReqPacket;
+  strncpy(moveReqPacket.fileName,file.c_str(),file.length());
+  moveReqPacket.fileName[file.length()]= '\0';
+  moveReqPacket.opCode = htonl((uint32_t)BFS_REMOTE_OPERATION::MOVE);
+
+  //Send Packet
+  try {
+   socket.sendBytes((void*)&moveReqPacket,sizeof(MoveReqPacket));
+  }catch(Exception &e){
+   cout<<"Error in sending Move request"<<file<<": "<<e.message()<<endl<<std::flush;
+   try {
+     socket.close();
+   }catch(...){}
+   return -2;
+  }
+
+  //Now Move Status
+  MoveResPacket resPacket;
+  try {
+    socket.receiveBytes((void*)&resPacket,sizeof(MoveResPacket));
+  }catch(Exception &e){
+    cout<<"Error in receiving Move status packet"<<file<<": "<<e.message()<<endl<<std::flush;
+    try{
+      socket.close();
+    }catch(...){}
+    return -2;
+  }
+  resPacket.statusCode = be64toh(resPacket.statusCode);
+  if(resPacket.statusCode == 200) {//Success
+    cout<<"Move to remote node successful: "<<file<< " Updating global view"<<endl<<flush;
+    FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
+  }
+  else
+    cout<<"Move to remote node failed: "<<file<<endl<<flush;
+
+  try {
+    socket.close();
+  } catch(...){}
+
+  return resPacket.statusCode;
 }
 
 std::string BFSTcpServer::getIP() {
@@ -385,11 +614,11 @@ std::uint32_t BFSTcpServer::getPort() {
 }
 
 bool BFSTcpServer::initialize() {
-  string devName = SettingManager::get(CONFIG_KEY_ZERO_NETWORK_DEV);
+  string devName = FUSESwift::SettingManager::get(FUSESwift::CONFIG_KEY_ZERO_NETWORK_DEV);
   if(devName.length() > 0){
     iface = devName;
     findIP();
-    string portStr = SettingManager::get(CONFIG_KEY_TCP_PORT);
+    string portStr = FUSESwift::SettingManager::get(FUSESwift::CONFIG_KEY_TCP_PORT);
     if(!portStr.length()){
       LOG(DEBUG) <<"No tcp_port in the config file! \n"
           "Initializing BFSTCPServer failed.\n";

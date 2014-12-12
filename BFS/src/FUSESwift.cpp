@@ -318,11 +318,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
 
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
-  /*errMutex.lock();
-  static uint64_t counter = 0;
-  fprintf(stderr,"FUSE READ, size:%zu\n",++counter);
-  fflush(stderr);
-  errMutex.unlock();*/
+  //cout<<"FUSE ReadBlockSize:"<<size<<endl;
   if(DEBUG_READ)
     log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
         path, buf, size, offset, fi);
@@ -378,6 +374,8 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
+
+  //cout<<"FUSE WriteBlockSize:"<<size<<endl;
 
   long written = 0;
 

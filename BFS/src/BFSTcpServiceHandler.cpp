@@ -13,6 +13,8 @@
 #include <Poco/Exception.h>
 #include "filesystem.h"
 #include "filenode.h"
+#include "ZooHandler.h"
+#include "MemoryController.h"
 #include <sys/stat.h>
 #include <endian.h>
 #include <string>
@@ -22,7 +24,7 @@
 using namespace Poco;
 using namespace Poco::Net;
 using namespace std;
-using namespace FUSESwift;
+//using namespace FUSESwift;
 
 
 
@@ -110,20 +112,11 @@ void BFSTcpServiceHandler::onReadable(
     uint32_t opCode = ntohl(((ReqPacket*)_packet)->opCode);
 
 
-    FUSESwift::Timer t;
-    double t1;
-    double t2;
     switch(toBFSRemoteOperation(opCode)) {
       case BFS_REMOTE_OPERATION::READ:
         //Read the rest of request packet
-        t.begin();
         socket.receiveBytes(_packet+sizeof(reqPacket.opCode),sizeof(ReadReqPacket)-sizeof(reqPacket.opCode));
-        t.end();
-        t1 = t.elapsedMicro();
-        t.begin();
         onReadRequest(_packet);
-        t.end();
-        t2 = t.elapsedMicro();
         //cout<<"READ SERVERD IN :"<<t.elapsedMicro()<<" Micro T1:"<<t1<<" Total:"<<t1+t2<<endl<<flush;
         break;
       case BFS_REMOTE_OPERATION::WRITE:
@@ -157,6 +150,8 @@ void BFSTcpServiceHandler::onReadable(
     cout<<"Error in reading data loop:"<<e.message()<<endl<<std::flush;
     delete this;
   }
+  //So after a connection is served just close it!
+  delete this;
 }
 
 void BFSTcpServiceHandler::onShutdown(
@@ -206,11 +201,11 @@ void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
   resPacket.readSize = htobe64(0);
 
   //Find node
-  FileNode* fNode = FileSystem::getInstance().findAndOpenNode(fileName);
+  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
   long read = 0;
   char *buffer = nullptr;
   if(fNode!=nullptr) {
-    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     //First check how much we can read!
     buffer = new char[reqPacket->size];
     read = fNode->read(buffer,reqPacket->offset,reqPacket->size);
@@ -231,8 +226,8 @@ void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
       uint64_t left = read;
       uint64_t total = read;
 
-      FUSESwift::Timer t;
-      t.begin();
+      /*FUSESwift::Timer t;
+      t.begin();*/
       do {
         int sent = socket.sendBytes(buffer+(total-left),left);
         left -= sent;
@@ -242,8 +237,8 @@ void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
         }
       }while(left);
 
-      t.end();
-      cout<<"Sent:"<<total<<" bytes in:"<<t.elapsedMillis()<<" milli"<<endl<<flush;
+      //t.end();
+      //cout<<"Sent:"<<total<<" bytes in:"<<t.elapsedMillis()<<" milli"<<endl<<flush;
       //cout<<"Sent:"<<be64toh(resPacket.readSize)<<" bytes."<<endl<<std::flush;
     }
   } catch(...){
@@ -268,27 +263,40 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
   //Write Res
   WriteResPacket writeResPacket;
   writeResPacket.statusCode = htobe64(-1);
-  writeResPacket.writtenSize = 0;
 
-  char* buff = new char[reqPacket->size];
-  try {
-    int count = 0;
-    uint64_t total = 0;
-    uint64_t left = reqPacket->size;
-    do {
-      count = socket.receiveBytes((void*)((char*)buff+total),left);
-      total += count;
-      left -= count;
-      //cout<<"total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available()<<endl<<flush;
-    } while(left > 0 && count);
-    if(total == reqPacket->size){//Success
-      writeResPacket.statusCode = htobe64(200);
-      writeResPacket.writtenSize = htobe64(total);
+  //Find node
+  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  if(fNode!=nullptr) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    char* buff = new char[reqPacket->size];
+    try {
+      int count = 0;
+      uint64_t total = 0;
+      uint64_t left = reqPacket->size;
+      do {
+        count = socket.receiveBytes((void*)((char*)buff+total),left);
+        total += count;
+        left -= count;
+        //cout<<"total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available()<<endl<<flush;
+      } while(left > 0 && count);
+      if(total == reqPacket->size){//Success
+        FUSESwift::FileNode* afterMove = nullptr;//If it does not fit in out memory
+        long result = fNode->writeHandler(buff,reqPacket->offset,reqPacket->size,afterMove);
+        if(afterMove)
+          fNode = afterMove;
+        writeResPacket.statusCode = htobe64(result);
+      }else
+        cout<<"reading write data failed:total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available()<<endl<<flush;
+    }catch(Exception &e){
+      cout<<"Error in receiving write data "<<reqPacket->fileName<<": "<<e.message()<<endl<<std::flush;
+      delete this;
     }
-  }catch(Exception &e){
-    cout<<"Error in receiving write data "<<reqPacket->fileName<<": "<<e.message()<<endl<<std::flush;
-    delete this;
+    delete []buff;
+    buff = nullptr;
+    //Close file
+    fNode->close(inodeNum);
   }
+
   //Send response packet
   try {
     socket.sendBytes((void*)&writeResPacket,sizeof(WriteResPacket));
@@ -308,9 +316,9 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
   struct stat data;
 
   //Find node
-  FileNode* fNode = FileSystem::getInstance().findAndOpenNode(fileName);
+  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr) {
-    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     //Offset is irrelevant here and we use it for indicating success for failure
     resPacket.statusCode = htobe64(200);
     resPacket.attribSize = htobe64(sizeof(struct stat));
@@ -346,14 +354,218 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
 }
 
 void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
+  DeleteReqPacket *reqPacket = (DeleteReqPacket*)_packet;
+  string fileName = string(reqPacket->fileName);
+
+  DeleteResPacket resPacket;
+  resPacket.statusCode = htobe64(-1);
+
+  //Find node
+  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  if(fNode!=nullptr && !fNode->isRemote()) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    FUSESwift::FileSystem::getInstance().signalDeleteNode(fNode,false);
+    fNode->close(inodeNum);
+    resPacket.statusCode = htobe64(200);
+  } else if(fNode!=nullptr && fNode->isRemote()) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    fNode->close(inodeNum);
+    cout<<"Error! got a delete request for a node which "
+        "I'm not responsible for:"<<fileName<<endl<<std::flush;
+  } else {
+    cout<<"Error! got a delete request for a non existent node"
+        <<fileName<<endl<<std::flush;
+  }
+
+  try {
+    socket.sendBytes((void*)&resPacket,sizeof(DeleteResPacket));
+  } catch(...){
+    cout<<"Error in sending Delete response:"<<fileName<<endl<<std::flush;
+    delete this;
+  }
 }
 
 void BFSTcpServiceHandler::onTruncateRequest(u_char *_packet) {
+  TruncReqPacket *reqPacket = (TruncReqPacket*)_packet;
+  string fileName = string(reqPacket->fileName);
+  uint64_t newSize = be64toh(reqPacket->size);
+
+  TruncateResPacket resPacket;
+  resPacket.statusCode = htobe64(-1);
+
+  //Find node
+  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  if(fNode!=nullptr && !fNode->isRemote()) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    bool res = fNode->truncate(newSize);
+    fNode->close(inodeNum);
+    if(res)
+      resPacket.statusCode = htobe64(200);
+    else
+      resPacket.statusCode = htobe64(-2);
+  } else if(fNode!=nullptr && fNode->isRemote()) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    fNode->close(inodeNum);
+    cout<<"Error! got a delete request for a node which "
+        "I'm not responsible for:"<<fileName<<endl<<std::flush;
+  } else {
+    cout<<"Error! got a truncate request for a non existent node"
+        <<fileName<<endl<<std::flush;
+  }
+
+  try {
+    socket.sendBytes((void*)&resPacket,sizeof(TruncateResPacket));
+  } catch(...){
+    cout<<"Error in sending Truncate response:"<<fileName<<endl<<std::flush;
+    delete this;
+  }
 }
 
 void BFSTcpServiceHandler::onCreateRequest(u_char *_packet) {
+  CreateReqPacket *reqPacket = (CreateReqPacket*)_packet;
+  string fileName = string(reqPacket->fileName);
+
+  CreateResPacket resPacket;
+  resPacket.statusCode = htobe64(-1);
+
+  //First update your view of work then decide!
+  FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
+
+  //Find node
+  FUSESwift::FileNode* existing = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  if(existing) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)existing);
+    if(existing->isRemote()) {
+      //Close it!
+      existing->close(inodeNum);
+      cout<<"Error! got a delete request for a node which "
+          "I'm not responsible for:"<<fileName<<endl<<std::flush;
+    } else { //overwrite file=>truncate to 0
+      bool res = existing->truncate(0);
+      existing->close(inodeNum);
+      if(res)
+        resPacket.statusCode = htobe64(200);
+      else
+        resPacket.statusCode = htobe64(-2);
+    }
+  } else {
+    bool res = (FUSESwift::FileSystem::getInstance().mkFile(fileName,false,false)!=nullptr)?true:false;
+    if(res)
+      resPacket.statusCode = htobe64(200);
+    else
+      resPacket.statusCode = htobe64(-3);
+  }
+
+  try {
+    socket.sendBytes((void*)&resPacket,sizeof(TruncateResPacket));
+  } catch(...){
+    cout<<"Error in sending Create response:"<<fileName<<endl<<std::flush;
+    delete this;
+  }
 }
 
 void BFSTcpServiceHandler::onMoveRequest(u_char *_packet) {
+  MoveReqPacket *reqPacket = (MoveReqPacket*)_packet;
+  string fileName = string(reqPacket->fileName);
+
+  MoveResPacket resPacket;
+  resPacket.statusCode = htobe64(-1);
+
+  //First update your view of work then decide!
+  FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
+
+  //Manipulate file
+  FUSESwift::FileNode* existing = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  if(existing) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)existing);
+    if(existing->isRemote()) {//I'm not responsible! I should not have seen this.
+      //Close it!
+      existing->close(inodeNum);
+      LOG(ERROR)<<"Going to move file:"<<fileName<<" to here!";
+
+      //Handle Move file to here!
+      resPacket.statusCode = htobe64(processMoveRequest(fileName));
+    } else { //overwrite file=>truncate to 0
+      existing->close(inodeNum);
+      LOG(ERROR)<<"EXIST and LOCAL, This should be a create request not a move!:"<<fileName;
+      resPacket.statusCode = htobe64(-3);
+    }
+  } else {
+    LOG(ERROR)<<"DOES NOT EXIST, This should be a create request not a move!:"<<fileName;
+    resPacket.statusCode = htobe64(-4);
+  }
+
+
+  try {
+    socket.sendBytes((void*)&resPacket,sizeof(MoveResPacket));
+  } catch(...){
+    cout<<"Error in sending Move response:"<<fileName<<endl<<std::flush;
+    delete this;
+  }
+}
+
+int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
+  //1) find file
+  FUSESwift::FileNode* file = FUSESwift::FileSystem::getInstance().findAndOpenNode(_fileName);
+  if(file != nullptr) { //2) Open file
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)file);
+    //3)check size
+    struct stat st;
+    if(file->getStat(&st)) {
+      //If we have enough space (2 times of current space
+      if(st.st_size * 2 < FUSESwift::MemoryContorller::getInstance().getAvailableMemory()) {
+        //4) we have space to start to read the file
+        uint64_t bufferLen = 1024ll*1024ll*100ll;//100MB
+        char *buffer = new char[bufferLen];
+        uint64_t left = st.st_size;
+        uint64_t offset = 0;
+        while(left > 0) {
+          long read = file->readRemote(buffer,offset,bufferLen);
+          if(read <= 0 )
+            break;
+          FUSESwift::FileNode* afterMove;//This won't happen(should not)
+          if(read != file->writeHandler(buffer,offset,read,afterMove))//error in writing
+            break;
+          left -= read;
+          offset += read;
+        }
+        delete []buffer;//Release memory
+
+        if(left == 0) {//Successful read
+          //First make file local because the other side removes it and zookeeper will try to remove it!
+          //if failed we will return it to remote
+          file->makeLocal();
+          //We remotely delete that file
+          if(BFSTcpServer::deleteRemoteFile(_fileName,this->socket.peerAddress().host().toString(),BFSTcpServer::getPort())) {
+            //Everything went well
+            FUSESwift::ZooHandler::getInstance().publishListOfFiles();//Inform rest of world
+            return 200;
+          } else {
+            LOG(ERROR) <<"Failed to delete remote file:"<<_fileName;
+            LOG(ERROR) <<endl<<"DEALLOCATE deallocate"<<_fileName<<endl;
+            file->makeRemote();
+            file->deallocate();//Release memory allocated to the file
+            return -2;
+          }
+        } else {
+          LOG(ERROR) <<"reading remote File/writing to local one failed:"<<_fileName;
+          return -3;
+        }
+      }
+      else {
+        LOG(ERROR) <<"Not enough space to move: "<<_fileName<<" here";
+        return -4;
+      }
+    } else {
+      LOG(ERROR) <<"Get Remote File Stat FAILED:"<<_fileName;
+      return -5;
+    }
+
+    file->close(inodeNum);
+  } else {
+    LOG(ERROR) <<"Cannot find fileNode:"<<_fileName;
+    return -6;
+  }
+  return -7;
 }
 
