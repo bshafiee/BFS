@@ -8,8 +8,8 @@
 #include "filenode.h"
 #include <cstring>
 #include <sstream>      // std::istringstream
-#include "log.h"
 #include "filesystem.h"
+#include "LoggerInclude.h"
 #include <Poco/MD5Engine.h>
 #include "UploadQueue.h"
 #include "MemoryController.h"
@@ -25,7 +25,7 @@ namespace FUSESwift {
 FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):Node(_name,_fullPath),
     isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),
     mustDeleted(false), hasInformedDelete(false),isRem(_isRemote),
-    mustInformRemoteOwner(true), moving(false), isUPLOADING(false) {
+    mustInformRemoteOwner(true), moving(false), remoteIP(""),remotePort(0) {
 	/*if(_isRemote)
 		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
@@ -396,7 +396,7 @@ void FileNode::close(uint64_t _inodeNum) {
   	//If all refrences to this files are deleted so it can be deleted
 
   	if(mustDeleted){
-  	  LOG(ERROR)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<refCount<<" isRemote():"<<isRemote()<<" ptr:"<<this<<" isuploading:"<<isUPLOADING;
+  	  LOG(ERROR)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<refCount<<" isRemote():"<<isRemote()<<" ptr:"<<this;
   	  FileSystem::getInstance().signalDeleteNode(this,mustInformRemoteOwner);//It's close now! so will be removed
   	  /// NOTE AFTER THIS LINE ALL OF DATA IN THIS FILE ARE INVALID ///
   	  ZooHandler::getInstance().requestUpdateGlobalView();
@@ -497,15 +497,8 @@ bool FileNode::getStat(struct stat *stbuff) {
 #else
 		bool res = BFSTcpServer::attribRemoteFile(stbuff,this->getFullPath(),remoteIP,remotePort);
 #endif
-		if(!res){
-		  //fprintf(stderr,"ISFILEOPEN? %d   ",isOpen());
-		  string test;
-		  for(int i=0;i<100;i++)
-		    test = this->getName();
-			fprintf(stderr,"GetRemoteAttrib failed for:%s\n",this->getFullPath().c_str());
-			for(int i=0;i<100;i++)
-			  test = this->getName();
-		}
+		if(!res)
+			LOG(ERROR)<<"GetRemoteAttrib failed for:"<<this->getFullPath();
 		else {//update local info!
 			//get io mutex to update size
 			/*ioMutex.lock();//We should not do this, it will fuck move operations

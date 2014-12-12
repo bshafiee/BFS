@@ -11,6 +11,7 @@ extern "C"
 	#include <pfring.h>
 }
 #include <net/if.h>   //ifreq
+#include "LoggerInclude.h"
 
 using namespace std;
 
@@ -31,7 +32,7 @@ bool ZeroNetwork::initialize(const string& _device,unsigned int _MTU) {
 	//Open Device
 	pd = pfring_open(_device.c_str(), MTU, PF_RING_DO_NOT_PARSE);
 	if(pd == NULL) {
-		printf("pfring_open %s error [%s]\n", _device.c_str(), strerror(errno));
+		LOG(ERROR)<<"pfring_open "<<_device<<" error ["<<strerror(errno)<<"]";
 		return false;
 	} else {
 		//pfring_set_application_name(pd, "BehroozFileSystem");
@@ -46,15 +47,15 @@ bool ZeroNetwork::initialize(const string& _device,unsigned int _MTU) {
 
 	//enable device
 	if(pfring_enable_ring((pfring*)pd) != 0) {
-		printf("Unable to enable ring :-(\n");
+	  LOG(ERROR)<<"Unable to enable ring :-(";
 		pfring_close((pfring*)pd);
 		return false;
 	}
 
 	u_int32_t version;
 	pfring_version((pfring*)pd, &version);
-	printf("Using PF_RING v.%d.%d.%d\n", (version & 0xFFFF0000) >> 16,
-	 (version & 0x0000FF00) >> 8, version & 0x000000FF);
+	LOG(INFO)<<"Using PF_RING v."<<(version & 0xFFFF0000) >> 16<<
+	    "."<<(version & 0x0000FF00) >> 8<<"."<<version & 0x000000FF;
 
 	initialized = true;
 	return true;
@@ -71,14 +72,15 @@ redo:
 	int rc = pfring_send((pfring*)pd, _buffer, _len, 1);
 
 	if(rc == PF_RING_ERROR_INVALID_ARGUMENT) {
-	 printf("Attempting to send invalid packet[len: %lu][MTU: %u]\n",_len, ((pfring*)pd)->mtu_len);
+	 LOG(ERROR)<<"Attempting to send invalid packet[len: "<<_len<<"][MTU:"<<((pfring*)pd)->mtu_len<<"]";
 	 return -1;
 	}
 
 	if(rc < 0) {
 		retries++;
 		if(retries > MAX_RETRY) {
-			fprintf(stderr,"Send failed: %d MaxRetry:%u Retried:%u \n",rc,MAX_RETRY,retries);
+			LOG(ERROR)<<"Send failed: "<<rc<<" MaxRetry:"<<MAX_RETRY
+			    <<" Retried:"<<retries;
 			return -1;
 		}
 		goto redo;

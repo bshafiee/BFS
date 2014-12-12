@@ -1436,8 +1436,6 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
   createAck->size = 0;//zero is zero anyway
 
   LOG(ERROR)<<"CREATE REQ PACKET:"<<fileName;
-  fprintf(stderr,"CREATE REQ PACKET:%s.\n",fileName.c_str());
-  fflush(stderr);
 
   bool res = false;
 
@@ -1453,9 +1451,6 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
       existing->close(inodeNum);
       LOG(ERROR)<<"Going to move file:"<<fileName<<" to here!";
 
-      fprintf(stderr,"Going to move file:%s\n",fileName.c_str());
-      fflush(stderr);
-
       //Handle Move file to here!
       MoveTask *mvTask = new MoveTask();
       mvTask->fileName = fileName;
@@ -1467,8 +1462,6 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
       return;//The response will be sent later
     } else { //overwrite file=>truncate to 0
       LOG(ERROR)<<"EXIST and LOCAL, Going to truncate file:"<<fileName<<" here.";
-      fprintf(stderr,"EXIST and LOCAL, Going to truncate file:%s\n",fileName.c_str());
-      fflush(stderr);
 
       res = existing->truncate(0);
       existing->close(inodeNum);
@@ -1476,8 +1469,6 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
   } else {
 
     LOG(ERROR)<<"DOES NOT EXIST, Going to create file:"<<fileName<<" here.";
-    fprintf(stderr,"DOES NOT EXIST, Going to create file:%s\n",fileName.c_str());
-    fflush(stderr);
     res = (FileSystem::getInstance().mkFile(fileName,false,false)!=nullptr)?true:false;
   }
 

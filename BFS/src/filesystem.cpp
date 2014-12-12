@@ -11,7 +11,6 @@
 #include <iostream>
 #include <Poco/StringTokenizer.h>
 #include <Poco/RegularExpression.h>
-#include "log.h"
 #include "UploadQueue.h"
 #include "DownloadQueue.h"
 #include "ZooHandler.h"
@@ -246,7 +245,7 @@ std::string FileSystem::printFileSystem() {
   vector<FileNode*> childrenQueue;
   FileNode* start = root;
   int newLineCounter = 1;
-  log_msg("FileSystem:\n\n");
+  LOG(DEBUG)<<"FileSystem:";
   while (start != nullptr) {
     //add children to queue
     start->childrenLock();
@@ -275,7 +274,7 @@ std::string FileSystem::printFileSystem() {
       childrenQueue.erase(frontIt);
     }
   }
-  log_msg("%s\n\n",output.c_str());
+  LOG(DEBUG)<<output<<endl;
   return output;
 }
 

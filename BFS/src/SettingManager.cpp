@@ -9,6 +9,7 @@
 #include <fstream>
 #include <algorithm> // remove and remove_if
 #include <ctype.h>
+#include "LoggerInclude.h"
 
 using namespace std;
 
@@ -72,7 +73,7 @@ void SettingManager::load(std::string path) {
 		size_t indexOfEqual = -1;
 		indexOfEqual = line.find('=');
 		if(indexOfEqual == std::string::npos) {
-			fprintf(stderr,"Invalid config input:%s\n",line.c_str());
+			LOG(ERROR)<<"Invalid config input:"<<line;
 			continue;
 		}
 

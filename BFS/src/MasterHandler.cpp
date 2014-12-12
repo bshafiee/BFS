@@ -10,6 +10,7 @@
 #include <iostream>
 #include "MasterHandler.h"
 #include "ZooHandler.h"
+#include "LoggerInclude.h"
 
 using namespace std;
 
@@ -47,7 +48,7 @@ void MasterHandler::removeDuplicates(vector<BackendItem> &newList,vector<Backend
 vector<BackendItem> MasterHandler::getExistingAssignments() {
 	vector<BackendItem> result;
 	if (ZooHandler::getInstance().sessionState != ZOO_CONNECTED_STATE) {
-		printf("getExistingAssignments(): invalid sessionstate \n");
+		LOG(ERROR)<<"Invalid sessionstate";
 		return result;
 	}
 
@@ -55,8 +56,7 @@ vector<BackendItem> MasterHandler::getExistingAssignments() {
 	String_vector children;
 	int callResult = zoo_get_children(ZooHandler::getInstance().zh, ZooHandler::getInstance().assignmentZNode.c_str(),0, &children);
 	if (callResult != ZOK) {
-		printf("getExistingAssignments(): zoo_get_children failed:%s\n",
-				zerror(callResult));
+		LOG(ERROR)<<"zoo_get_children failed:"<<zerror(callResult);
 		return result;
 	}
 	//2)get content of each node
@@ -71,7 +71,7 @@ vector<BackendItem> MasterHandler::getExistingAssignments() {
 						(ZooHandler::getInstance().assignmentZNode + "/" + node).c_str(),
 						0, buffer, &len, nullptr);
 		if (callResult != ZOK) {
-			printf("getExistingAssignments(): zoo_get:%s\n", zerror(callResult));
+			LOG(ERROR)<<"zoo_get failed:"<<zerror(callResult);
 			delete[] buffer;
 			buffer = nullptr;
 			continue;
@@ -110,7 +110,7 @@ void MasterHandler::leadershipLoop() {
     //1)Fetch list of files from backend
     Backend* backend = BackendManager::getActiveBackend();
     if(backend == nullptr) {
-      printf("leadershipLoop(): No active backend!\n");
+      LOG(ERROR)<<"leadershipLoop(): No active backend.";
       interval *= 10;
       if(interval > maxSleep)
       	interval = maxSleep;
@@ -119,7 +119,7 @@ void MasterHandler::leadershipLoop() {
     }
     vector<BackendItem> *backendList = backend->list();
     if(backendList == nullptr) {
-    	printf("leadershipLoop(): backendList is null!\n");
+      LOG(ERROR)<<"leadershipLoop(): backendList is null!";
 			interval *= 10;
 			if(interval > maxSleep)
 				interval = maxSleep;
@@ -267,8 +267,7 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vec
 
 	//First Delete all existing assignment nodes
 	if(!cleanAssignmentFolder()){
-	  fprintf(stderr, "divideTaskAmongNodes(): cleaning up assignment folder failed:\n");
-	  fflush(stderr);
+	  LOG(ERROR)<<"Cleaning up assignment folder failed.";
 	  return true;//reschedule
 	}
 
@@ -291,7 +290,7 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vec
 			int createRes = zoo_create(ZooHandler::getInstance().zh,path.c_str(),value.c_str(),
 																 value.length(),&ZOO_OPEN_ACL_UNSAFE,ZOO_EPHEMERAL,buffer,sizeof(buffer));
 			if(createRes != ZOK){
-				fprintf(stderr, "divideTaskAmongNodes(): zoo_create failed:%s\n",zerror(createRes));
+				LOG(ERROR)<<"zoo_create failed:"<<zerror(createRes);
 				continue;
 			}
 //		} else if(callRes != ZOK) {
@@ -310,8 +309,7 @@ bool MasterHandler::cleanAssignmentFolder() {
       ZooHandler::getInstance().assignmentZNode.c_str(),
       nullptr,nullptr, &children);
   if (callResult != ZOK) {
-    printf("cleanAssignmentFolder(): zoo_wget_children failed:%s\n",
-        zerror(callResult));
+    LOG(ERROR)<<"zoo_wget_children failed:"<<zerror(callResult);
     return false;
   }
 

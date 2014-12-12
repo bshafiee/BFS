@@ -35,7 +35,6 @@
 #include <istream>
 #include <Poco/StreamCopier.h>
 #include "FUSESwift.h"
-#include "log.h"
 #include "filesystem.h"
 #include "filenode.h"
 #include "SyncQueue.h"
@@ -121,8 +120,6 @@ static struct fuse_operations fuse_oper = {
 
 void shutdown(void* userdata) {
   LOG(INFO) <<"Leaving...";
-  //Log Close
-  log_close();
 #ifdef BFS_ZERO
   BFSNetwork::stopNetwork();
 #else
@@ -136,6 +133,7 @@ void shutdown(void* userdata) {
 
 void bfs_usage(){
 	fprintf(stderr, "usage:  BFS [FUSE and mount options] mountPoint\n");
+	LOG(ERROR)<<"Invalid options to start BFS.";
   shutdown(nullptr);
 }
 
@@ -206,9 +204,6 @@ int main(int argc, char *argv[]) {
   info.authUrl = SettingManager::get(CONFIG_KEY_SWIFT_URL);
   info.tenantName = SettingManager::get(CONFIG_KEY_SWIFT_TENANT);
   info.method = AuthenticationMethod::KEYSTONE;
-
-  //make ready log file
-  log_open();
 
   // BFS doesn't do any access checking on its own (the comment
   // blocks in fuse.h mention some of the functions that need

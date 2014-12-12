@@ -42,12 +42,12 @@ ZooHandler::ZooHandler() :
 	if(str.length()>0)
 		electionZNode = str;
 	else
-		fprintf(stderr,"No ZOO_ELECTION_ZNODE specified in the config.\n");
+		LOG(ERROR)<<"No ZOO_ELECTION_ZNODE specified in the config";
 	str = SettingManager::get(CONFIG_KEY_ZOO_ASSIGNMENT_ZNODE);
 	if(str.length()>0)
 		assignmentZNode = str;
 	else
-		fprintf(stderr,"No ZOO_ASSIGNMENT_ZNODE specified in the config.\n");
+	  LOG(ERROR)<<"No ZOO_ASSIGNMENT_ZNODE specified in the config";
 	//Set Debug info
 	zoo_set_log_stream(stderr);
 	zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
@@ -100,7 +100,7 @@ void ZooHandler::dumpStat(const struct Stat *stat) {
 	time_t tmtime;
 
 	if (!stat) {
-		fprintf(stderr, "null\n");
+	  LOG(ERROR)<<"null";
 		return;
 	}
 	tctime = stat->ctime / 1000;
@@ -109,39 +109,36 @@ void ZooHandler::dumpStat(const struct Stat *stat) {
 	ctime_r(&tmtime, tmtimes);
 	ctime_r(&tctime, tctimes);
 
-	fprintf(stderr, "\tctime = %s\tczxid=%llx\n"
-			"\tmtime=%s\tmzxid=%llx\n"
-			"\tversion=%x\taversion=%x\n"
-			"\tephemeralOwner = %llx\n", tctimes, (long long) stat->czxid, tmtimes,
-	    (long long) stat->mzxid, (unsigned int) stat->version,
-	    (unsigned int) stat->aversion, (long long) stat->ephemeralOwner);
+	LOG(ERROR)<<"ctime = "<<tctimes<<"\tczxid="<<(long long) stat->czxid<<"\n"
+			"\tmtime="<<tmtimes<<"\tmzxid="<<(long long) stat->mzxid<<"\n"
+			"\tversion="<<(unsigned int) stat->version<<"\taversion="<<
+			(unsigned int) stat->aversion<<"\n\tephemeralOwner = "<<
+			(long long) stat->ephemeralOwner<<endl;
 }
 
 void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
     const char *path, void* context) {
 	/* Be careful using zh here rather than zzh - as this may be mt code
 	 * the client lib may call the watcher before zookeeper_init returns */
-	fprintf(stderr, "Watcher %s state = %s", zooEventType2String(type).c_str(),
-	    sessiontState2String(state).c_str());
+	LOG(ERROR)<<"Watcher "<<zooEventType2String(type)<<" state = "<<
+	    sessiontState2String(state);
 	if (path && strlen(path) > 0) {
-		fprintf(stderr, " for path %s", path);
+		LOG(ERROR)<<" for path: "<<path;
 	}
-	fprintf(stderr, "\n");
 
 	if (type == ZOO_SESSION_EVENT) {
 		getInstance().sessionState = state;
 		if (state == ZOO_CONNECTED_STATE) {
 			const clientid_t *id = zoo_client_id(zzh);
 			getInstance().myid = *id;
-			fprintf(stderr, "Connected Successfully. session id: 0x%llx\n",
-			    (long long) getInstance().myid.client_id);
+			LOG(ERROR)<<"Connected Successfully. session id: "<<
+			    (long long) getInstance().myid.client_id;
 		} else if (state == ZOO_AUTH_FAILED_STATE) {
-			fprintf(stderr, "Authentication failure. Shutting down...\n");
+			LOG(ERROR)<<"Authentication failure. Shutting down...";
 			zookeeper_close(zzh);
 			getInstance().zh = nullptr;
 		} else if (state == ZOO_EXPIRED_SESSION_STATE) {
-			fprintf(stderr,
-			    "Session expired. Shutting down...! Going to redo election!\n");
+		  LOG(ERROR)<<"Session expired. Shutting down...! Going to redo election!";
 			zookeeper_close(zzh);
 			getInstance().zh = nullptr;
 			getInstance().startElection();
@@ -154,7 +151,7 @@ bool ZooHandler::connect() {
 	if(urlZoo.length()>0)
 		hostPort = urlZoo;
 	else
-		fprintf(stderr,"No ZOOKEEPER_SERVER specified in the config.\n");
+	  LOG(ERROR)<<"No ZOOKEEPER_SERVER specified in the config.";
 	zh = zookeeper_init(hostPort.c_str(), sessionWatcher, 30000, 0, 0, 0);
 	if (!zh) {
 		return false;
@@ -207,12 +204,12 @@ void ZooHandler::startElection() {
 	//First Change state to start
 	electionState = ElectionState::START;
 
-	printf("Starting leader election\n");
+	LOG(INFO)<<"Starting leader election";
 
 	//Connect to the zoo
 	if (!blockingConnect()) {
-		printf("Bootstrapping into the zoo failed. SessionState:%s\n",
-		    sessiontState2String(sessionState).c_str());
+	  LOG(ERROR)<<"Bootstrapping into the zoo failed. SessionState:"<<
+		    sessiontState2String(sessionState);
 		electionState = ElectionState::FAILED;
 		return;
 	}
@@ -254,13 +251,13 @@ bool ZooHandler::makeOffer() {
 	    str.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE,
 	    newNodePath, sizeof(newNodePath));
 	if (result != ZOK) {
-		printf("makeOffer(): zoo_create failed:%s\n", zerror(result));
+	  LOG(ERROR)<<"zoo_create failed:"<<zerror(result);
 		return false;
 	}
 
 	leaderOffer = LeaderOffer(string(newNodePath), getHostName());
 
-	printf("Created leader offer %s\n", leaderOffer.toString().c_str());
+	LOG(INFO)<<"Created leader offer: "<<leaderOffer.toString();
 
 	return true;
 }
@@ -279,8 +276,7 @@ bool ZooHandler::determineElectionStatus() {
 	String_vector children;
 	int callResult = zoo_get_children(zh, electionZNode.c_str(), 1, &children);
 	if (callResult != ZOK) {
-		printf("determineElectionStatus(): zoo_get_children failed:%s\n",
-		    zerror(callResult));
+	  LOG(ERROR)<<"zoo_get_children failed:"<<zerror(callResult);
 		return false;
 	}
 	vector<string> childrenVector;
@@ -300,8 +296,8 @@ bool ZooHandler::determineElectionStatus() {
 		LeaderOffer leaderOffer = leaderOffers[i];
 
 		if (leaderOffer.getId() == this->leaderOffer.getId()) {
-			printf("There are %lu leader offers. I am %u in line.",
-			    leaderOffers.size(), i);
+		  LOG(ERROR)<<"There are "<<leaderOffers.size()<<
+		      " leader offers. I am "<<i<<" in line.";
 
 			if (i == 0) {
 				becomeLeader();
@@ -333,7 +329,7 @@ vector<LeaderOffer> ZooHandler::toLeaderOffers(const vector<string> &children) {
 		int callResult = zoo_get(zh, (electionZNode + "/" + offer).c_str(), 0,
 		    buffer, &len, nullptr);
 		if (callResult != ZOK) {
-			printf("toLeaderOffers(): zoo_get:%s\n", zerror(callResult));
+			LOG(ERROR)<<"zoo_get:"<<zerror(callResult);
 			continue;
 		}
 
@@ -361,16 +357,15 @@ vector<LeaderOffer> ZooHandler::toLeaderOffers(const vector<string> &children) {
 
 void ZooHandler::becomeLeader() {
 	electionState = ElectionState::LEADER;
-	printf("Becoming leader with node:%s\n", leaderOffer.toString().c_str());
+	LOG(DEBUG)<<"Becoming leader with node:"<<leaderOffer.toString();
 	MasterHandler::startLeadership();
 	//Commit a publish command!(no matter leader or ready!)
 	publishListOfFiles();
 }
 
 void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {
-	printf("%s not elected leader. Watching node:%s\n",
-	    leaderOffer.getNodePath().c_str(),
-	    neighborLeaderOffer.getNodePath().c_str());
+  LOG(DEBUG)<<leaderOffer.getNodePath()<<
+      " not elected leader, Watching node:"<<neighborLeaderOffer.getNodePath();
 
 	/*
 	 * Make sure to pass an explicit Watcher because we could be sharing this
@@ -385,9 +380,8 @@ void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {
 		 * If the stat fails, the node has gone missing between the call to
 		 * getChildren() and exists(). We need to try and become the leader.
 		 */
-		printf(
-		    "We were behind %s but it looks like they died. Back to determination.\n",
-		    neighborLeaderOffer.getNodePath().c_str());
+		LOG(ERROR)<<"We were behind "<<neighborLeaderOffer.getNodePath()<<
+		    " but it looks like they died. Back to determination.";
 		determineElectionStatus();
 		return;
 	}
@@ -404,8 +398,7 @@ void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
 		string pathStr(path);
 		if (pathStr != getInstance().leaderOffer.getNodePath()
 		    && getInstance().electionState != ElectionState::STOP) {
-			printf("Node %s deleted. Need to run through the election process.\n",
-			    path);
+		  LOG(ERROR)<<"Node "<<path<<" deleted. Need to run through the election process.";
 
 			if (!getInstance().determineElectionStatus())
 				getInstance().electionState = ElectionState::FAILED;
@@ -486,7 +479,7 @@ void ZooHandler::updateGlobalView() {
 		int callResult = zoo_wget(zh, (electionZNode + "/" + node).c_str(),
 		    nodeWatcher, nullptr, buffer, &len, nullptr);
 		if (callResult != ZOK) {
-			printf("updateGlobalView(): zoo_wget:%s\n", zerror(callResult));
+			LOG(ERROR)<<"zoo_wget failed:"<<zerror(callResult);
 			delete[] buffer;
 			buffer = nullptr;
 			continue;
@@ -607,10 +600,13 @@ void ZooHandler::updateRemoteFilesInFS() {
 		newFile->setRemoteIP(item.second.ip);
 		newFile->setRemotePort(item.second.port);
 		newFile->close(inodeNum);//create and open operation
-		printf("created:%s hostName:%s MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-				item.first.c_str(),item.second.hostName.c_str(),item.second.MAC[0],
-				item.second.MAC[1],item.second.MAC[2],item.second.MAC[3],
-				item.second.MAC[4],item.second.MAC[5]);
+		char macCharBuff[100];
+		sprintf(macCharBuff,"MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+		    item.second.MAC[0],item.second.MAC[1],
+		    item.second.MAC[2],item.second.MAC[3],
+        item.second.MAC[4],item.second.MAC[5]);
+		LOG(DEBUG)<<"created:"<<item.first<<" hostName:"<<
+		    item.second<<" "<<string(macCharBuff);
 	}
 
 	//Now remove the localRemoteFiles(remote files which have a pointer in our
@@ -618,8 +614,7 @@ void ZooHandler::updateRemoteFilesInFS() {
 	for(string fileName:localFiles) {
 	  FileNode* file = FileSystem::getInstance().findAndOpenNode(fileName);
 	  if(file == nullptr){
-	    fprintf(stderr,"updateRemoteFilesInFS(): ERROR, cannot find "
-	        "corresponding node in filesystem for:%s\n",fileName.c_str());
+	    LOG(ERROR)<<"ERROR, cannot find corresponding node in filesystem for:"<<fileName;
 	    continue;
 	  }
 	  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)file);
@@ -666,8 +661,7 @@ void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
 	if (type == ZOO_CHANGED_EVENT) {
 		string pathStr(path);
-		printf("Node %s changed! updating globalview...\n", path);
-		//LOG(ERROR)<<"Node "<<pathStr<<" changed! updating globalview...";
+		LOG(DEBUG)<<"Node "<<path<<" changed! updating globalview...";
 		getInstance().updateGlobalView();
 	}
 }
@@ -692,7 +686,7 @@ void ZooHandler::fetchAssignmets() {
 	if (sessionState != ZOO_CONNECTED_STATE
 			|| (electionState != ElectionState::LEADER
 					&& electionState != ElectionState::READY)) {
-		printf("fetchAssignmets(): invalid sessionstate or electionstate\n");
+		LOG(ERROR)<<"Invalid sessionstate or electionstate";
 		return;
 	}
 
@@ -706,7 +700,7 @@ void ZooHandler::fetchAssignmets() {
 	if (callResult != ZOK) {
 		if(callResult == ZNONODE) //No node! needs to set a watch on create
 			zoo_wexists(zh,path.c_str(),assignmentWatcher,nullptr,nullptr);
-		printf("fetchAssignmets(): zoo_wget:%s\n", zerror(callResult));
+		LOG(ERROR)<<"zoo_wget failed:"<<zerror(callResult);
 		delete[] buffer;
 		buffer = nullptr;
 		return;
@@ -734,7 +728,7 @@ void ZooHandler::assignmentWatcher(zhandle_t* zzh, int type, int state,
     const char* path, void* context) {
 	if (type == ZOO_CHANGED_EVENT || type == ZOO_CREATED_EVENT) {
 		string pathStr(path);
-		printf("assignmentWatcher(): Node %s changed! updating assignments...\n", path);
+		LOG(DEBUG)<<"Node "<<path<<" changed! updating assignments...";
 		getInstance().fetchAssignmets();
 	}
 }

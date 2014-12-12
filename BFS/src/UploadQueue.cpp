@@ -8,8 +8,8 @@
 #include "UploadQueue.h"
 #include <thread>
 #include "BackendManager.h"
-#include "log.h"
 #include "MemoryController.h"
+#include "LoggerInclude.h"
 
 using namespace std;
 
@@ -44,19 +44,19 @@ void UploadQueue::stopSynchronization() {
 void UploadQueue::processEvent(const SyncEvent* _event) {
   Backend *backend = BackendManager::getActiveBackend();
   if(backend == nullptr) {
-    log_msg("No active backend\n");
+    LOG(ERROR)<<"No active backend";
     return;
   }
   //accessing _event->node is dangerous it may be deleted from main thread!
   switch (_event->type) {
     case SyncEventType::DELETE:
       if(!checkEventValidity(*_event)) break;
-      log_msg("Event:DELETE fullpath:%s\n",_event->fullPathBuffer.c_str());
+      LOG(DEBUG)<<"Event:DELETE fullpath:"<<_event->fullPathBuffer;
       backend->remove(_event);
       break;
     case SyncEventType::RENAME:
       if(!checkEventValidity(*_event)) break;
-      //log_msg("Event:RENAME from:%s to:%s\n",_event->fullPathBuffer.c_str(),_event->node->getFullPath().c_str());
+      //LOG(DEBUG)<<"Event:RENAME from:"<<_event->fullPathBuffer<<" to:"<<_event->node->getFullPath();
       backend->move(_event);
       break;
     case SyncEventType::UPDATE_CONTENT:
@@ -70,8 +70,8 @@ void UploadQueue::processEvent(const SyncEvent* _event) {
       backend->put_metadata(_event);
       break;
     default:
-      log_msg("INVALID Event: file:%s TYPE:%S\n",_event->fullPathBuffer.c_str(),
-      SyncEvent::getEnumString(_event->type).c_str());
+      LOG(ERROR)<<"INVALID Event: file:"<<_event->fullPathBuffer<<" TYPE:"<<
+      SyncEvent::getEnumString(_event->type);
   }
 }
 
@@ -115,7 +115,7 @@ bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
         SyncEvent *upcomingEvent = list[i];
         if(upcomingEvent->type == SyncEventType::DELETE)
           if(upcomingEvent->fullPathBuffer == _event.fullPathBuffer) {
-            printf("SAVED a RENAME OPERATION FullBuffer:%s\n",_event.fullPathBuffer.c_str());
+            //LOG(INFO)<<("SAVED a RENAME OPERATION FullBuffer:%s\n",_event.fullPathBuffer.c_str());
             return false;
           }
 

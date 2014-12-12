@@ -9,7 +9,6 @@
 #include "UploadQueue.h"
 #include <thread>
 #include "BackendManager.h"
-#include "log.h"
 #include "filesystem.h"
 #include <iostream>
 #include <mutex>
@@ -32,7 +31,7 @@ void DownloadQueue::addZooTask(vector<string>assignments) {
 	//Try to query backend for list of files
 	Backend* backend = BackendManager::getActiveBackend();
 	if (backend == nullptr) {
-		log_msg("No active backend for Download Queue\n");
+		LOG(ERROR)<<"No active backend for Download Queue";
 		return;
 	}
 
@@ -62,7 +61,7 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	Backend *backend = BackendManager::getActiveBackend();
 	istream *iStream = backend->get(_event);
 	if(iStream == nullptr) {
-	  log_msg("Error in Downloading file:%s\n",_event->fullPathBuffer.c_str());
+	  LOG(ERROR)<<"Error in Downloading file:"<<_event->fullPathBuffer;
 	  return;
 	}
 	//Now create a file in FS
@@ -71,11 +70,10 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	FileNode *newFile = FileSystem::getInstance().mkFile(_event->fullPathBuffer,false,true);//open
 	if(newFile == nullptr){
 	  LOG(ERROR)<<"Failed to create a newNode:"<<_event->fullPathBuffer;
-	  fprintf(stderr,"Failed to create a newNode:%s\n",_event->fullPathBuffer.c_str());
 	  return;
 	}
 	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
-	fprintf(stderr,"DOWNLOADING: %s\n",newFile->getFullPath().c_str());
+	LOG(INFO)<<"DOWNLOADING: "<<newFile->getFullPath();
 
 	//Make a fake event to check if the file has been deleted
 	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
@@ -99,7 +97,7 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 
     //Check space availability
 	  if(retCode < 0) {
-	    log_msg("Error in writing file:%s, probably no diskspace, Code:%d\n",newFile->getFullPath().c_str(),retCode);
+	    LOG(ERROR)<<"Error in writing file:"<<newFile->getFullPath()<<", probably no diskspace, Code:"<<retCode;
 	    newFile->close(inodeNum);
 	    return;
 	  }
@@ -135,24 +133,21 @@ void DownloadQueue::stopSynchronization() {
 void DownloadQueue::processEvent(const SyncEvent* _event) {
 	Backend *backend = BackendManager::getActiveBackend();
 	if (backend == nullptr) {
-		log_msg("No active backend\n");
+		LOG(ERROR)<<"No active backend";
 		return;
 	}
 	switch (_event->type) {
 	case SyncEventType::DOWNLOAD_CONTENT:
-		log_msg("Event:DOWNLOAD_CONTENT fullpath:%s\n",
-				_event->fullPathBuffer.c_str());
+		LOG(DEBUG)<<"Event:DOWNLOAD_CONTENT fullpath:"<<_event->fullPathBuffer;
 		processDownloadContent(_event);
 		break;
 	case SyncEventType::DOWNLOAD_METADATA:
-		log_msg("Event:DOWNLOAD_METADATA fullpath:%s\n",
-				_event->fullPathBuffer.c_str());
+		LOG(DEBUG)<<"Event:DOWNLOAD_METADATA fullpath:"<<_event->fullPathBuffer;
 		processDownloadMetadata(_event);
 		break;
 	default:
-		log_msg("INVALID Event: file:%s TYPE:%S\n",
-				_event->fullPathBuffer.c_str(),
-				SyncEvent::getEnumString(_event->type).c_str());
+		LOG(ERROR)<<"INVALID Event: file:"<<_event->fullPathBuffer<<" TYPE:"<<
+		  SyncEvent::getEnumString(_event->type);
 	}
 }
 

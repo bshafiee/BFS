@@ -92,7 +92,7 @@ BFS_REMOTE_OPERATION BFSTcpServiceHandler::toBFSRemoteOperation(
 
 void BFSTcpServiceHandler::onReadable(
     const Poco::AutoPtr<Poco::Net::ReadableNotification>& pNf) {
-  //cout<<"onReadable:"<<socket.peerAddress().toString()<<endl;
+  //LOG(ERROR)<<"onReadable:"<<socket.peerAddress().toString();
 
   //Read First Packet to Figure out
   int len = 2000;
@@ -103,7 +103,7 @@ void BFSTcpServiceHandler::onReadable(
     int read = socket.receiveBytes(_packet,sizeof(reqPacket.opCode));
     if(read == 0){
       //
-      //cout<<"onReadable size of 0, Means the other peer of this connection is dead!"<<endl<<std::flush;
+      //LOG(ERROR)<<"onReadable size of 0, Means the other peer of this connection is dead!";
       delete this;
       return;
     }
@@ -117,7 +117,7 @@ void BFSTcpServiceHandler::onReadable(
         //Read the rest of request packet
         socket.receiveBytes(_packet+sizeof(reqPacket.opCode),sizeof(ReadReqPacket)-sizeof(reqPacket.opCode));
         onReadRequest(_packet);
-        //cout<<"READ SERVERD IN :"<<t.elapsedMicro()<<" Micro T1:"<<t1<<" Total:"<<t1+t2<<endl<<flush;
+        //LOG(ERROR)<<"READ SERVERD IN :"<<t.elapsedMicro()<<" Micro T1:"<<t1<<" Total:"<<t1+t2;
         break;
       case BFS_REMOTE_OPERATION::WRITE:
         socket.receiveBytes(_packet+sizeof(reqPacket.opCode),sizeof(WriteReqPacket)-sizeof(reqPacket.opCode));
@@ -144,10 +144,10 @@ void BFSTcpServiceHandler::onReadable(
         onMoveRequest(_packet);
         break;
       default:
-        cout<<"UNKNOWN OPCODE:"<<opCode<<endl<<std::flush;
+        LOG(ERROR)<<"UNKNOWN OPCODE:"<<opCode;
     }
   } catch(Exception &e){
-    cout<<"Error in reading data loop:"<<e.message()<<endl<<std::flush;
+    LOG(ERROR)<<"Error in reading data loop:"<<e.message();
     delete this;
   }
   //So after a connection is served just close it!
@@ -156,7 +156,7 @@ void BFSTcpServiceHandler::onReadable(
 
 void BFSTcpServiceHandler::onShutdown(
     const Poco::AutoPtr<Poco::Net::ShutdownNotification>& pNf) {
-  cout<<"onShutdown:"<<socket.peerAddress().toString()<<endl<<std::flush;
+  LOG(ERROR)<<"onShutdown:"<<socket.peerAddress().toString();
 
   //Call destructor of this class
   delete this;
@@ -166,24 +166,24 @@ void BFSTcpServiceHandler::onWriteable(
     const Poco::AutoPtr<Poco::Net::WritableNotification>& pNf) {
   static bool once = true;
   if(once) {
-    cout<<"onWritable:"<<socket.peerAddress().toString()<<" keepAlive?"<<socket.getKeepAlive()<<" isBlocking?"<<socket.getBlocking()<<" noDeley?"<<socket.getNoDelay()<<endl<<std::flush;
+    LOG(ERROR)<<"onWritable:"<<socket.peerAddress().toString()<<" keepAlive?"<<socket.getKeepAlive()<<" isBlocking?"<<socket.getBlocking()<<" noDeley?"<<socket.getNoDelay();
     once = false;
   }
 }
 
 void BFSTcpServiceHandler::onTimeout(
     const Poco::AutoPtr<Poco::Net::TimeoutNotification>& pNf) {
-  cout<<"onTimeout:"<<socket.peerAddress().toString()<<endl<<std::flush;
+  LOG(ERROR)<<"onTimeout:"<<socket.peerAddress().toString();
 }
 
 void BFSTcpServiceHandler::onError(
     const Poco::AutoPtr<Poco::Net::ErrorNotification>& pNf) {
-  cout<<"onError:"<<socket.peerAddress().toString()<<endl<<std::flush;
+  LOG(ERROR)<<"onError:"<<socket.peerAddress().toString();
 }
 
 void BFSTcpServiceHandler::onIdle(
     const Poco::AutoPtr<Poco::Net::IdleNotification>& pNf) {
-  cout<<"onIdle:"<<socket.peerAddress().toString()<<endl<<std::flush;
+  LOG(ERROR)<<"onIdle:"<<socket.peerAddress().toString();
 }
 
 void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
@@ -232,17 +232,17 @@ void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
         int sent = socket.sendBytes(buffer+(total-left),left);
         left -= sent;
         if(sent <= 0){//Error
-          cout<<"ERROR in sending data, asked to send:"<<left<<" but sent:"<<sent<<endl<<std::flush;
+          LOG(ERROR)<<"ERROR in sending data, asked to send:"<<left<<" but sent:"<<sent;
           break;
         }
       }while(left);
 
       //t.end();
-      //cout<<"Sent:"<<total<<" bytes in:"<<t.elapsedMillis()<<" milli"<<endl<<flush;
-      //cout<<"Sent:"<<be64toh(resPacket.readSize)<<" bytes."<<endl<<std::flush;
+      //LOG(ERROR)<<"Sent:"<<total<<" bytes in:"<<t.elapsedMillis()<<" milli";
+      //LOG(ERROR)<<"Sent:"<<be64toh(resPacket.readSize)<<" bytes.";
     }
   } catch(...){
-    cout<<"Error in sending read response:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error in sending read response:"<<fileName;
     delete this;
   }
 
@@ -277,7 +277,7 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
         count = socket.receiveBytes((void*)((char*)buff+total),left);
         total += count;
         left -= count;
-        //cout<<"total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available()<<endl<<flush;
+        //LOG(ERROR)<<"total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available();
       } while(left > 0 && count);
       if(total == reqPacket->size){//Success
         FUSESwift::FileNode* afterMove = nullptr;//If it does not fit in out memory
@@ -286,9 +286,9 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
           fNode = afterMove;
         writeResPacket.statusCode = htobe64(result);
       }else
-        cout<<"reading write data failed:total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available()<<endl<<flush;
+        LOG(ERROR)<<"reading write data failed:total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available();
     }catch(Exception &e){
-      cout<<"Error in receiving write data "<<reqPacket->fileName<<": "<<e.message()<<endl<<std::flush;
+      LOG(ERROR)<<"Error in receiving write data "<<reqPacket->fileName<<": "<<e.message();
       delete this;
     }
     delete []buff;
@@ -301,7 +301,7 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
   try {
     socket.sendBytes((void*)&writeResPacket,sizeof(WriteResPacket));
   }catch(Exception &e){
-    cout<<"Error in sending write response packet "<<reqPacket->fileName<<": "<<e.message()<<endl<<std::flush;
+    LOG(ERROR)<<"Error in sending write response packet "<<reqPacket->fileName<<": "<<e.message();
     delete this;
   }
 }
@@ -329,7 +329,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
   try {
     socket.sendBytes((void*)&resPacket,sizeof(AttribResPacket));
   } catch(...){
-    cout<<"Error in sending attrib response:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error in sending attrib response:"<<fileName;
     delete this;
   }
 
@@ -342,12 +342,12 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
         int sent = socket.sendBytes((char*)&data+(total-left),left);
         left -= sent;
         if(sent <= 0){//Error
-          cout<<"ERROR in sending data, asked to send:"<<left<<" but sent:"<<sent<<endl<<std::flush;
+          LOG(ERROR)<<"ERROR in sending data, asked to send:"<<left<<" but sent:"<<sent;
           break;
         }
       }while(left);
     } catch(...){
-      cout<<"Error in sending attrib response:"<<fileName<<endl<<std::flush;
+      LOG(ERROR)<<"Error in sending attrib response:"<<fileName;
       delete this;
     }
   }
@@ -370,17 +370,17 @@ void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
   } else if(fNode!=nullptr && fNode->isRemote()) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     fNode->close(inodeNum);
-    cout<<"Error! got a delete request for a node which "
-        "I'm not responsible for:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error! got a delete request for a node which "
+        "I'm not responsible for:"<<fileName;
   } else {
-    cout<<"Error! got a delete request for a non existent node"
-        <<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error! got a delete request for a non existent node"
+        <<fileName;
   }
 
   try {
     socket.sendBytes((void*)&resPacket,sizeof(DeleteResPacket));
   } catch(...){
-    cout<<"Error in sending Delete response:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error in sending Delete response:"<<fileName;
     delete this;
   }
 }
@@ -406,17 +406,17 @@ void BFSTcpServiceHandler::onTruncateRequest(u_char *_packet) {
   } else if(fNode!=nullptr && fNode->isRemote()) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     fNode->close(inodeNum);
-    cout<<"Error! got a delete request for a node which "
-        "I'm not responsible for:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error! got a delete request for a node which "
+        "I'm not responsible for:"<<fileName;
   } else {
-    cout<<"Error! got a truncate request for a non existent node"
-        <<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error! got a truncate request for a non existent node"
+        <<fileName;
   }
 
   try {
     socket.sendBytes((void*)&resPacket,sizeof(TruncateResPacket));
   } catch(...){
-    cout<<"Error in sending Truncate response:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error in sending Truncate response:"<<fileName;
     delete this;
   }
 }
@@ -438,8 +438,8 @@ void BFSTcpServiceHandler::onCreateRequest(u_char *_packet) {
     if(existing->isRemote()) {
       //Close it!
       existing->close(inodeNum);
-      cout<<"Error! got a delete request for a node which "
-          "I'm not responsible for:"<<fileName<<endl<<std::flush;
+      LOG(ERROR)<<"Error! got a delete request for a node which "
+          "I'm not responsible for:"<<fileName;
     } else { //overwrite file=>truncate to 0
       bool res = existing->truncate(0);
       existing->close(inodeNum);
@@ -459,7 +459,7 @@ void BFSTcpServiceHandler::onCreateRequest(u_char *_packet) {
   try {
     socket.sendBytes((void*)&resPacket,sizeof(TruncateResPacket));
   } catch(...){
-    cout<<"Error in sending Create response:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error in sending Create response:"<<fileName;
     delete this;
   }
 }
@@ -499,7 +499,7 @@ void BFSTcpServiceHandler::onMoveRequest(u_char *_packet) {
   try {
     socket.sendBytes((void*)&resPacket,sizeof(MoveResPacket));
   } catch(...){
-    cout<<"Error in sending Move response:"<<fileName<<endl<<std::flush;
+    LOG(ERROR)<<"Error in sending Move response:"<<fileName;
     delete this;
   }
 }
@@ -542,7 +542,7 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
             return 200;
           } else {
             LOG(ERROR) <<"Failed to delete remote file:"<<_fileName;
-            LOG(ERROR) <<endl<<"DEALLOCATE deallocate"<<_fileName<<endl;
+            LOG(ERROR) <<"DEALLOCATE deallocate"<<_fileName;
             file->makeRemote();
             file->deallocate();//Release memory allocated to the file
             return -2;

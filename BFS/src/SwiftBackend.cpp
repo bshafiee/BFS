@@ -66,7 +66,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(node == nullptr)
     return false;
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
-  node->isUPLOADING  = true;
   LOG(ERROR)<<"GOT: "<<node<<" to upload!How many Open?"<<node->concurrentOpen();
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
@@ -81,19 +80,15 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
     delete res;
     //release file delete lock, so they can delete it
-    node->isUPLOADING  = false;
     node->close(inodeNum);
     return false;
   }
   //If file is open just return! because if it's a write this is a waste if
   //it's a read this will slow it down!
   if(node->concurrentOpen() > 1){
-    fprintf(stderr,"\nSAVED AN UPLOAD: %s\n\n",node->getName().c_str());
-    fflush(stderr);
     //release file delete lock, so they can delete it
     node->setNeedSync(true);//Reschedule again
     delete res;
-    node->isUPLOADING  = false;
     node->close(inodeNum);
     return false;
   }
@@ -131,7 +126,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(node->mustBeDeleted()){
     delete res;
     if(shouldDeleteOBJ)delete obj;
-    node->isUPLOADING  = false;
     node->close(inodeNum);
     return false;
   }
@@ -144,7 +138,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     if(shouldDeleteOBJ) delete obj;
     delete res;
     //release file delete lock, so they can delete it
-    node->isUPLOADING  = false;
     node->close(inodeNum);
     return false;
   }
@@ -163,7 +156,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       delete res;
       delete []buff;
       buff = nullptr;
-      node->isUPLOADING  = false;
       node->close(inodeNum);
       return false;
     }
@@ -174,7 +166,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       if(shouldDeleteOBJ) delete obj;
       delete []buff;
       buff = nullptr;
-      node->isUPLOADING  = false;
       node->close(inodeNum);
       return false;
     }
@@ -195,7 +186,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
-    node->isUPLOADING  = false;
     node->close(inodeNum);
     return false;
   }
@@ -207,7 +197,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
-    node->isUPLOADING  = false;
     node->close(inodeNum);
     return true;
   }
@@ -216,7 +205,6 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     delete chunkedResult;
     delete res;
     if(shouldDeleteOBJ) delete obj;
-    node->isUPLOADING  = false;
     node->close(inodeNum);
     return false;
   }

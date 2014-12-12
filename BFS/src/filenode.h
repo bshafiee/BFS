@@ -154,8 +154,6 @@ public:
   void makeLocal();
   void makeRemote();
   void deallocate();
-
-  std::atomic<bool> isUPLOADING;
 };
 
 } /* namespace FUSESwift */

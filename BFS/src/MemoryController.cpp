@@ -7,6 +7,7 @@
 
 #include "MemoryController.h"
 #include "SettingManager.h"
+#include "LoggerInclude.h"
 
 namespace FUSESwift {
 
@@ -67,7 +68,7 @@ MemoryContorller::MemoryContorller():total(0),max_allowed(0) {
   if(coef > 0 && coef <=1)
   	MAX_MEM_COEF = coef;
   else
-  	fprintf(stderr,"Invalid MAX_MEM_COEF:%f\n",coef);
+  	LOG(ERROR)<<"Invalid MAX_MEM_COEF:"<<coef;
 
 	max_allowed = getTotalSystemMemory() * MAX_MEM_COEF;
   //max_allowed = 512l*1024l*1024l;
