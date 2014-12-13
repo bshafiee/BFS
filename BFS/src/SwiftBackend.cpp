@@ -9,10 +9,12 @@
 #include "LoggerInclude.h"
 #include <Swift/Object.h>
 #include <Swift/Container.h>
+#include <Swift/Logger.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPResponse.h>
 #include "filesystem.h"
 #include "UploadQueue.h"
+#include "SettingManager.h"
 
 using namespace std;
 using namespace Swift;
@@ -28,6 +30,12 @@ SwiftBackend::~SwiftBackend() {
 bool SwiftBackend::initialize(Swift::AuthenticationInfo* _authInfo) {
   if(_authInfo == nullptr)
     return false;
+  //Init logger
+  if(!SettingManager::getBool(CONFIG_KEY_DEBUG_SWIFT_CPP_SDK))
+    Logger::setLogStreams(Logger::null_stream,Logger::null_stream,
+      Logger::null_stream,Logger::null_stream);
+  else
+    Logger::setLogStreams(std::cerr,std::cerr,std::cerr,std::cerr);
   SwiftResult<Account*>* res = Account::authenticate(*_authInfo,true);
   if(res->getError().code != SwiftError::SWIFT_OK) {
     LOG(ERROR)<<"SwiftError: "<<res->getError().toString();
@@ -66,7 +74,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(node == nullptr)
     return false;
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
-  LOG(ERROR)<<"GOT: "<<node<<" to upload!How many Open?"<<node->concurrentOpen();
+  LOG(DEBUG)<<"GOT: "<<node<<" to upload!How many Open?"<<node->concurrentOpen()<<" name:"<<_putEvent->fullPathBuffer;
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;

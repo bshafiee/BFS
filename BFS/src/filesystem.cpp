@@ -363,7 +363,7 @@ uint64_t FileSystem::assignINodeNum(intptr_t _nodePtr) {
   if(unlikely(nextInodeNum == 0))//Not Zero
     nextInodeNum = ++inodeCounter;
   if(inodeMap.find(nextInodeNum)!=inodeMap.end()) {
-    LOG(ERROR)<<"\nfileSystem(): inodeCounter overflow :(\n";
+    LOG(FATAL)<<"\nfileSystem(): inodeCounter overflow :(\n";
     fprintf(stderr, "fileSystem(): inodeCounter overflow :(\n");
     fflush(stderr);
     return 0;
@@ -454,11 +454,11 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
     for(uint64_t inode:inodeList->second) {
       auto inodeIt = inodeMap.find(inode);
       if(inodeIt == inodeMap.end()){
-        LOG(ERROR)<<"Inconcsitency between inodeMap and nodeInodeMap!";
+        LOG(FATAL)<<"Inconcsitency between inodeMap and nodeInodeMap!";
         exit(-1);
       }
       else if(inodeIt->second.second){
-        LOG(ERROR)<<"SIGNAL DELETE ALREADY DELETED: Ptr:"<<(FileNode*)_node;
+        LOG(DEBUG)<<"SIGNAL DELETE ALREADY DELETED: Ptr:"<<(FileNode*)_node;
         return true;
       }
     }
@@ -471,7 +471,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       found = true;
       //If is still open just return otherwise we gonna go to delete it!
       if(_node->isOpen()){
-        LOG(ERROR)<<"SIGNAL DELETE FORLOOP: Key:"<<_node->key<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+        LOG(DEBUG)<<"SIGNAL DELETE FORLOOP: Key:"<<_node->key<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
         return true;
       }
       else
@@ -516,7 +516,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   _node->hasInformedDelete = true;
   //5) if is open just return and we'll come back later
   if(_node->isOpen()){
-    LOG(ERROR)<<"SIGNAL DELETE ISOPEN Key:"<<_node->key<<" howmanyOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+    LOG(DEBUG)<<"SIGNAL DELETE ISOPEN Key:"<<_node->key<<" howmanyOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
     return true;//will be deleted on close
   }
 
@@ -530,7 +530,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       break;
     }
 
-  LOG(ERROR)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+  LOG(DEBUG)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
 
   //Update nodeInodemap and inodemap
   //if(!_node->isMoving()) {
@@ -539,7 +539,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       for(uint64_t inode:res->second) {
         auto inodeIt = inodeMap.find(inode);
         if(inodeIt == inodeMap.end())
-          LOG(ERROR)<<"Inconcsitency between inodeMap and nodeInodeMap!";
+          LOG(FATAL)<<"Inconcsitency between inodeMap and nodeInodeMap!";
         else
           inodeIt->second.second = true; //Inidicate deleted
       }

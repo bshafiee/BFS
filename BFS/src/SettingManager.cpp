@@ -42,6 +42,13 @@ int SettingManager::getInt(std::string key) {
 	return std::stoi(str);
 }
 
+bool SettingManager::getBool(std::string key) {
+  string str = get(key);
+  if(!str.length())
+    return false;
+  return str == "true";
+}
+
 long SettingManager::getLong(std::string key) {
 	string str = get(key);
 	if(!str.length())

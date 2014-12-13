@@ -420,7 +420,7 @@ int swift_flush(const char* path, struct fuse_file_info* fi) {
   int retstat = 0;
   //Get associated FileNode*
   //FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
-  LOG(ERROR)<<"FLUSH is not implemeted! path="<<path<<" fi->fh="<<fi->fh;
+  //LOG(ERROR)<<"FLUSH is not implemeted! path="<<path<<" fi->fh="<<fi->fh;
 
   return retstat;
 }

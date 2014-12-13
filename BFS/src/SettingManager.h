@@ -24,6 +24,7 @@ static const std::string CONFIG_KEY_TCP_PORT = "tcp_port";
 static const std::string CONFIG_KEY_ZOO_SERVER_URL = "zoo_server_url";
 static const std::string CONFIG_KEY_ZOO_ELECTION_ZNODE = "zoo_election_znode";
 static const std::string CONFIG_KEY_ZOO_ASSIGNMENT_ZNODE = "zoo_assignment_znode";
+static const std::string CONFIG_KEY_DEBUG_SWIFT_CPP_SDK = "debug_swift_cpp_sdk";
 
 class SettingManager {
 typedef std::unordered_map<std::string,std::string> Dictionary;
@@ -33,6 +34,7 @@ public:
 	virtual ~SettingManager();
 	static std::string get(std::string key);
 	static int getInt(std::string key);
+	static bool getBool(std::string key);
 	static long getLong(std::string key);
 	static uint64_t getUINT64(std::string key);
 	static double getDouble(std::string key);

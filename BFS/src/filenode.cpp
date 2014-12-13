@@ -396,7 +396,7 @@ void FileNode::close(uint64_t _inodeNum) {
   	//If all refrences to this files are deleted so it can be deleted
 
   	if(mustDeleted){
-  	  LOG(ERROR)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<refCount<<" isRemote():"<<isRemote()<<" ptr:"<<this;
+  	  LOG(DEBUG)<<"SIGNAL FROM CLOSE KEY:"<<getName()<<" isOpen?"<<refCount<<" isRemote():"<<isRemote()<<" ptr:"<<this;
   	  FileSystem::getInstance().signalDeleteNode(this,mustInformRemoteOwner);//It's close now! so will be removed
   	  /// NOTE AFTER THIS LINE ALL OF DATA IN THIS FILE ARE INVALID ///
   	  ZooHandler::getInstance().requestUpdateGlobalView();
