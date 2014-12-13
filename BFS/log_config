@@ -7,4 +7,16 @@ TO_STANDARD_OUTPUT = false
 MILLISECONDS_WIDTH = 6
 PERFORMANCE_TRACKING = true
 MAX_LOG_FILE_SIZE = 209715200 ## 2MB - Comment starts with two hashes (##)
-LOG_FLUSH_THRESHOLD = 1 ## Flush after every 100 logs
+LOG_FLUSH_THRESHOLD = 1 ## Flush after every 1 logs
+
+* DEBUG:
+ENABLED = false
+
+* FATAL:
+To_Standard_Output = true
+
+* ERROR:
+To_Standard_Output = true
+
+* INFO:
+To_Standard_Output = true

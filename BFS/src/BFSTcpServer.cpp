@@ -66,7 +66,7 @@ bool BFSTcpServer::start() {
 }
 
 void BFSTcpServer::stop() {
-  LOG(ERROR)<<"STOPPING REACTOR!";
+  LOG(INFO)<<"STOPPING REACTOR!";
   if(reactor)
     reactor->stop();
   delete reactor;

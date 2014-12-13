@@ -20,6 +20,9 @@
 #include "ZeroNetwork.h"
 #include "SettingManager.h"
 #include "BFSTcpServer.h"
+#include "LoggerInclude.h"
+
+
 
 using namespace std;
 
@@ -51,7 +54,6 @@ ZooHandler::ZooHandler() :
 	//Set Debug info
 	zoo_set_log_stream(stderr);
 	zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
-
 }
 
 ZooHandler::~ZooHandler() {
@@ -93,7 +95,7 @@ string ZooHandler::zooEventType2String(int state) {
 	return "UNKNOWN_EVENT_TYPE";
 }
 
-void ZooHandler::dumpStat(const struct Stat *stat) {
+/*void ZooHandler::dumpStat(const struct Stat *stat) {
 	char tctimes[40];
 	char tmtimes[40];
 	time_t tctime;
@@ -114,14 +116,14 @@ void ZooHandler::dumpStat(const struct Stat *stat) {
 			"\tversion="<<(unsigned int) stat->version<<"\taversion="<<
 			(unsigned int) stat->aversion<<"\n\tephemeralOwner = "<<
 			(long long) stat->ephemeralOwner<<endl;
-}
+}*/
 
 void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
     const char *path, void* context) {
 	/* Be careful using zh here rather than zzh - as this may be mt code
 	 * the client lib may call the watcher before zookeeper_init returns */
-	LOG(ERROR)<<"Watcher "<<zooEventType2String(type)<<" state = "<<
-	    sessiontState2String(state);
+	LOG(DEBUG)<<"Watcher "<<zooEventType2String(type)<<" state = "<<sessiontState2String(state);
+
 	if (path && strlen(path) > 0) {
 		LOG(ERROR)<<" for path: "<<path;
 	}
@@ -129,10 +131,9 @@ void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
 	if (type == ZOO_SESSION_EVENT) {
 		getInstance().sessionState = state;
 		if (state == ZOO_CONNECTED_STATE) {
-			const clientid_t *id = zoo_client_id(zzh);
-			getInstance().myid = *id;
-			LOG(ERROR)<<"Connected Successfully. session id: "<<
-			    (long long) getInstance().myid.client_id;
+		  getInstance().myid = zoo_client_id(zzh);
+			LOG(DEBUG)<<"Connected Successfully. session id: "<<
+			    (long long) getInstance().myid->client_id;
 		} else if (state == ZOO_AUTH_FAILED_STATE) {
 			LOG(ERROR)<<"Authentication failure. Shutting down...";
 			zookeeper_close(zzh);
@@ -204,7 +205,7 @@ void ZooHandler::startElection() {
 	//First Change state to start
 	electionState = ElectionState::START;
 
-	LOG(INFO)<<"Starting leader election";
+	LOG(DEBUG)<<"Starting leader election";
 
 	//Connect to the zoo
 	if (!blockingConnect()) {
@@ -257,7 +258,7 @@ bool ZooHandler::makeOffer() {
 
 	leaderOffer = LeaderOffer(string(newNodePath), getHostName());
 
-	LOG(INFO)<<"Created leader offer: "<<leaderOffer.toString();
+	LOG(DEBUG)<<"Created leader offer: "<<leaderOffer.toString();
 
 	return true;
 }
@@ -296,7 +297,7 @@ bool ZooHandler::determineElectionStatus() {
 		LeaderOffer leaderOffer = leaderOffers[i];
 
 		if (leaderOffer.getId() == this->leaderOffer.getId()) {
-		  LOG(ERROR)<<"There are "<<leaderOffers.size()<<
+		  LOG(DEBUG)<<"There are "<<leaderOffers.size()<<
 		      " leader offers. I am "<<i<<" in line.";
 
 			if (i == 0) {
@@ -434,8 +435,7 @@ void ZooHandler::publishListOfFiles() {
 		return;
 	}
 
-	//LOG(ERROR)<<"publishListOfFiles successfully:"<<str<<endl;
-	//LOG(ERROR)<<"publishListOfFiles successfully.";
+	LOG(DEBUG)<<"publishListOfFiles successfully:"<<str;
 }
 
 std::vector<ZooNode> ZooHandler::getGlobalView() {
@@ -606,7 +606,7 @@ void ZooHandler::updateRemoteFilesInFS() {
 		    item.second.MAC[2],item.second.MAC[3],
         item.second.MAC[4],item.second.MAC[5]);
 		LOG(DEBUG)<<"created:"<<item.first<<" hostName:"<<
-		    item.second<<" "<<string(macCharBuff);
+		    item.second.hostName<<" "<<string(macCharBuff);
 	}
 
 	//Now remove the localRemoteFiles(remote files which have a pointer in our
@@ -649,7 +649,7 @@ void ZooHandler::updateRemoteFilesInFS() {
         break;
 	  }
 	  if(!exist) {
-	    //LOG(ERROR)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
+	    LOG(DEBUG)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
 	    //fflush(stderr);
 	    FileSystem::getInstance().signalDeleteNode(file,false);
 	  }
@@ -700,7 +700,7 @@ void ZooHandler::fetchAssignmets() {
 	if (callResult != ZOK) {
 		if(callResult == ZNONODE) //No node! needs to set a watch on create
 			zoo_wexists(zh,path.c_str(),assignmentWatcher,nullptr,nullptr);
-		LOG(ERROR)<<"zoo_wget failed:"<<zerror(callResult);
+		LOG(DEBUG)<<"zoo_wget failed:"<<zerror(callResult);
 		delete[] buffer;
 		buffer = nullptr;
 		return;
@@ -754,7 +754,7 @@ void ZooHandler::stopZooHandler() {
   sessionState = ZOO_EXPIRED_SESSION_STATE;
   zookeeper_close(zh);
   zh = nullptr;
-  LOG(ERROR)<<"ZOOHANDLER LOOP DEAD!";
+  LOG(INFO)<<"ZOOHANDLER LOOP DEAD!";
 }
 
 }	//Namespace

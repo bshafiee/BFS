@@ -133,7 +133,7 @@ void shutdown(void* userdata) {
 
 void bfs_usage(){
 	fprintf(stderr, "usage:  BFS [FUSE and mount options] mountPoint\n");
-	LOG(ERROR)<<"Invalid options to start BFS.";
+	LOG(FATAL)<<"Invalid options to start BFS.";
   shutdown(nullptr);
 }
 
@@ -143,13 +143,13 @@ void sigproc(int sig) {
 
 // function to call if operator new can't allocate enough memory or error arises
 void systemErrorHandler() {
-  LOG(ERROR) <<"System Termination Occurred";
+  LOG(FATAL) <<"System Termination Occurred";
   shutdown(nullptr);
 }
 
 // function to call if operator new can't allocate enough memory or error arises
 void outOfMemHandler() {
-  LOG(ERROR) <<"Unable to satisfy request for memory";
+  LOG(FATAL) <<"Unable to satisfy request for memory";
   shutdown(nullptr);
 }
 
@@ -231,18 +231,18 @@ int main(int argc, char *argv[]) {
   //Get Physical Memory amount
   LOG(INFO) <<"Total Physical Memory:" << MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024 << " MB";
   LOG(INFO) <<"BFS Available Memory:" << MemoryContorller::getInstance().getAvailableMemory()/1024/1024 << " MB";
-  LOG(ERROR) <<"Memory Utilization:" << MemoryContorller::getInstance().getMemoryUtilization()*100<< "%";
+  LOG(INFO) <<"Memory Utilization:" << MemoryContorller::getInstance().getMemoryUtilization()*100<< "%";
 
 
 #ifdef BFS_ZERO
   //Start BFS Network(before zoo, zoo uses mac info from this package)
 	if(!BFSNetwork::startNetwork()) {
-	  LOG(ERROR) <<"Cannot initialize ZeroNetworking!";
+	  LOG(FATAL) <<"Cannot initialize ZeroNetworking!";
 		shutdown(nullptr);
 	}
 #else
 	if(!BFSTcpServer::start()) {
-	  LOG(ERROR) <<"Cannot initialize TCPNetworking!";
+	  LOG(FATAL) <<"Cannot initialize TCPNetworking!";
     shutdown(nullptr);
 	}
 #endif
@@ -252,7 +252,7 @@ int main(int argc, char *argv[]) {
   //Start fuse_main
   int fuse_stat = 0;
   fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
-  LOG(ERROR) <<"fuse returned: "<<fuse_stat;
+  LOG(INFO) <<"fuse returned: "<<fuse_stat;
   //while(1) {sleep(1);}
 
   shutdown(nullptr);

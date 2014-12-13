@@ -12,6 +12,7 @@
 #include "filenode.h"
 #include "SettingManager.h"
 #include "MemoryController.h"
+#include "LoggerInclude.h"
 #include "Timer.h"
 #include <iostream>
 #include <sys/ioctl.h>

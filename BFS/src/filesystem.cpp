@@ -16,6 +16,7 @@
 #include "ZooHandler.h"
 #include "MemoryController.h"
 #include "BFSTcpServer.h"
+#include "LoggerInclude.h"
 
 using namespace std;
 using namespace Poco;
@@ -207,7 +208,7 @@ void FileSystem::destroy() {
   inodeMapMutex.lock();
   inodeMap.clear();
 
-  LOG(ERROR)<<"FILESYSTEM'S DEAD!";
+  LOG(INFO)<<"FILESYSTEM'S DEAD!";
 }
 
 bool FileSystem::tryRename(const string &_from,const string &_to) {

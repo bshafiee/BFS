@@ -13,7 +13,7 @@
 #include <vector>
 #include <sstream>
 #include "Backend.h"
-#include "LoggerInclude.h"
+//#include "LoggerInclude.h"
 
 namespace FUSESwift {
 

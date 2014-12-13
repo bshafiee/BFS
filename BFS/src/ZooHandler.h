@@ -9,11 +9,6 @@
 #define ZOOHANDLER_H_
 
 #include "Global.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <zookeeper/zookeeper.h>
-#include <zookeeper/proto.h>
-#include <ctime>
 #include <string>
 #include <errno.h>
 #include <vector>
@@ -22,6 +17,10 @@
 #include "MasterHandler.h"
 #include "ZooNode.h"
 #include "BFSNetwork.h"
+extern "C" {
+  #include <zookeeper/zookeeper.h>
+  #include <zookeeper/proto.h>
+}
 
 
 namespace FUSESwift {
@@ -36,7 +35,7 @@ class ZooHandler {
   friend MasterHandler;
 private:
 	zhandle_t *zh;
-	clientid_t myid;
+	const clientid_t *myid;
 	int sessionState;
 	std::string hostPort = "10.42.0.97:2181,10.42.0.62:2182,129.97.170.232:2181";
 	const long long connectionTimeout = 5000*1000;//wait up to 5 seconds for connection
@@ -78,7 +77,6 @@ public:
 	/** Helper methods **/
 	static std::string sessiontState2String(int state);
 	static std::string zooEventType2String(int state);
-	static void dumpStat(const struct Stat *stat);
 	static std::string getHostName();
 	/** Zoo Operations **/
 	int getSessionState();

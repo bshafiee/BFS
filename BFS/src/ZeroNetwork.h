@@ -22,7 +22,7 @@ public:
 	virtual ~ZeroNetwork();
 	/** public static member **/
 	static int MTU;
-	static unsigned const int MAX_RETRY = 100000;
+	static const unsigned int MAX_RETRY;
 	/** public static Functions **/
 	static bool initialize(const std::string &_device,unsigned int _MTU);
 	static void shutDown();

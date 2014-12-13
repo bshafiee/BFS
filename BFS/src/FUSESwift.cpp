@@ -37,7 +37,7 @@ int swift_getattr(const char *path, struct stat *stbuff) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr) {
-    LOG(ERROR)<<"Node not found: "<<path;
+    //LOG(DEBUG)<<"Node not found: "<<path;
     return -ENOENT;
   }
 

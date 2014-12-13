@@ -20,6 +20,7 @@
 #include <string>
 #include <iostream>
 #include "Timer.h"
+#include "LoggerInclude.h"
 
 using namespace Poco;
 using namespace Poco::Net;

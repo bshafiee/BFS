@@ -6,12 +6,12 @@
  */
 
 #include "ZeroNetwork.h"
-extern "C"
-{
+#include "LoggerInclude.h"
+extern "C"{
 	#include <pfring.h>
 }
 #include <net/if.h>   //ifreq
-#include "LoggerInclude.h"
+
 
 using namespace std;
 
@@ -20,6 +20,7 @@ namespace FUSESwift {
 bool ZeroNetwork::initialized = false;
 void* ZeroNetwork::pd = nullptr;
 int ZeroNetwork::MTU;
+unsigned const int ZeroNetwork::MAX_RETRY = 100000;
 
 ZeroNetwork::ZeroNetwork() {}
 
@@ -54,8 +55,8 @@ bool ZeroNetwork::initialize(const string& _device,unsigned int _MTU) {
 
 	u_int32_t version;
 	pfring_version((pfring*)pd, &version);
-	LOG(INFO)<<"Using PF_RING v."<<(version & 0xFFFF0000) >> 16<<
-	    "."<<(version & 0x0000FF00) >> 8<<"."<<version & 0x000000FF;
+	LOG(INFO)<<"Using PF_RING v."<<((version & 0xFFFF0000) >> 16)<<
+	    "."<<((version & 0x0000FF00) >> 8)<<"."<<(version & 0x000000FF);
 
 	initialized = true;
 	return true;
@@ -72,15 +73,14 @@ redo:
 	int rc = pfring_send((pfring*)pd, _buffer, _len, 1);
 
 	if(rc == PF_RING_ERROR_INVALID_ARGUMENT) {
-	 LOG(ERROR)<<"Attempting to send invalid packet[len: "<<_len<<"][MTU:"<<((pfring*)pd)->mtu_len<<"]";
-	 return -1;
+	  LOG(ERROR)<<"Attempting to send invalid packet[len: "<<_len<<"][MTU:"<<(((pfring*)pd)->mtu_len)<<"]";
+	  return -1;
 	}
 
 	if(rc < 0) {
 		retries++;
 		if(retries > MAX_RETRY) {
-			LOG(ERROR)<<"Send failed: "<<rc<<" MaxRetry:"<<MAX_RETRY
-			    <<" Retried:"<<retries;
+			LOG(ERROR)<<"Send failed: "<<rc<<" MaxRetry:"<<MAX_RETRY<<" Retried:"<<retries;
 			return -1;
 		}
 		goto redo;
