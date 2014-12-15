@@ -59,9 +59,10 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	}
 	//Ask backend to download the file for us
 	Backend *backend = BackendManager::getActiveBackend();
-	istream *iStream = backend->get(_event);
-	if(iStream == nullptr) {
+	pair<istream*,intptr_t> getStream = backend->get(_event);
+	if(getStream.first == nullptr) {
 	  LOG(ERROR)<<"Error in Downloading file:"<<_event->fullPathBuffer;
+	  backend->releaseGetData(getStream.second);
 	  return;
 	}
 	//Now create a file in FS
@@ -70,42 +71,46 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	FileNode *newFile = FileSystem::getInstance().mkFile(_event->fullPathBuffer,false,true);//open
 	if(newFile == nullptr){
 	  LOG(ERROR)<<"Failed to create a newNode:"<<_event->fullPathBuffer;
+	  backend->releaseGetData(getStream.second);
 	  return;
 	}
 	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
-	LOG(INFO)<<"DOWNLOADING: "<<newFile->getFullPath();
+	LOG(INFO)<<"DOWNLOADING: ptr:"<<newFile<<" fpath:"<<newFile->getFullPath();
 
 	//Make a fake event to check if the file has been deleted
 	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content
 	char buff[FileSystem::blockSize];//TODO increase this
 	size_t offset = 0;
-	while(iStream->eof() == false) {
-	  iStream->read(buff,FileSystem::blockSize);
+	while(getStream.first->eof() == false) {
+	  getStream.first->read(buff,FileSystem::blockSize);
 
 	  if(newFile->mustBeDeleted()){
 	    newFile->close(inodeNum);
+	    backend->releaseGetData(getStream.second);
 	    return;
 	  }
 
 	  FileNode* afterMove = nullptr;
-    int retCode = newFile->writeHandler(buff,offset,iStream->gcount(),afterMove);
+    int retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove);
     if(afterMove)
       newFile = afterMove;
     while(retCode == -1)//-1 means moving
-      retCode = newFile->writeHandler(buff,offset,iStream->gcount(),afterMove);
+      retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove);
 
     //Check space availability
 	  if(retCode < 0) {
 	    LOG(ERROR)<<"Error in writing file:"<<newFile->getFullPath()<<", probably no diskspace, Code:"<<retCode;
 	    newFile->close(inodeNum);
+	    backend->releaseGetData(getStream.second);
 	    return;
 	  }
 
-	  offset += iStream->gcount();
+	  offset += getStream.first->gcount();
 	}
 	newFile->setNeedSync(false);//We have just created this file so it's upload flag false
 	newFile->close(inodeNum);
+	backend->releaseGetData(getStream.second);
 }
 
 void DownloadQueue::processDownloadMetadata(const SyncEvent* _event) {

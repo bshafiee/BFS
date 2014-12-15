@@ -7,6 +7,7 @@
 
 #include "SwiftBackend.h"
 #include "LoggerInclude.h"
+#include <Swift/SwiftResult.h>
 #include <Swift/Object.h>
 #include <Swift/Container.h>
 #include <Swift/Logger.h>
@@ -55,15 +56,19 @@ bool SwiftBackend::initDefaultContainer() {
   for(auto it = res->getPayload()->begin(); it != res->getPayload()->end();it++)
     if((*it).getName() == DEFAULT_CONTAINER_NAME)
       defaultContainer = &(*it);
-  if(defaultContainer!=nullptr)
+  if(defaultContainer!=nullptr){
+    LOG(INFO)<<DEFAULT_CONTAINER_NAME<<" exist with:"<<defaultContainer->getTotalObjects();
     return true;
+  }
   //create default container
   defaultContainer = new Container(account,DEFAULT_CONTAINER_NAME);
   SwiftResult<int*>* resCreateContainer = defaultContainer->swiftCreateContainer();
-  if(resCreateContainer->getError().code == SwiftError::SWIFT_OK)
-    return true;
-  else
-    return false;
+  bool result = resCreateContainer->getError().code == SwiftError::SWIFT_OK;
+
+  delete resCreateContainer;
+  resCreateContainer = nullptr;
+
+  return result;
 }
 
 bool SwiftBackend::put(const SyncEvent* _putEvent) {
@@ -291,6 +296,10 @@ std::vector<BackendItem>* FUSESwift::SwiftBackend::list() {
 	    listFiles->push_back(item);
 	  }
 	}
+
+	delete res;
+	res = nullptr;
+
 	return listFiles;
 }
 
@@ -299,31 +308,39 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
       || defaultContainer == nullptr)
       return false;
   Object obj(defaultContainer,convertToSwiftName(_removeEvent->fullPathBuffer));
-  SwiftResult<std::istream*>* delResult = obj.swiftDeleteObject();
+  Swift::SwiftResult<std::istream*>* delResult = obj.swiftDeleteObject();
   /*LOG(ERROR)<<"Sync: remove fullpathBuffer:"<< _removeEvent->fullPathBuffer<<
       " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
       delResult->getResponse()->getReason();*/
-  if(delResult->getError().code != SwiftError::SWIFT_OK) {
-    //LOG(ERROR)<<"Error in swift delete: "<<delResult->getError().toString();
-    return false;
-  }
+  bool result = delResult->getError().code == SwiftError::SWIFT_OK;
+
+  if(!result)
+    LOG(ERROR)<<"Deleting:"<< _removeEvent->fullPathBuffer<<
+          " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
+          "failed:Responese:"<< delResult->getResponse()->getReason()<<
+          " Error:"<<delResult->getError().toString();
   else
-    return true;
+    LOG(INFO)<<"SUCCESSFUL DELETE:"<<_removeEvent->fullPathBuffer;
+
+  delete delResult;
+  delResult = nullptr;
+
+  return result;
 }
 
-istream* SwiftBackend::get(const SyncEvent* _getEvent) {
+std::pair<std::istream*,intptr_t> SwiftBackend::get(const SyncEvent* _getEvent) {
   if(_getEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)
-    return nullptr;
+    return make_pair(nullptr,0);
   //Try to download object
   Object obj(defaultContainer,convertToSwiftName(_getEvent->fullPathBuffer));
   SwiftResult<std::istream*>* res = obj.swiftGetObjectContent();
   if(res->getError().code != SwiftError::SWIFT_OK) {
     LOG(ERROR)<<"Swift Error: Downloading obj:"<<res->getError().toString();
-    return nullptr;
+    return make_pair(nullptr,0);
   }
   else
-    return res->getPayload();//TODO XXX somebody should delete res!
+    return make_pair(res->getPayload(),(intptr_t)res);
 }
 
 vector<pair<string,string>>* SwiftBackend::get_metadata(const SyncEvent* _getMetaEvent) {
@@ -333,6 +350,12 @@ vector<pair<string,string>>* SwiftBackend::get_metadata(const SyncEvent* _getMet
   //Try to download object
   Object obj(defaultContainer,_getMetaEvent->fullPathBuffer);
   return obj.getExistingMetaData();
+}
+
+void SwiftBackend::releaseGetData(intptr_t &_ptr) {
+  if(_ptr)
+    delete (SwiftResult<std::istream*>*)_ptr;
+  _ptr = 0;
 }
 
 } /* namespace FUSESwift */

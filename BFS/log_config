@@ -1,5 +1,5 @@
 * GLOBAL:
-FORMAT = "%level TID(%thread) %datetime{%H:%m:%s:%g} %func: %msg"
+FORMAT = "%level TID(%thread) %datetime{%H:%m:%s:%g} %func: line:%line: %msg"
 FILENAME = "log.txt"
 ENABLED = true
 TO_FILE = true

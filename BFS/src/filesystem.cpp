@@ -17,6 +17,7 @@
 #include "MemoryController.h"
 #include "BFSTcpServer.h"
 #include "LoggerInclude.h"
+#include "Timer.h"
 
 using namespace std;
 using namespace Poco;
@@ -44,19 +45,23 @@ FileSystem& FileSystem::getInstance() {
 FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _isRemote, bool _open) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *file;
+  FileNode *file = nullptr;
   if(_parent == root)
     file = new FileNode(_name,_parent->getFullPath()+_name, false, _isRemote);
   else
     file = new FileNode(_name,_parent->getFullPath()+delimiter+_name, false, _isRemote);
-  if(_open)
-    file->open();
+  if(_open) {
+    if(!file->open()){
+      LOG(ERROR)<<"Failed to open newly created file:"<<file->getFullPath();
+      return nullptr;
+    }
+  }
   auto res = _parent->childAdd(file);
   if (res.second) {
   	//Inform ZooHandler about new file if not remote
   	if(!_isRemote)
   		ZooHandler::getInstance().publishListOfFiles();
-    return (FileNode*) (res.first->second);
+    return file;
   }
   else
     return nullptr;
@@ -88,7 +93,7 @@ FileNode* FileSystem::traversePathToParent(const string &_path) {
   for (uint i = 0; i < tokenizer.count() - 1; i++) {
     if (tokenizer[i].length() == 0)
       continue;
-    Node* node = start->childFind(tokenizer[i]);
+    const Node* node = start->childFind(tokenizer[i]);
     start = (node == nullptr) ? nullptr : (FileNode*) node;
     if(start == nullptr)//parent already removed
       return nullptr;
@@ -122,6 +127,7 @@ FileNode* FileSystem::createHierarchy(const std::string &_path) {
     else
       start = (FileNode*) node;
   }
+
   return start;
 }
 
@@ -135,14 +141,18 @@ FileNode* FileSystem::mkFile(const string &_path,bool _isRemote,bool _open) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
-  return mkFile(parent, name, _isRemote,_open);
+  FileNode* result = mkFile(parent, name, _isRemote,_open);
+
+  return result;
 }
 
 FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
-  return mkDirectory(parent, name,_isRemote);
+  FileNode* result = mkDirectory(parent, name,_isRemote);
+
+  return result;
 }
 
 FileNode* FileSystem::findAndOpenNode(const std::string &_path) {
@@ -357,7 +367,7 @@ intptr_t FileSystem::getNodeByINodeNum(uint64_t _inodeNum) {
     return 0;
 }
 
-uint64_t FileSystem::assignINodeNum(intptr_t _nodePtr) {
+uint64_t FileSystem::assignINodeNum(const intptr_t _nodePtr) {
   lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
   uint64_t nextInodeNum = ++inodeCounter;
   if(unlikely(nextInodeNum == 0))//Not Zero
@@ -482,7 +492,6 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   _node->mustDeleted = true;
   _node->mustInformRemoteOwner = _informRemoteOwner;
 
-
   //1) Add Node to the delete Queue
   if(!found)
     deleteQueue.push_back(_node);
@@ -530,7 +539,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       break;
     }
 
-  LOG(DEBUG)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->isOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+  LOG(DEBUG)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
 
   //Update nodeInodemap and inodemap
   //if(!_node->isMoving()) {

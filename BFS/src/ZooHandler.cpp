@@ -21,6 +21,8 @@
 #include "SettingManager.h"
 #include "BFSTcpServer.h"
 #include "LoggerInclude.h"
+#include <Poco/StringTokenizer.h>
+#include "Timer.h"
 
 
 
@@ -415,8 +417,27 @@ void ZooHandler::publishListOfFiles() {
 		return;
 	}
 
+	lock_guard<mutex> lk(lockPublish);
 	vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
-	//Traverse FileSystem Hierarchies
+
+	bool change = false;
+	for(string file:listOfFiles){
+	  bool found = false;
+	  for(string cacheFileName:cacheFileList)
+	    if(cacheFileName == file){
+	      found = true;
+	      break;
+	    }
+	  if(!found){
+	    change = true;
+	    break;
+	  }
+	}
+	if(!change){
+	  return;
+	}
+
+	cacheFileList = listOfFiles;
 
 	//Create a ZooNode
 #ifdef BFS_ZERO
@@ -426,10 +447,12 @@ void ZooHandler::publishListOfFiles() {
   ZooNode zooNode(getHostName(),
       MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
 #endif
+
 	//Send data
 	string str = zooNode.toString();
 	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
 	    str.length(), -1);
+
 	if (callRes != ZOK) {
 	  LOG(ERROR)<<"publishListOfFiles(): zoo_set failed:"<< zerror(callRes);
 		return;
@@ -486,62 +509,38 @@ void ZooHandler::updateGlobalView() {
 		}
 		if(len >= 0 && len <= length-1)
 			buffer[len] = '\0';
+		Poco::StringTokenizer tokenizer(buffer,"\n",
+		    Poco::StringTokenizer::TOK_TRIM |
+		    Poco::StringTokenizer::TOK_IGNORE_EMPTY);
+		if(tokenizer.count() < 5) {
+		  LOG(ERROR)<<"Malformed data at:"<<node<<" Buffer:"<<buffer;
+		  continue;
+		}
 
 		//3)parse node content to a znode
 		vector<string> nodeFiles;
-		char *tok = strtok(buffer, "\n");
-		if (tok == NULL) {
-		  LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
-			delete[] buffer;
-			buffer = nullptr;
-			continue;
-		}
-		string hostName(tok);
 
-		tok = strtok(NULL, "\n");
-		if (tok == NULL) {
-		  LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
-			delete[] buffer;
-			buffer = nullptr;
-			continue;
-		}
+		//3.1 Hostname
+		string hostName = tokenizer[0];
+
+		//3.2 MAC String
 		unsigned char mac[6];
-		//Parse MAC String
-		sscanf(tok, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2],
+		sscanf(tokenizer[1].c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2],
 				&mac[3], &mac[4], &mac[5]);
 
-		tok = strtok(NULL, "\n");
-    if (tok == NULL) {
-      LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
-      delete[] buffer;
-      buffer = nullptr;
-      continue;
-    }
-    string ip(tok);
+		//3.3 ip
+    string ip(tokenizer[2]);
 
-    tok = strtok(NULL, "\n");
-    if (tok == NULL) {
-      LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
-      delete[] buffer;
-      buffer = nullptr;
-      continue;
-    }
-    string port(tok);
+    //3.4 port
+    string port(tokenizer[3]);
 
-		tok = strtok(NULL, "\n");
-		if (tok == NULL) {
-		  LOG(ERROR)<<"updateGlobalView(): strtok failed. Malform data at:"<<node;
-			delete[] buffer;
-			buffer = nullptr;
-			continue;
-		}
-		string freeSize(tok);
-		tok = strtok(NULL, "\n");
-		while (tok != NULL) {
-			string file(tok);
-			nodeFiles.push_back(file);
-			tok = strtok(NULL, "\n");
-		}
+    //3.1 freespace
+		string freeSize(tokenizer[4]);
+
+		//3.1 files
+		for(uint i=5;i<tokenizer.count();i++)
+			nodeFiles.push_back(tokenizer[i]);
+
 		//4)update globalView
 		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles,mac,ip,stoul(port));
 		globalView.push_back(zoonode);

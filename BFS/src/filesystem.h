@@ -84,7 +84,7 @@ public:
   bool moveToRemoteNode(FileNode* _localFile);
 
   intptr_t getNodeByINodeNum(uint64_t _inodeNum);
-  uint64_t assignINodeNum(intptr_t _nodePtr);
+  uint64_t assignINodeNum(const intptr_t _nodePtr);
   void replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr);
   void removeINodeEntry(uint64_t _inodeNum);
 

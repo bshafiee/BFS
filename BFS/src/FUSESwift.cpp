@@ -263,13 +263,48 @@ int swift_rename(const char* from, const char* to) {
 }
 
 /*int swift_link(const char* from, const char* to) {
-}
+}*/
 
 int swift_chmod(const char* path, mode_t mode) {
+  //Get associated FileNode*
+  string pathStr(path, strlen(path));
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
+  if(node == nullptr) {
+    LOG(ERROR)<<"Failure, not found: "<<path;
+    return -ENOENT;
+  }
+  //Assign inode number
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  if(inodeNum == 0) {
+    LOG(ERROR)<<"Error in assigning inodeNum, or opening file.";
+    return -ENOENT;
+  }
+  //Update mode
+  node->setMode(mode);
+  node->close(inodeNum);
+  return 0;
 }
 
 int swift_chown(const char* path, uid_t uid, gid_t gid) {
-}*/
+  //Get associated FileNode*
+  string pathStr(path, strlen(path));
+  FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
+  if(node == nullptr) {
+    LOG(ERROR)<<"Failure, not found: "<<path;
+    return -ENOENT;
+  }
+  //Assign inode number
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  if(inodeNum == 0) {
+    LOG(ERROR)<<"Error in assigning inodeNum, or opening file.";
+    return -ENOENT;
+  }
+  //Update mode
+  node->setGID(gid);
+  node->setUID(uid);
+  node->close(inodeNum);
+  return 0;
+}
 
 int swift_truncate(const char* path, off_t size) {
   if(DEBUG_TRUNCATE)
@@ -288,10 +323,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
   if (node == nullptr) {
-    if(node == nullptr)
-      LOG(ERROR)<<"Failure, cannot Open Node not found: "<<path;
-    else
-      LOG(ERROR)<<"Failure, Node is delete."<<path;
+    LOG(ERROR)<<"Failure, cannot Open Node not found: "<<path;
     fi->fh = 0;
     return -ENOENT;
   }
@@ -326,7 +358,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
 
   //Empty file
   if((!node->isRemote()&&node->getSize() == 0)||size == 0) {
-    LOG(ERROR)<<"Read from:path=\""<<path<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset<<", EOF";
+    LOG(ERROR)<<"Read from:path="<<node->getFullPath()<<", buf="<<buf<<", size="<<size<<", offset="<<offset<<", EOF";
     return 0;
   }
   long readBytes = 0;

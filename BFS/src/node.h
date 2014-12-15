@@ -16,7 +16,7 @@ namespace FUSESwift {
 
 class Node;
 //Types
-typedef std::unordered_map<std::string, Node*> childDictionary;
+typedef std::unordered_map<std::string,Node*> childDictionary;
 
 class Node {
 protected:

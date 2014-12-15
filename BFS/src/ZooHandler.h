@@ -47,6 +47,9 @@ private:
 	//A hashmap too keep track of which file is at which node!<nodeaddress,list of files>
 	std::mutex lockGlobalView;
 	std::vector<ZooNode> globalView;
+	//Publish list of files
+	std::mutex lockPublish;
+  std::vector<std::string> cacheFileList;
 	//Private Constructor
 	ZooHandler();
 	/** Election private helpers **/

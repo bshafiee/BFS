@@ -29,13 +29,13 @@ public:
   bool initialize(Swift::AuthenticationInfo* _authInfo);
   //Implement backend interface
   std::vector<BackendItem>* list();
-  std::istream* get(const SyncEvent *_getEvent);
+  std::pair<std::istream*,intptr_t> get(const SyncEvent *_getEvent);
   std::vector<std::pair<std::string,std::string> >* get_metadata(const SyncEvent *_getMetaEvent);
   bool put(const SyncEvent *_putEvent);
   bool put_metadata(const SyncEvent *_putMetaEvent);
   bool move(const SyncEvent *_moveEvent);
   bool remove(const SyncEvent *_removeEvent);
-
+  void releaseGetData(intptr_t &_ptr);
 };
 
 } /* namespace FUSESwift */
