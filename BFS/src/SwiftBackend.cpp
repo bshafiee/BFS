@@ -25,7 +25,10 @@ namespace FUSESwift {
 SwiftBackend::SwiftBackend():Backend(BackendType::SWIFT),account(nullptr),defaultContainer(nullptr) {}
 
 SwiftBackend::~SwiftBackend() {
-  // TODO Auto-generated destructor stub
+  if(account)
+    delete this->account;
+  if(defaultContainer)
+    delete this->defaultContainer;
 }
 
 bool SwiftBackend::initialize(Swift::AuthenticationInfo* _authInfo) {
@@ -64,6 +67,8 @@ bool SwiftBackend::initDefaultContainer() {
   defaultContainer = new Container(account,DEFAULT_CONTAINER_NAME);
   SwiftResult<int*>* resCreateContainer = defaultContainer->swiftCreateContainer();
   bool result = resCreateContainer->getError().code == SwiftError::SWIFT_OK;
+  if(!result)
+    LOG(INFO)<<"Failed to initiate default container: "<<resCreateContainer->getError().toString();
 
   delete resCreateContainer;
   resCreateContainer = nullptr;

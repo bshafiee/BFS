@@ -193,7 +193,6 @@ int main(int argc, char *argv[]) {
 	//Set signal handlers
 	signal(SIGINT, sigproc);
 	signal(SIGTERM, sigproc);
-	signal(SIGINT, sigproc);
   //set the new_handler
   //std::set_new_handler(outOfMemHandler);
   //std::set_terminate(systemErrorHandler);

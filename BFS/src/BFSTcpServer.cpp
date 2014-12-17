@@ -52,6 +52,7 @@ void BFSTcpServer::run() {
     initSuccess.store(false);
     return;
   }
+  initialized.store(false);
 }
 
 bool BFSTcpServer::start() {
@@ -69,8 +70,13 @@ void BFSTcpServer::stop() {
   LOG(INFO)<<"STOPPING REACTOR!";
   if(reactor)
     reactor->stop();
+  while(initialized){
+    usleep(30000);
+    LOG(INFO)<<"Waiting for Reactor to finalize...";
+  }
   delete reactor;
   reactor = nullptr;
+
 }
 
 bool BFSTcpServer::addConnection(std::string _ip,

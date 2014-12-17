@@ -126,10 +126,6 @@ void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
 	 * the client lib may call the watcher before zookeeper_init returns */
 	LOG(DEBUG)<<"Watcher "<<zooEventType2String(type)<<" state = "<<sessiontState2String(state);
 
-	if (path && strlen(path) > 0) {
-		LOG(ERROR)<<" for path: "<<path;
-	}
-
 	if (type == ZOO_SESSION_EVENT) {
 		getInstance().sessionState = state;
 		if (state == ZOO_CONNECTED_STATE) {
