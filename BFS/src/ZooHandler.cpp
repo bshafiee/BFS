@@ -429,7 +429,7 @@ void ZooHandler::publishListOfFiles() {
 	    break;
 	  }
 	}
-	if(!change){
+	if(!change && listOfFiles.size() == cacheFileList.size()){
 	  return;
 	}
 
