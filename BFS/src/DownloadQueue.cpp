@@ -67,7 +67,7 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	}
 	//Now create a file in FS
 	//handle directories
-  FileSystem::getInstance().createHierarchy(_event->fullPathBuffer);
+  FileSystem::getInstance().createHierarchy(_event->fullPathBuffer,false);
 	FileNode *newFile = FileSystem::getInstance().mkFile(_event->fullPathBuffer,false,true);//open
 	if(newFile == nullptr){
 	  LOG(ERROR)<<"Failed to create a newNode:"<<_event->fullPathBuffer;

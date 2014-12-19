@@ -65,12 +65,12 @@ public:
    * the last directory node in the hierarchy on success
    * nullptr on failure
    */
-  FileNode* createHierarchy(const std::string &_path);
+  FileNode* createHierarchy(const std::string &_path,bool _isRemote);
   std::string printFileSystem();
   /**
-   * Caller's responisbility to call delete on returned list
+   * list of pairs <filenam,isDir?>
    */
-  std::vector<std::string> listFileSystem(bool _includeRemotes);
+  std::vector<std::pair<std::string,bool> > listFileSystem(bool _includeRemotes,bool _includeFolders);
   /**
    * checks if the input name is valid
    */

@@ -235,15 +235,10 @@ bool ZooHandler::makeOffer() {
 	 strlen("Election Offers"),&ZOO_OPEN_ACL_UNSAFE ,0,newNodePath,newNodePathLen);*/
 	//ZooNode
 	//vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
-	vector<string> listOfFiles;//Empty list of files
+	vector<pair<string,bool>> listOfFiles;//Empty list of files
 	//Create a ZooNode
-#ifdef BFS_ZERO
-	ZooNode zooNode(getHostName(),
-	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
-#else
 	ZooNode zooNode(getHostName(),
 	      MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
-#endif
 	//Send data
 	string str = zooNode.toString();
 	int result = zoo_create(zh, (electionZNode + "/" + "n_").c_str(), str.c_str(),
@@ -414,13 +409,13 @@ void ZooHandler::publishListOfFiles() {
 	}
 
 	lock_guard<mutex> lk(lockPublish);
-	vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
+	vector<pair<string,bool>> listOfFiles = FileSystem::getInstance().listFileSystem(false,true);
 
 	bool change = false;
-	for(string file:listOfFiles){
+	for(pair<string,bool> file:listOfFiles){
 	  bool found = false;
-	  for(string cacheFileName:cacheFileList)
-	    if(cacheFileName == file){
+	  for(pair<string,bool> cacheFileName:cacheFileList)
+	    if(cacheFileName.first == file.first && cacheFileName.second == file.second){
 	      found = true;
 	      break;
 	    }
@@ -432,7 +427,6 @@ void ZooHandler::publishListOfFiles() {
 	if(!change && listOfFiles.size() == cacheFileList.size()){
 	  return;
 	}
-
 	cacheFileList = listOfFiles;
 
 	//Create a ZooNode
@@ -509,7 +503,7 @@ void ZooHandler::updateGlobalView() {
 		}
 
 		//3)parse node content to a znode
-		vector<string> nodeFiles;
+		vector<pair<string,bool>> nodeFiles;
 
 		//3.1 Hostname
 		string hostName = tokenizer[0];
@@ -529,8 +523,10 @@ void ZooHandler::updateGlobalView() {
 		string freeSize(tokenizer[4]);
 
 		//3.1 files
-		for(uint i=5;i<tokenizer.count();i++)
-			nodeFiles.push_back(tokenizer[i]);
+		for(uint i=5;i<tokenizer.count();i++){
+		  char firstChar = tokenizer[i][0];
+			nodeFiles.push_back(make_pair(tokenizer[i].substr(1),firstChar=='D'));
+		}
 
 		//4)update globalView
 		ZooNode zoonode(hostName, std::stoll(freeSize), nodeFiles,mac,ip,stoul(port));
@@ -549,8 +545,8 @@ void ZooHandler::updateGlobalView() {
 }
 
 void ZooHandler::updateRemoteFilesInFS() {
-	vector<pair<string,ZooNode>> newRemoteFiles;
-	vector<string>localFiles = FileSystem::getInstance().listFileSystem(true);
+	vector<pair<pair<string,bool>,ZooNode>> newRemoteFiles;
+	vector<pair<string,bool>>localFiles = FileSystem::getInstance().listFileSystem(true,true);
 	for(ZooNode node:globalView){
 		//We should not include ourself in this
 		const unsigned char* myMAC = BFSNetwork::getMAC();
@@ -562,10 +558,10 @@ void ZooHandler::updateRemoteFilesInFS() {
 			}
 		if(isMe)
 			continue;
-		for(string remoteFile:node.containedFiles){
+		for(pair<string,bool> remoteFile:node.containedFiles){
 			bool exist = false;
-			for(string localFile: localFiles)
-				if(localFile == remoteFile){
+			for(pair<string,bool> localFile: localFiles)
+				if(localFile.first == remoteFile.first && localFile.second == remoteFile.second){
 					exist = true;
 					break;
 				}
@@ -574,8 +570,8 @@ void ZooHandler::updateRemoteFilesInFS() {
 		}
 	}
 
-	for(pair<string,ZooNode> item: newRemoteFiles){
-		FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(item.first);
+	for(pair<pair<string,bool>,ZooNode> item: newRemoteFiles){
+		FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(item.first.first);
 		//If File exist then we won't create it!
 		if(fileNode!=nullptr){
 		  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fileNode);
@@ -583,30 +579,39 @@ void ZooHandler::updateRemoteFilesInFS() {
 			continue;
 		}
 		//Now create a file in FS
-		FileSystem::getInstance().createHierarchy(item.first);
-		FileNode *newFile = FileSystem::getInstance().mkFile(item.first,true,true);
+		FileSystem::getInstance().createHierarchy(item.first.first,true);
+
+		FileNode *newFile = nullptr;
+		if(item.first.second){//dir
+		  newFile = FileSystem::getInstance().mkDirectory(item.first.first,true);
+		  newFile->open();
+		}
+		else //file
+		  newFile = FileSystem::getInstance().mkFile(item.first.first,true,true);//open
 		if(newFile == nullptr){
 		  LOG(ERROR)<<"FAILED TO CREATE NEW REMOTE FILE:"<<item.first;
 		  continue;
 		}
-		uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
-		newFile->setRemoteHostMAC(item.second.MAC);
-		newFile->setRemoteIP(item.second.ip);
-		newFile->setRemotePort(item.second.port);
-		newFile->close(inodeNum);//create and open operation
+
+    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
+    newFile->setRemoteHostMAC(item.second.MAC);
+    newFile->setRemoteIP(item.second.ip);
+    newFile->setRemotePort(item.second.port);
+    newFile->close(inodeNum);//create and open operation
+
 		char macCharBuff[100];
 		sprintf(macCharBuff,"MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 		    item.second.MAC[0],item.second.MAC[1],
 		    item.second.MAC[2],item.second.MAC[3],
         item.second.MAC[4],item.second.MAC[5]);
-		LOG(DEBUG)<<"created:"<<item.first<<" hostName:"<<
+		LOG(DEBUG)<<"Created "<<(item.first.second?"Directory:":"File:")<<item.first.first<<" hostName:"<<
 		    item.second.hostName<<" "<<string(macCharBuff);
 	}
 
 	//Now remove the localRemoteFiles(remote files which have a pointer in our
 	// fs locally) which don't exist anymore
-	for(string fileName:localFiles) {
-	  FileNode* file = FileSystem::getInstance().findAndOpenNode(fileName);
+	for(pair<string,bool> fileName:localFiles) {
+	  FileNode* file = FileSystem::getInstance().findAndOpenNode(fileName.first);
 	  if(file == nullptr){
 	    LOG(ERROR)<<"ERROR, cannot find corresponding node in filesystem for:"<<fileName;
 	    continue;
@@ -633,8 +638,8 @@ void ZooHandler::updateRemoteFilesInFS() {
       if(isMe)
         continue;
 
-      for(string remoteFile:node.containedFiles){
-        if(remoteFile == fileName){
+      for(pair<string,bool> remoteFile:node.containedFiles){
+        if(remoteFile.first == fileName.first && remoteFile.second == fileName.second){
           exist = true;
           break;
         }
@@ -731,7 +736,7 @@ ZooNode ZooHandler::getMostFreeNode() {
   updateGlobalView();
   vector<ZooNode>globalView = getGlobalView();
   if(globalView.size() == 0) {
-    vector<string> emptyVector;
+    vector<pair<string,bool>> emptyVector;
     ZooNode emptyNode(string(""),0,emptyVector,nullptr,"",0);
     return emptyNode;
   }

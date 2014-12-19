@@ -20,13 +20,13 @@ namespace FUSESwift {
 struct ZooNode {
   std::string hostName;
   uint64_t freeSpace;
-  std::vector<std::string> containedFiles;
+  std::vector<std::pair<std::string,bool>> containedFiles;
   unsigned char MAC[6];
   std::string ip;
   uint32_t port;
 
   ZooNode(std::string _hostName,unsigned long _freeSpace,
-  				std::vector<std::string> _containedFiles,const unsigned char *_mac,std::string _ip,uint32_t _port):hostName(_hostName),
+  				std::vector<std::pair<std::string,bool>> _containedFiles,const unsigned char *_mac,std::string _ip,uint32_t _port):hostName(_hostName),
 					freeSpace(_freeSpace),containedFiles(_containedFiles),ip(_ip),port(_port) {
   	if(_mac != nullptr)
   		memcpy(MAC,_mac,sizeof(char)*6);
@@ -47,9 +47,9 @@ struct ZooNode {
   	uint counter = 0;
 		for(auto it =containedFiles.begin();it!=containedFiles.end();it++) {
 			if(counter == containedFiles.size()-1)
-				output << *it;
+				output << (it->second?"D":"F")<< it->first;
 			else
-				output << *it << "\n";
+				output << (it->second?"D":"F")<< it->first << "\n";
 			counter++;
 		}
 		//std::string s = output.str();

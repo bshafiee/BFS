@@ -204,8 +204,8 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vec
 	for(auto iter = listFiles->begin(); iter != listFiles->end();) {
 		bool found = false;
 		for(ZooNode node : globalView) {
-			for(string file:node.containedFiles)
-				if(file == iter->name) {
+			for(pair<string,bool> file:node.containedFiles)
+				if(file.first == iter->name) {
 					found = true;
 					break;
 				}

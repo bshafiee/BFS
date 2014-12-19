@@ -49,7 +49,7 @@ private:
 	std::vector<ZooNode> globalView;
 	//Publish list of files
 	std::mutex lockPublish;
-  std::vector<std::string> cacheFileList;
+  std::vector<std::pair<std::string,bool>> cacheFileList;
 	//Private Constructor
 	ZooHandler();
 	/** Election private helpers **/

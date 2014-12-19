@@ -76,8 +76,12 @@ FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bo
   else
     dir = new FileNode(_name,_parent->getFullPath()+delimiter+_name ,true, _isRemote);
   auto res = _parent->childAdd(dir);
-  if (res.second)
+  if (res.second){
+    //Inform ZooHandler about new file if not remote
+    if(!_isRemote)
+      ZooHandler::getInstance().publishListOfFiles();
     return (FileNode*) (res.first->second);
+  }
   else
     return nullptr;
 }
@@ -111,7 +115,7 @@ std::string FileSystem::getFileNameFromPath(const std::string &_path) {
   return tokenizer[tokenizer.count() - 1];
 }
 
-FileNode* FileSystem::createHierarchy(const std::string &_path) {
+FileNode* FileSystem::createHierarchy(const std::string &_path,bool _isRemote) {
   if(root == nullptr)
     return nullptr;
   //Traverse FileSystem Hierarchies
@@ -123,7 +127,7 @@ FileNode* FileSystem::createHierarchy(const std::string &_path) {
       continue;
     Node* node = start->childFind(tokenizer[i]);
     if(node == nullptr)
-      start = mkDirectory(start,tokenizer[i],false);
+      start = mkDirectory(start,tokenizer[i],_isRemote);
     else
       start = (FileNode*) node;
   }
@@ -289,8 +293,8 @@ std::string FileSystem::printFileSystem() {
   return output;
 }
 
-std::vector<std::string> FileSystem::listFileSystem(bool _includeRemotes) {
-	vector<string> output;
+std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _includeRemotes,bool _includeFolders) {
+  vector<pair<string,bool>> output;
   //Recursive is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
   FileNode* start = root;
@@ -311,8 +315,12 @@ std::vector<std::string> FileSystem::listFileSystem(bool _includeRemotes) {
     }
     start->childrenUnlock();
     //Now we can release start node
-    if(start->getName()!="/" && !start->isDirectory() && !start->mustBeDeleted())//if not a directory
-    	output.push_back(start->getFullPath());
+    if(start->getName()!="/" && !start->mustBeDeleted()){//if not a directory
+      if(_includeFolders)
+        output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+      else if(!start->isDirectory())
+        output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+    }
 
     if (childrenQueue.size() == 0)
       start = nullptr;
