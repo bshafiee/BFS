@@ -455,7 +455,7 @@ public:
 	static long writeRemoteFile(const void* _srcBuffer,size_t _size,size_t _offset,
 				const std::string &_remoteFile, const unsigned char _dstMAC[6]);
 
-	static bool readRemoteFileAttrib(struct stat *attBuff,
+	static bool readRemoteFileAttrib(struct packed_stat_info *attBuff,
 			const std::string &remoteFile, const unsigned char _dstMAC[6]);
 
 	static bool deleteRemoteFile(const std::string &_remoteFile, const unsigned char _dstMAC[6]);

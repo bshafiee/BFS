@@ -67,6 +67,25 @@ enum class BFS_REMOTE_OPERATION {
   MOVE = 7, UNKNOWN = 0
 };
 
+
+struct __attribute__ ((__packed__)) packed_stat_info
+{
+  uint64_t st_dev;   /* Device.  */
+  uint64_t st_ino;   /* File serial number.  */
+  uint64_t st_nlink;   /* Link count.  */
+  uint32_t st_mode;   /* File mode.  */
+  uint32_t st_uid;   /* User ID of the file's owner. */
+  uint32_t st_gid;   /* Group ID of the file's group.*/
+  uint64_t st_rdev;    /* Device number, if device.  */
+  uint64_t st_size;      /* Size of file, in bytes.  */
+  int64_t st_blksize; /* Optimal block size for I/O.  */
+  int64_t st_blocks;   /* Number 512-byte blocks allocated. */
+  int64_t st_atim;    /* Time of last access.  */
+  int64_t st_mtim;    /* Time of last modification.  */
+  int64_t st_ctim;    /* Time of last status change.  */
+
+};
+
 }//end of BFSTCPNetworkTypes
 
 using namespace BFSTCPNetworkTypes;

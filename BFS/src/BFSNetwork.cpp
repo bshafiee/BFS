@@ -1034,7 +1034,7 @@ const unsigned char* BFSNetwork::getMAC() {
 	return MAC;
 }
 
-bool BFSNetwork::readRemoteFileAttrib(struct stat *attBuff,
+bool BFSNetwork::readRemoteFileAttrib(struct packed_stat_info *attBuff,
 		const string &remoteFile, const unsigned char _dstMAC[6]) {
 	//Create a new task
 	ReadRcvTask task;
@@ -1096,7 +1096,7 @@ void BFSNetwork::onAttribReqPacket(const u_char *_packet) {
 	  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
 		//Offset is irrelevant here and we use it for indicating success for failure
 		attribResPacket->offset = be64toh(1);
-		fNode->getStat((struct stat*)attribResPacket->data);
+		fNode->fillPackedStat(*((struct packed_stat_info*)attribResPacket->data));
 		fNode->close(inodeNum);
 	}
 	else{
@@ -1135,7 +1135,7 @@ void BFSNetwork::onAttribResPacket(const u_char *_packet) {
 	    " taskFileID:"<<task->fileID;
 	if(attribresPacket->offset == 1) {//Success
 		task->offset = 1;//Indicate success
-		memcpy((char*)task->dstBuffer,attribresPacket->data,sizeof(struct stat));
+		memcpy((char*)task->dstBuffer,attribresPacket->data,sizeof(struct packed_stat_info));
 	}
 	else
 		task->offset = 0;//Indicate Failure

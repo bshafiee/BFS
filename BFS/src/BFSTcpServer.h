@@ -14,7 +14,7 @@
 #include <mutex>
 #include <atomic>
 #include <unordered_map>
-
+#include "BFSTcpServiceHandler.h"
 
 enum class CONNECTION_STATUS {READY,BUSY};
 
@@ -62,7 +62,7 @@ public:
       const std::string &_remoteFile, const std::string &_ip,uint _port);
   static int64_t writeRemoteFile(const void* _srcBuffer,uint64_t _size,size_t _offset,
       const std::string &_remoteFile,  const std::string &_ip,uint _port);
-  static int64_t attribRemoteFile(struct stat *attBuff,
+  static int64_t attribRemoteFile(struct packed_stat_info *attBuff,
       const std::string &remoteFile,  const std::string &_ip,uint _port);
   static int64_t deleteRemoteFile(const std::string &remoteFile,
       const std::string &_ip,uint _port);

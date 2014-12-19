@@ -293,7 +293,7 @@ int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
     return resPacket.statusCode;//Unsuccessful
 }
 
-int64_t BFSTcpServer::attribRemoteFile(struct stat* attBuff,
+int64_t BFSTcpServer::attribRemoteFile(struct packed_stat_info* attBuff,
     const std::string& _remoteFile, const std::string& _ip, uint _port) {
   if(_remoteFile.length() >= 1024){
     LOG(ERROR) <<"Filename too long:"<<_remoteFile;

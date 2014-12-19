@@ -492,11 +492,15 @@ bool FileNode::getStat(struct stat *stbuff) {
 		return true;
 	}
 	else{
+
+	  struct packed_stat_info packedSt;
 #ifdef BFS_ZERO
-		bool res = BFSNetwork::readRemoteFileAttrib(stbuff,this->getFullPath(),remoteHostMAC);
+		bool res = BFSNetwork::readRemoteFileAttrib(&packedSt,this->getFullPath(),remoteHostMAC);
 #else
-		bool res = BFSTcpServer::attribRemoteFile(stbuff,this->getFullPath(),remoteIP,remotePort);
+		bool res = BFSTcpServer::attribRemoteFile(&packedSt,this->getFullPath(),remoteIP,remotePort);
 #endif
+		fillStatWithPacket(*stbuff,packedSt);
+
 		if(!res)
 			LOG(ERROR)<<"GetRemoteAttrib failed for:"<<this->getFullPath();
 		else {//update local info!
@@ -729,5 +733,39 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
   return written;
 }
 
+void FileNode::fillStatWithPacket(struct stat &st,const struct packed_stat_info& stPacket) {
+  st.st_dev = stPacket.st_dev;
+  st.st_ino = stPacket.st_ino;
+  st.st_mode = stPacket.st_mode;
+  st.st_nlink = stPacket.st_nlink;
+  st.st_uid = stPacket.st_uid;
+  st.st_gid = stPacket.st_gid;
+  st.st_rdev = stPacket.st_rdev;
+  st.st_size = stPacket.st_size;
+  st.st_blksize = stPacket.st_blksize;
+  st.st_blocks = stPacket.st_blocks;
+  st.st_atim.tv_nsec = stPacket.st_atim;
+  st.st_mtim.tv_nsec = stPacket.st_mtim;
+  st.st_ctim.tv_nsec = stPacket.st_ctim;
+}
+
+void FileNode::fillPackedStat(struct packed_stat_info& st) {
+  lock_guard<recursive_mutex> lk(ioMutex);
+  st.st_dev = 0;
+  st.st_ino = 0;
+  st.st_mode = this->isDirectory() ? S_IFDIR : S_IFREG;
+  st.st_nlink = 1;
+  st.st_uid = this->getUID();
+  st.st_gid = this->getGID();
+  st.st_rdev = 0;
+  st.st_size = this->getSize();
+  st.st_blksize = FileSystem::blockSize;
+  st.st_blocks = this->getSize() / FileSystem::blockSize;
+  st.st_atim = 0x00000000;
+  st.st_mtim = this->getMTime();
+  st.st_ctim = this->getCTime();
+}
+
 } //namespace
+
 

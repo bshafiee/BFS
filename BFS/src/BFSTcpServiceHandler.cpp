@@ -314,7 +314,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
   AttribResPacket resPacket;
   resPacket.statusCode = htobe64(-1);
   resPacket.attribSize = 0;
-  struct stat data;
+  struct packed_stat_info data;
 
   //Find node
   FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
@@ -322,8 +322,9 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     //Offset is irrelevant here and we use it for indicating success for failure
     resPacket.statusCode = htobe64(200);
-    resPacket.attribSize = htobe64(sizeof(struct stat));
-    fNode->getStat(&data);
+    resPacket.attribSize = htobe64(sizeof(struct packed_stat_info));
+    fNode->fillPackedStat(data);
+
     fNode->close(inodeNum);
   }
 

@@ -15,6 +15,7 @@
 #include <mutex>
 #include <sys/stat.h>
 #include "filesystem.h"
+#include "BFSTcpServiceHandler.h"
 
 
 namespace FUSESwift {
@@ -147,6 +148,8 @@ public:
   bool isOpen();
   //Remote File Operation
   bool getStat(struct stat *stbuff);
+  void fillPackedStat(struct packed_stat_info &st);
+  void fillStatWithPacket(struct stat &st,const struct packed_stat_info& stPacket);
   long readRemote(char* _data, size_t _offset, size_t _size);
   long writeRemote(const char* _data, size_t _offset, size_t _size);
   bool rmRemote();

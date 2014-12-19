@@ -583,8 +583,8 @@ void ZooHandler::updateRemoteFilesInFS() {
 			continue;
 		}
 		//Now create a file in FS
-		string fileName = FileSystem::getInstance().getFileNameFromPath(item.first);
-		FileNode *newFile = FileSystem::getInstance().mkFile(fileName,true,true);
+		FileSystem::getInstance().createHierarchy(item.first);
+		FileNode *newFile = FileSystem::getInstance().mkFile(item.first,true,true);
 		if(newFile == nullptr){
 		  LOG(ERROR)<<"FAILED TO CREATE NEW REMOTE FILE:"<<item.first;
 		  continue;
