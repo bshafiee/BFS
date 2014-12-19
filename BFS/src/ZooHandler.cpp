@@ -436,13 +436,8 @@ void ZooHandler::publishListOfFiles() {
 	cacheFileList = listOfFiles;
 
 	//Create a ZooNode
-#ifdef BFS_ZERO
-	ZooNode zooNode(getHostName(),
-	    MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
-#else
   ZooNode zooNode(getHostName(),
       MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
-#endif
 
 	//Send data
 	string str = zooNode.toString();
@@ -590,6 +585,10 @@ void ZooHandler::updateRemoteFilesInFS() {
 		//Now create a file in FS
 		string fileName = FileSystem::getInstance().getFileNameFromPath(item.first);
 		FileNode *newFile = FileSystem::getInstance().mkFile(fileName,true,true);
+		if(newFile == nullptr){
+		  LOG(ERROR)<<"FAILED TO CREATE NEW REMOTE FILE:"<<item.first;
+		  continue;
+		}
 		uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
 		newFile->setRemoteHostMAC(item.second.MAC);
 		newFile->setRemoteIP(item.second.ip);

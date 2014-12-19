@@ -10,7 +10,7 @@ MAX_LOG_FILE_SIZE = 209715200 ## 2MB - Comment starts with two hashes (##)
 LOG_FLUSH_THRESHOLD = 1 ## Flush after every 1 logs
 
 * DEBUG:
-ENABLED = false
+ENABLED = true
 
 * FATAL:
 To_Standard_Output = true

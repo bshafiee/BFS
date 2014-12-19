@@ -12,7 +12,7 @@ network_dev=eth2
 #tcp port
 tcp_port=5555
 #Zookeeper configuration
-zoo_server_url=10.42.0.97:2181,10.42.0.62:2182,129.97.170.232:2181,10.42.0.1:2181
+zoo_server_url=192.168.249.101:2181,10.42.0.97:2181,10.42.0.62:2182,129.97.170.232:2181,10.42.0.1:2181
 zoo_election_znode=/BFSElection
 zoo_assignment_znode=/BFSTasks
 #Debug SWIFT_CPP_SDK
