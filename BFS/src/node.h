@@ -44,7 +44,7 @@ public:
   /**
    * removes the specified element and returns Number of elements removed.
    */
-  int childRemove(const std::string &_key);
+  long childRemove(const std::string &_key);
 
   /**
    *  Finds an element with key equivalent to key.

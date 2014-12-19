@@ -19,7 +19,7 @@ namespace FUSESwift {
 
 struct ZooNode {
   std::string hostName;
-  unsigned long freeSpace;
+  uint64_t freeSpace;
   std::vector<std::string> containedFiles;
   unsigned char MAC[6];
   std::string ip;

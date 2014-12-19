@@ -40,7 +40,7 @@ FileNode::~FileNode() {
   dataList.clear();
   //Clean up children
   //(auto it = children.begin();it != children.end();it++) {//We cann't use a for loop because the iteratoros might get deleted
-  int childrenSize = children.size();
+  long childrenSize = children.size();
   while(childrenSize > 0){
     FileNode* child = (FileNode*)children.begin()->second;
     string key = children.begin()->first;
@@ -121,7 +121,7 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
 
   //Find correspondent block
   size_t blockNo = _offset / FileSystem::blockSize;
-  unsigned int index = _offset - blockNo*FileSystem::blockSize;
+  uint64_t index = _offset - blockNo*FileSystem::blockSize;
   char* block = dataList[blockNo];
 
   size_t total = 0;
@@ -159,7 +159,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   if (_offset < size) { //update existing (unlikely)
     //Find correspondent block
     size_t blockNo = _offset / FileSystem::blockSize;
-    unsigned int index = _offset - blockNo * FileSystem::blockSize;
+    uint64_t index = _offset - blockNo * FileSystem::blockSize;
 
     char* block = dataList[blockNo];
 

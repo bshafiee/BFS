@@ -52,7 +52,7 @@ class FileNode: public Node {
   size_t size;
   std::atomic<int> refCount;
   std::vector<char*> dataList;
-  unsigned int blockIndex;
+  uint64_t blockIndex;
   std::atomic<bool> needSync;
   std::atomic<bool> mustDeleted;//To indicate this file should be deleted after being closed
   std::atomic<bool> hasInformedDelete;//To indicate if we have already informed the world about deleting this file or not(delete fucntion might be called several times on a file)

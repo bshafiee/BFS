@@ -92,7 +92,7 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	  }
 
 	  FileNode* afterMove = nullptr;
-    int retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove);
+    long retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove);
     if(afterMove)
       newFile = afterMove;
     while(retCode == -1)//-1 means moving

@@ -29,7 +29,7 @@ pair<childDictionary::iterator, bool> Node::childAdd(Node* _node) {
   return children.insert(childDictionary::value_type(_node->key,_node));
 }
 
-int Node::childRemove(const string& _key) {
+long Node::childRemove(const string& _key) {
   lock_guard<mutex> lk(mapMutex);
   return children.erase(_key);
 }

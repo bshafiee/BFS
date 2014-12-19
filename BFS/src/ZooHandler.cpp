@@ -268,7 +268,7 @@ bool ZooHandler::determineElectionStatus() {
 
 	//Extract Id from nodepath
 	string sequenceNum = components[components.size() - 1];
-	int id = std::stoi(sequenceNum.substr(strlen("n_")));
+	long id = std::stoi(sequenceNum.substr(strlen("n_")));
 	leaderOffer.setId(id);
 
 	//Get List of children of /BFSElection
@@ -323,7 +323,7 @@ vector<LeaderOffer> ZooHandler::toLeaderOffers(const vector<string> &children) {
 	 * the sequence number and the node name.
 	 */
 	for (string offer : children) {
-		char buffer[1000];
+		char buffer[100000l];
 		int len = -1;
 		int callResult = zoo_get(zh, (electionZNode + "/" + offer).c_str(), 0,
 		    buffer, &len, nullptr);
@@ -334,7 +334,7 @@ vector<LeaderOffer> ZooHandler::toLeaderOffers(const vector<string> &children) {
 
 		buffer[len - 1] = '\0';
 		string hostName = string(buffer);
-		int id = std::stoi(offer.substr(strlen("n_")));
+		long id = std::stol(offer.substr(strlen("n_")));
 		leaderOffers.push_back(
 		    LeaderOffer(id, electionZNode + "/" + offer, hostName));
 	}
@@ -533,7 +533,7 @@ void ZooHandler::updateGlobalView() {
 			nodeFiles.push_back(tokenizer[i]);
 
 		//4)update globalView
-		ZooNode zoonode(hostName, std::stol(freeSize), nodeFiles,mac,ip,stoul(port));
+		ZooNode zoonode(hostName, std::stoll(freeSize), nodeFiles,mac,ip,stoul(port));
 		globalView.push_back(zoonode);
 		delete[] buffer;
 		buffer = nullptr;
@@ -686,7 +686,7 @@ void ZooHandler::fetchAssignmets() {
 
 	string path = assignmentZNode+"/"+getHostName();
 	//Allocate 1MB data
-	const int length = 1024 * 1024;
+	const long length = 1024l * 1024l;
 	char *buffer = new char[length];
 	int len = length;
 	int callResult =

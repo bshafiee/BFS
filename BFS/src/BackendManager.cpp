@@ -34,7 +34,7 @@ bool BackendManager::selectBackend(Backend* _backend) {
 }
 
 bool BackendManager::selectBackend(BackendType _type) {
-  for(int i=list.size()-1;i>=0;i--)
+  for(uint i=list.size()-1;i>=0;i--)
     if(list[i]->getType() == _type) {
       currentBackend = list[i];
       return true;
