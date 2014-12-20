@@ -1177,6 +1177,7 @@ void BFSNetwork::onDeleteReqPacket(const u_char* _packet) {
   }
   //Assign inode and close it
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+  LOG(DEBUG)<<"SIGNAL DELETE FROM BFSNetwork:"<<fNode->getFullPath();
   fNode->close(inodeNum);
   if(FileSystem::getInstance().signalDeleteNode(fNode,true)){
     deleteAck->size = htobe64(1);

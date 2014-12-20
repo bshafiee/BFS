@@ -187,7 +187,7 @@ int swift_unlink(const char* path) {
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
   node->close(inodeNum);
 
-  LOG(DEBUG)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getName()<<" isOpen?"<<node->concurrentOpen()<<" isRemote():"<<node->isRemote();
+  LOG(DEBUG)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getFullPath()<<" isOpen?"<<node->concurrentOpen()<<" isRemote():"<<node->isRemote();
   if(!FileSystem::getInstance().signalDeleteNode(node,true)){
     LOG(ERROR)<<"DELETE FAILED FOR:"<<path;
     return -EIO;
@@ -213,6 +213,7 @@ int swift_rmdir(const char* path) {
   }
 
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
+  LOG(DEBUG)<<"SIGNAL DELETE From RMDIR:"<<node->getFullPath();
   node->close(inodeNum);
 
   if(!FileSystem::getInstance().signalDeleteNode(node,true)){

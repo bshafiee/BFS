@@ -366,6 +366,7 @@ void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
   FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr && !fNode->isRemote()) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    LOG(DEBUG)<<"SIGNAL DELETE FROM DELETE TCP REQUEST:"<<fNode->getFullPath();
     FUSESwift::FileSystem::getInstance().signalDeleteNode(fNode,false);
     fNode->close(inodeNum);
     resPacket.statusCode = htobe64(200);

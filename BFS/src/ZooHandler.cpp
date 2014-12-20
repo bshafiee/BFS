@@ -648,7 +648,7 @@ void ZooHandler::updateRemoteFilesInFS() {
         break;
 	  }
 	  if(!exist) {
-	    LOG(DEBUG)<<"ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
+	    LOG(DEBUG)<<"SIGNAL DELETE ZOOOOHANDLER GOING TO REMOVE:"<<file->getFullPath();
 	    //fflush(stderr);
 	    FileSystem::getInstance().signalDeleteNode(file,false);
 	  }
