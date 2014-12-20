@@ -369,7 +369,7 @@ bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
 #ifdef BFS_ZERO
   return BFSNetwork::createRemoteFile(_localFile->getFullPath(),mostFreeNode.MAC);
 #else
-  return BFSTcpServer::moveFileToRemoteNode(_localFile->getFullPath(),mostFreeNode.ip,mostFreeNode.port);
+  return BFSTcpServer::moveFileToRemoteNode(_localFile->getFullPath(),mostFreeNode.ip,mostFreeNode.port)==200;
 #endif
 }
 

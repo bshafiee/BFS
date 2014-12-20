@@ -692,7 +692,7 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
 
   if(isMoving()) {
     usleep(1000);//sleep a little and try again;
-    LOG(ERROR) <<"SLEEPING FOR MOVE";
+    LOG(ERROR) <<"SLEEPING FOR MOVE:"<<key;
     return -1;
     //return writeHandler(_data,_offset,_size,_afterMoveNewNode);
   }
@@ -709,8 +709,10 @@ long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, Fil
       FileNode *newNode = FileSystem::getInstance().findAndOpenNode(filePath);
       if(newNode == nullptr|| !newNode->isRemote()) {
         //Close it! so it can be removed if needed
-        uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newNode);
-        newNode->close(inodeNum);
+        if(newNode!=nullptr){
+          uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newNode);
+          newNode->close(inodeNum);
+        }
         LOG(ERROR)<<"HollyShit! we just moved "
             "this file:"<<filePath<<" to a remote node! but "
             "Does not exist or is not remote";

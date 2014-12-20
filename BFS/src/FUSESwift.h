@@ -139,6 +139,12 @@ namespace FUSESwift {
 	int swift_write (const char *path, const char *buf, size_t size, off_t offset,
 		      struct fuse_file_info * fi);
 
+	/**
+	 * An error tolerant version of write which retries on errors
+	 */
+	int swift_write_error_tolerant(const char* path, const char* buf, size_t size,
+	    off_t offset, struct fuse_file_info* fi);
+
 	/** Get file system statistics
 	 *
 	 * The 'f_frsize', 'f_favail', 'f_fsid' and 'f_flag' fields are ignored
