@@ -298,13 +298,15 @@ std::string FileSystem::printFileSystem() {
 }
 
 std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _includeRemotes,bool _includeFolders) {
+  //Get delete lock so or result will be valid
+  lock_guard<recursive_mutex> lk(deleteQueueMutex);
   vector<pair<string,bool>> output;
   //Recursive is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
   FileNode* start = root;
   while (start != nullptr) {
     //add children to queue
-    start->childrenLock();
+    //start->childrenLock();
     auto childIterator = start->childrendBegin2();
     for (; childIterator != start->childrenEnd2(); childIterator++){
     	FileNode* fileNode = (FileNode*) childIterator->second;
@@ -312,7 +314,7 @@ std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _inclu
     	  continue;
     	childrenQueue.push_back(fileNode);
     }
-    start->childrenUnlock();
+    //start->childrenUnlock();
     //Now we can release start node
     if(start->getName()!="/" && !start->mustBeDeleted()){
       if(_includeFolders){

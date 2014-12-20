@@ -473,7 +473,7 @@ void FileNode::setRemotePort(const uint32_t _port) {
 
 bool FileNode::getStat(struct stat *stbuff) {
 
-	if(!isRem){
+	if(!isRem || isDir){
 		memset(stbuff, 0, sizeof(struct stat));
 		//Fill Stat struct
 		stbuff->st_dev = 0;
@@ -490,8 +490,7 @@ bool FileNode::getStat(struct stat *stbuff) {
 		stbuff->st_mtime = this->getMTime();
 		stbuff->st_ctime = this->getCTime();
 		return true;
-	}
-	else{
+	} else {
 
 	  struct packed_stat_info packedSt;
 #ifdef BFS_ZERO

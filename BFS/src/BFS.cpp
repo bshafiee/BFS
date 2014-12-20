@@ -128,6 +128,7 @@ void shutdown(void* userdata) {
   ZooHandler::getInstance().stopZooHandler();
   MasterHandler::stopLeadership();
   FileSystem::getInstance().destroy();
+  sleep(1);
   exit(0);
 }
 
