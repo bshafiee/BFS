@@ -23,52 +23,38 @@ using namespace BFSTCPNetworkTypes;
 
 
 SocketReactor *BFSTcpServer::reactor = nullptr;
-thread *BFSTcpServer::thread = nullptr;
+Thread *BFSTcpServer::thread = nullptr;
 unordered_map<std::string,ConnectionEntry> BFSTcpServer::socketMap;
 mutex BFSTcpServer::mapMutex;
 uint32_t BFSTcpServer::port = 0;
 string BFSTcpServer::ip = "";
 string BFSTcpServer::iface;
-atomic<bool> BFSTcpServer::initialized(false);
-atomic<bool> BFSTcpServer::initSuccess(false);
 
 BFSTcpServer::BFSTcpServer() {}
 
 BFSTcpServer::~BFSTcpServer() {}
 
-void BFSTcpServer::run() {
+bool BFSTcpServer::start() {
   try{
     initialize();
     ServerSocket serverSocket(port);
     reactor = new SocketReactor();
     SocketAcceptor<BFSTcpServiceHandler> acceptor(serverSocket, *reactor);
-    initSuccess.store(true);
-    initialized.store(true);
     //Start Reactor
-    reactor->run();
+    thread = new Thread("BFSTcpServer");
+    thread->start(*reactor);
+    return true;
   }catch(Exception&e){
     LOG(ERROR)<<"ERROR in initializing BFSTCPServer:"<<e.message();
-    initialized.store(true);
-    initSuccess.store(false);
-    return;
+    return false;
   }
-}
-
-bool BFSTcpServer::start() {
-  //Start Server Socket
-  thread = new std::thread(run);
-
-  //Wait for initialization
-  while(!initialized)
-    usleep(10);
-
-  return initSuccess;
 }
 
 void BFSTcpServer::stop() {
   LOG(INFO)<<"STOPPING REACTOR!";
   if(reactor)
     reactor->stop();
+  thread->join();
   usleep(100);
   delete reactor;
   reactor = nullptr;
