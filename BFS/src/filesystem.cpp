@@ -63,14 +63,16 @@ FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _i
   		ZooHandler::getInstance().publishListOfFiles();
     return file;
   }
-  else
+  else{
+    LOG(ERROR)<<"Cannot add child("<<file->getFullPath()<<") to "<<_parent->fullPath;
     return nullptr;
+  }
 }
 
 FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote) {
   if (_parent == nullptr || _name.length() == 0)
     return nullptr;
-  FileNode *dir;
+  FileNode *dir = nullptr;
   if(_parent == root)
     dir = new FileNode(_name,_parent->getFullPath()+_name ,true, _isRemote);
   else
@@ -80,10 +82,12 @@ FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bo
     //Inform ZooHandler about new file if not remote
     if(!_isRemote)
       ZooHandler::getInstance().publishListOfFiles();
-    return (FileNode*) (res.first->second);
+    return dir;
   }
-  else
+  else{
+    LOG(ERROR)<<"Cannot add child("<<dir->getFullPath()<<") to "<<_parent->fullPath;
     return nullptr;
+  }
 }
 
 FileNode* FileSystem::traversePathToParent(const string &_path) {
@@ -315,7 +319,7 @@ std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _inclu
     }
     start->childrenUnlock();
     //Now we can release start node
-    if(start->getName()!="/" && !start->mustBeDeleted()){//if not a directory
+    if(start->getName()!="/" && !start->mustBeDeleted()){
       if(_includeFolders)
         output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
       else if(!start->isDirectory())

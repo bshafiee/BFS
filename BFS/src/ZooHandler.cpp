@@ -412,19 +412,24 @@ void ZooHandler::publishListOfFiles() {
 	vector<pair<string,bool>> listOfFiles = FileSystem::getInstance().listFileSystem(false,true);
 
 	bool change = false;
-	for(pair<string,bool> file:listOfFiles){
-	  bool found = false;
-	  for(pair<string,bool> cacheFileName:cacheFileList)
-	    if(cacheFileName.first == file.first && cacheFileName.second == file.second){
-	      found = true;
-	      break;
-	    }
-	  if(!found){
-	    change = true;
-	    break;
-	  }
+	if(listOfFiles.size() != cacheFileList.size())
+	  change = true;
+	else{
+    for(pair<string,bool> file:listOfFiles){
+      bool found = false;
+      for(pair<string,bool> cacheFileName:cacheFileList)
+        if(cacheFileName.first == file.first && cacheFileName.second == file.second){
+          found = true;
+          break;
+        }
+      if(!found){
+        change = true;
+        break;
+      }
+    }
 	}
-	if(!change && listOfFiles.size() == cacheFileList.size()){
+	if(!change){
+	  LOG(DEBUG)<<"No new change, in the list of file. Returning...";
 	  return;
 	}
 	cacheFileList = listOfFiles;
