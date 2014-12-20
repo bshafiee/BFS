@@ -308,22 +308,25 @@ std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _inclu
     auto childIterator = start->childrendBegin2();
     for (; childIterator != start->childrenEnd2(); childIterator++){
     	FileNode* fileNode = (FileNode*) childIterator->second;
-
     	if(fileNode->mustBeDeleted())
     	  continue;
-
-    	if(!fileNode->isRemote())//If not remote we will claim we have this File
-    	  childrenQueue.push_back(fileNode);
-    	else if(_includeRemotes && fileNode->isRemote())
-        childrenQueue.push_back(fileNode);
+    	childrenQueue.push_back(fileNode);
     }
     start->childrenUnlock();
     //Now we can release start node
     if(start->getName()!="/" && !start->mustBeDeleted()){
-      if(_includeFolders)
-        output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
-      else if(!start->isDirectory())
-        output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+      if(_includeFolders){
+        if(!start->isRemote())
+          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+        else if(_includeRemotes)
+          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+      }
+      else if(!start->isDirectory()){
+        if(!start->isRemote())
+          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+        else if(_includeRemotes)
+          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+      }
     }
 
     if (childrenQueue.size() == 0)
