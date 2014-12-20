@@ -10,7 +10,6 @@
 #include "Global.h"
 #include <Poco/Net/SocketReactor.h>
 #include <Poco/Net/StreamSocket.h>
-#include <Poco/Thread.h>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -34,12 +33,14 @@ class BFSTcpServer {
   //Make friend with BFSTcpServiceHandler
   friend BFSTcpServiceHandler;
   static Poco::Net::SocketReactor *reactor;
-  static Poco::Thread *thread;
+  static std::thread *thread;
   static std::unordered_map<std::string,ConnectionEntry> socketMap;
   static std::mutex mapMutex;
   static std::uint32_t port;
   static std::string ip;
   static std::string iface;
+  static std::atomic<bool> initialized;
+  static std::atomic<bool> initSuccess;
   //Socket Map Functions
   static bool addConnection(std::string _ip,ConnectionEntry _connectionEntry);
   static void delConnection(std::string _ip);
