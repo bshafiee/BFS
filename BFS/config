@@ -8,7 +8,7 @@ tenant_name = admin
 #what percentage of system memory to use? (0,1]
 max_mem_coef = 0.7;
 #zero networking device
-network_dev=eth2
+network_dev=wlan0
 #tcp port
 tcp_port=5555
 #Zookeeper configuration

@@ -358,9 +358,8 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
 
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
-  //cout<<"FUSE ReadBlockSize:"<<size<<endl;
   if(DEBUG_READ)
-    LOG(DEBUG)<<"path=\""<<path<<"\", buf="<<buf<<", size="<<
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<
     size<<", offset="<<offset<<", fi="<<fi;
   //Handle path
   if(path == nullptr && fi->fh == 0) {
@@ -406,7 +405,7 @@ int swift_write_error_tolerant(const char* path, const char* buf, size_t size, o
 int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
   if(DEBUG_WRITE)
-    LOG(DEBUG)<<"path=\""<<path<<"\", buf="<<buf<<", size="<<
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<
     size<<", offset="<<offset<<", fi="<<fi;
   //Handle path
   if (path == nullptr && fi->fh == 0) {
@@ -416,7 +415,6 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   //Get associated FileNode*
   FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
 
-  //cout<<"FUSE WriteBlockSize:"<<size<<endl;
 
   long written = 0;
 
@@ -641,7 +639,7 @@ void* swift_init(struct fuse_conn_info* conn) {
   LOG(INFO)<<"SyncThreads running...";
   //Start Zoo Election
   ZooHandler::getInstance().startElection();
-	LOG(INFO)<<"ZooHandler running...";
+  LOG(INFO)<<"ZooHandler running...";
 
   return nullptr;
 }
