@@ -618,7 +618,7 @@ void ZooHandler::updateRemoteFilesInFS() {
 	for(pair<string,bool> fileName:localFiles) {
 	  FileNode* file = FileSystem::getInstance().findAndOpenNode(fileName.first);
 	  if(file == nullptr){
-	    LOG(ERROR)<<"ERROR, cannot find corresponding node in filesystem for:"<<fileName;
+	    LOG(ERROR)<<"ERROR, cannot find corresponding node in filesystem for:"<<fileName.first;
 	    continue;
 	  }
 	  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)file);

@@ -32,7 +32,7 @@ FileNode* createRootNode() {
 
 int swift_getattr(const char *path, struct stat *stbuff) {
   if(DEBUG_GET_ATTRIB)
-    LOG(DEBUG)<<"path=\""<<path<<"\", statbuf="<< stbuff;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", statbuf="<< stbuff;
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
@@ -54,7 +54,7 @@ int swift_getattr(const char *path, struct stat *stbuff) {
 
 int swift_readlink(const char* path, char* buf, size_t size) {
   if(DEBUG_READLINK)
-    LOG(DEBUG)<<"path=\""<<path<<"\", link=\""<<link<<"\", size="<<size;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", link=\""<<link<<"\", size="<<size;
   int res;
   res = readlink(path, buf, size - 1);
   if (res == -1)
@@ -65,7 +65,7 @@ int swift_readlink(const char* path, char* buf, size_t size) {
 
 int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
   if(DEBUG_MKNOD)
-    LOG(DEBUG)<<"path=\""<<path<<", mode="<<mode;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<", mode="<<mode;
   int retstat = 0;
   //Check if already exist! if yes truncate it!
 	string pathStr(path, strlen(path));
@@ -110,7 +110,7 @@ int swift_mknod(const char* path, mode_t mode, dev_t rdev) {
       newFile->setUID(fuseContext.uid);    //uid
 
       if(DEBUG_MKNOD)
-        LOG(DEBUG)<<"MKNOD:"<<path<<" created Locally, returning:"<<newFile;
+        LOG(DEBUG)<<"MKNOD:"<<(path==nullptr?"null":path)<<" created Locally, returning:"<<newFile;
 
       newFile->close(inodeNum);//It's a create and open operation
     } else {//Remote file
@@ -140,7 +140,7 @@ int swift_mkdir(const char* path, mode_t mode) {
   int retstat = 0;
   mode = mode | S_IFDIR;
   if(DEBUG_MKDIR)
-    LOG(DEBUG)<<"path=\""<<path<<", mode="<<mode;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<", mode="<<mode;
 
   if (S_ISDIR(mode)) {
     string pathStr(path, strlen(path));
@@ -174,7 +174,7 @@ int swift_mkdir(const char* path, mode_t mode) {
 
 int swift_unlink(const char* path) {
   if(DEBUG_UNLINK)
-    LOG(DEBUG)<<"(path=\""<<path<<"\")";
+    LOG(DEBUG)<<"(path=\""<<(path==nullptr?"null":path)<<"\")";
 
   //Get associated FileNode*
   string pathStr(path, strlen(path));
@@ -209,7 +209,7 @@ int swift_unlink(const char* path) {
 
 int swift_rmdir(const char* path) {
   if(DEBUG_RMDIR)
-    LOG(DEBUG)<<"(path=\""<<path<<"\")";
+    LOG(DEBUG)<<"(path=\""<<(path==nullptr?"null":path)<<"\")";
 
   //Get associated FileNode*
   string pathStr(path, strlen(path));
@@ -322,7 +322,7 @@ int swift_chown(const char* path, uid_t uid, gid_t gid) {
 
 int swift_truncate(const char* path, off_t size) {
   if(DEBUG_TRUNCATE)
-    LOG(DEBUG)<<"path=\""<<path<<"\", size:"<<size;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", size:"<<size;
   return swift_ftruncate(path,size,nullptr);
 }
 
@@ -332,7 +332,7 @@ int swift_truncate(const char* path, off_t size) {
 
 int swift_open(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_OPEN)
-    LOG(DEBUG)<<"path=\""<<path<<"\", fi="<<fi<<" fh="<<fi->fh;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi<<" fh="<<fi->fh;
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
@@ -382,11 +382,11 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
 
   if(readBytes >= 0) {
     if(DEBUG_READ)
-      LOG(DEBUG)<<"Successful read from:path=\""<<path<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset;
+      LOG(DEBUG)<<"Successful read from:path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset;
     return readBytes;
   }
   else {
-    LOG(ERROR)<<"Error in reading: path=\""<<path<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset<<" RetValue:"<<readBytes<<" nodeSize:"<<node->getSize();
+    LOG(ERROR)<<"Error in reading: path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset<<" RetValue:"<<readBytes<<" nodeSize:"<<node->getSize();
     return -EIO;
   }
 }
@@ -397,7 +397,7 @@ int swift_write_error_tolerant(const char* path, const char* buf, size_t size, o
     int res = swift_write(path, buf, size, offset,fi);
     if (res != -EIO)
       return res;
-    LOG(ERROR)<<"write failed for:"<<path<<" retrying:"<<(3-retry+1)<<" Time.";
+    LOG(ERROR)<<"write failed for:"<<(path==nullptr?"null":path)<<" retrying:"<<(3-retry+1)<<" Time.";
     retry--;
   }
   return -EIO;
@@ -460,18 +460,18 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
 
 int swift_flush(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_FLUSH)
-    LOG(DEBUG)<<"path=\""<<path<<"\", fi="<<fi;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi;
   int retstat = 0;
   //Get associated FileNode*
   //FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
-  //LOG(ERROR)<<"FLUSH is not implemeted! path="<<path<<" fi->fh="<<fi->fh;
+  //LOG(ERROR)<<"FLUSH is not implemeted! path="<<(path==nullptr?"null":path)<<" fi->fh="<<fi->fh;
 
   return retstat;
 }
 
 int swift_release(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_RELEASE)
-    LOG(DEBUG)<<"path=\""<<path<<"\", fi="<<fi;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi;
   int retstat = 0;
   //Handle path
   if(path == nullptr && fi->fh == 0) {
@@ -498,13 +498,13 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
 int swift_fsync(const char* path, int isdatasynch, struct fuse_file_info* fi) {
   //Get associated FileNode*
   //FileNode* node = (FileNode*)fi->fh;
-  LOG(ERROR)<<"FSYNC not implemeted: path=\""<<path<<"\", fi="<<fi<<" isdatasynch:"<<isdatasynch;
+  LOG(ERROR)<<"FSYNC not implemeted: path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi<<" isdatasynch:"<<isdatasynch;
   return 0;
 }
 
 int swift_setxattr(const char* path, const char* name, const char* value,
     size_t size, int flags) {
-  LOG(ERROR)<<"SETXATTR not implemeted: path="<<path<<" name="<<name
+  LOG(ERROR)<<"SETXATTR not implemeted: path="<<(path==nullptr?"null":path)<<" name="<<name
       <<" value="<<value<<" size="<<size<<" flags="<<flags;
   return 1;
 }
@@ -521,7 +521,7 @@ int swift_removexattr(const char* path, const char* name) {
 
 int swift_opendir(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_OPENDIR)
-    LOG(DEBUG)<<"path=\""<<path<<"\", fi="<<fi;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi;
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
@@ -545,7 +545,7 @@ int swift_opendir(const char* path, struct fuse_file_info* fi) {
 int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     off_t offset, struct fuse_file_info* fi) {
   if(DEBUG_READDIR)
-    LOG(DEBUG)<<"path="<<path<<", buf="<<buf<<", filler="<<
+    LOG(DEBUG)<<"path="<<(path==nullptr?"null":path)<<", buf="<<buf<<", filler="<<
     filler<<", offset="<<offset<<", fi="<<fi<<", fi->fh="<<fi->fh;
   //Get associated FileNode*
   FileNode* node = nullptr;
@@ -596,7 +596,7 @@ int swift_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 
 int swift_releasedir(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_RELEASEDIR)
-    LOG(DEBUG)<<"path=\""<<path<<"\", fi="<<fi;
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi;
   int retstat = 0;
   //Handle path
   if(path == nullptr && fi->fh == 0){
@@ -616,7 +616,7 @@ int swift_releasedir(const char* path, struct fuse_file_info* fi) {
 }
 
 int swift_fsyncdir(const char* path, int datasync, struct fuse_file_info* fi) {
-  LOG(ERROR)<<"FSYNCDIR not implemeted path:"<<path<<", fi->fh:"<<fi->fh<<", isdatasynch:"<<datasync;
+  LOG(ERROR)<<"FSYNCDIR not implemeted path:"<<(path==nullptr?"null":path)<<", fi->fh:"<<fi->fh<<", isdatasynch:"<<datasync;
   return 0;
 }
 
@@ -650,7 +650,7 @@ void* swift_init(struct fuse_conn_info* conn) {
  */
 int swift_access(const char* path, int mask) {
   if(DEBUG_ACCESS)
-    LOG(DEBUG)<<"path="<<path<<", mask="<<mask;
+    LOG(DEBUG)<<"path="<<(path==nullptr?"null":path)<<", mask="<<mask;
   //int retstat = R_OK | W_OK | X_OK | F_OK;
   int retstat = 0;
   return retstat;
@@ -677,7 +677,7 @@ int swift_access(const char* path, int mask) {
 
 int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   if(DEBUG_TRUNCATE)
-    LOG(DEBUG)<<"path="<<path<<", fi:"<<fi<<" newsize:"<<size;
+    LOG(DEBUG)<<"path="<<(path==nullptr?"null":path)<<", fi:"<<fi<<" newsize:"<<size;
   //Get associated FileNode*
   string pathStr(path, strlen(path));
   FileNode* node = FileSystem::getInstance().findAndOpenNode(pathStr);
@@ -686,7 +686,7 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
     return -ENOENT;
   }
   else if(DEBUG_TRUNCATE)
-    LOG(DEBUG)<<"Truncating:"<<path<<" from:"<<node->getSize()<<" to:"<<size<<" bytes";
+    LOG(DEBUG)<<"Truncating:"<<(path==nullptr?"null":path)<<" from:"<<node->getSize()<<" to:"<<size<<" bytes";
 
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
 
@@ -694,7 +694,7 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   size_t diff = size - node->getSize();
   if(diff > 0)
     if(!MemoryContorller::getInstance().checkPossibility(diff)) {
-      LOG(ERROR)<<"Ftruncate failed(not enough space): "<<path<<" newSize:"<<node->getSize();
+      LOG(ERROR)<<"Ftruncate failed(not enough space): "<<(path==nullptr?"null":path)<<" newSize:"<<node->getSize();
       node->close(inodeNum);
       return -ENOSPC;
     }
@@ -708,7 +708,7 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   node->close(inodeNum);
 
   if(!res) {
-    LOG(ERROR)<<"Ftruncate failed: "<<path<<" newSize:"<<node->getSize();
+    LOG(ERROR)<<"Ftruncate failed: "<<(path==nullptr?"null":path)<<" newSize:"<<node->getSize();
     return EIO;
   }
   else
