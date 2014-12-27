@@ -109,8 +109,9 @@ void BFSTcpServiceHandler::onReadable(
       return;
     }
 
+    ReqPacket* reqPacketPtr = reinterpret_cast<ReqPacket*>(_packet);
     //Check opcode
-    uint32_t opCode = ntohl(((ReqPacket*)_packet)->opCode);
+    uint32_t opCode = ntohl(reqPacketPtr->opCode);
 
 
     switch(toBFSRemoteOperation(opCode)) {

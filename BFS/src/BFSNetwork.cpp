@@ -1096,7 +1096,8 @@ void BFSNetwork::onAttribReqPacket(const u_char *_packet) {
 	  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
 		//Offset is irrelevant here and we use it for indicating success for failure
 		attribResPacket->offset = be64toh(1);
-		fNode->fillPackedStat(*((struct packed_stat_info*)attribResPacket->data));
+		struct packed_stat_info* packedStatInfoPtr = reinterpret_cast<struct packed_stat_info*>(attribResPacket->data);
+		fNode->fillPackedStat(    *(packedStatInfoPtr)      );
 		fNode->close(inodeNum);
 	}
 	else{

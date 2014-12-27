@@ -50,7 +50,7 @@ class FileNode: public Node {
   //Private Members
   metadataDictionary metadata;
   bool isDir;
-  size_t size;
+  int64_t size;
   std::atomic<int> refCount;
   std::vector<char*> dataList;
   uint64_t blockIndex;
@@ -70,7 +70,7 @@ class FileNode: public Node {
 	//Buffer
 	//ReadBuffer* readBuffer;
 
-  long write(const char *_data, size_t _offset, size_t _size);
+  long write(const char *_data, int64_t _offset, int64_t _size);
 public:
   FileNode(std::string _name,std::string _fullPath,bool _isDir,bool _isRemote);
   virtual ~FileNode();
@@ -95,7 +95,7 @@ public:
   std::string getName();
   std::string getMD5();
   FileNode* findParent();
-  size_t getSize();
+  int64_t getSize();
   bool isRemote();
   int concurrentOpen();
   const unsigned char* getRemoteHostMAC();
@@ -124,23 +124,23 @@ public:
    * Success:
    * >= 0 written bytes
    */
-  long writeHandler(const char *_data, size_t _offset, size_t _size,FileNode* &_afterMoveNewNode);
+  long writeHandler(const char *_data, int64_t _offset, int64_t _size,FileNode* &_afterMoveNewNode);
   /**
    * reads file data to input arguments.
    * returns true if successful, false if fails.
    */
-  long read(char* &_data,size_t _size);
+  long read(char* &_data,int64_t _size);
   /**
    * not inclusive get data by range
    * returns data store from index _offset to _offset+size-1
    * if specified _offset or _size returns false.
    */
-  long read(char* &_data, size_t _offset, size_t _size);
+  long read(char* &_data, int64_t _offset, int64_t _size);
 
   /**
    * Truncates the file to the specified size if possible
    */
-  bool truncate(size_t _size);
+  bool truncate(int64_t _size);
 
   bool isDirectory();
   bool open();
@@ -150,10 +150,10 @@ public:
   bool getStat(struct stat *stbuff);
   void fillPackedStat(struct packed_stat_info &st);
   void fillStatWithPacket(struct stat &st,const struct packed_stat_info& stPacket);
-  long readRemote(char* _data, size_t _offset, size_t _size);
-  long writeRemote(const char* _data, size_t _offset, size_t _size);
+  long readRemote(char* _data, int64_t _offset, int64_t _size);
+  long writeRemote(const char* _data, int64_t _offset, int64_t _size);
   bool rmRemote();
-  bool truncateRemote(size_t size);
+  bool truncateRemote(int64_t size);
   void makeLocal();
   void makeRemote();
   void deallocate();

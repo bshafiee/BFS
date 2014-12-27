@@ -81,7 +81,7 @@ string FileNode::metadataGet(string _key) {
   return (it == metadata.end())? "": it->second;
 }
 
-long FileNode::read(char* &_data, size_t _size) {
+long FileNode::read(char* &_data, int64_t _size) {
   return this->read(_data,0,_size);
 }
 
@@ -89,7 +89,7 @@ std::string FileNode::getName() {
   return key;
 }
 
-size_t FileNode::getSize() {
+int64_t FileNode::getSize() {
   return size;
 }
 
@@ -97,7 +97,7 @@ void FileNode::setName(std::string _newName) {
   key = _newName;
 }
 
-long FileNode::read(char* &_data, size_t _offset, size_t _size) {
+long FileNode::read(char* &_data, int64_t _offset, int64_t _size) {
   //Acquire lock
   lock_guard <recursive_mutex> lock(ioMutex);
 
@@ -120,14 +120,14 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
   	_size = size - _offset;
 
   //Find correspondent block
-  size_t blockNo = _offset / FileSystem::blockSize;
+  int64_t blockNo = _offset / FileSystem::blockSize;
   uint64_t index = _offset - blockNo*FileSystem::blockSize;
   char* block = dataList[blockNo];
 
-  size_t total = 0;
+  int64_t total = 0;
   //Start filling
   while(_size > 0) {
-  	size_t howMuch = FileSystem::blockSize - index;//Left bytes in the last block
+  	int64_t howMuch = FileSystem::blockSize - index;//Left bytes in the last block
   	howMuch = (howMuch > _size)?_size:howMuch;
   	//log_msg("BEFORE howMuch:%zu index:%zu _size:%zu total:%zu SIZE:%zu blockAddr:0x%08x blockNo:%zu  totalBlocks:%zu\n",howMuch,index,_size,total,size,block,blockNo,dataList.size());
   	memcpy(_data+total, block+index,howMuch);
@@ -144,45 +144,45 @@ long FileNode::read(char* &_data, size_t _offset, size_t _size) {
   return total;
 }
 
-long FileNode::write(const char* _data, size_t _offset, size_t _size) {
+long FileNode::write(const char* _data, int64_t _offset, int64_t _size) {
   //Acquire lock
   lock_guard <recursive_mutex> lock(ioMutex);
 
   //Check Storage space Availability
-  size_t newReqMemSize = (_offset + _size > size) ? _offset + _size - size : 0;
+  int64_t newReqMemSize = (_offset + _size > size) ? _offset + _size - size : 0;
   if (newReqMemSize > 0)
     if (!MemoryContorller::getInstance().requestMemory(newReqMemSize))
       return -1;
 
-  size_t retValue = 0;
-  size_t backupSize = _size;
+  int64_t retValue = 0;
+  int64_t backupSize = _size;
   if (_offset < size) { //update existing (unlikely)
     //Find correspondent block
-    size_t blockNo = _offset / FileSystem::blockSize;
+    int64_t blockNo = _offset / FileSystem::blockSize;
     uint64_t index = _offset - blockNo * FileSystem::blockSize;
 
     char* block = dataList[blockNo];
 
     //Start filling
     while (_size > 0) {
-      size_t left = FileSystem::blockSize - index;//Left bytes in the last block
-      size_t howMuch = (_size <= left) ? _size : left;
+      int64_t left = FileSystem::blockSize - index;//Left bytes in the last block
+      int64_t howMuch = (_size <= left) ? _size : left;
       memcpy(block + index, _data + (backupSize - _size), howMuch);
       _size -= howMuch;
       index += howMuch;
       retValue += howMuch;
       blockNo++;
       //Increase size and blockIndex if in the last block
-      if (index > blockIndex && blockNo == dataList.size()) {
+      if (index > blockIndex && blockNo == (int64_t)dataList.size()) {
         size += index - blockIndex;
         blockIndex = index;
         if (blockIndex >= FileSystem::blockSize)
           blockIndex = 0;
       }
-      if (index >= FileSystem::blockSize && blockNo < dataList.size()) {
+      if (index >= FileSystem::blockSize && blockNo < (int64_t)dataList.size()) {
         block = dataList[blockNo];
         index = 0;
-      } else if (index >= FileSystem::blockSize && blockNo >= dataList.size()) {
+      } else if (index >= FileSystem::blockSize && blockNo >= (int64_t)dataList.size()) {
         //We should allocate a new block
         char* block = new char[FileSystem::blockSize];
         dataList.push_back(block);
@@ -203,8 +203,8 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
     while (_size > 0) {
       //Get pointer to the last buffer
       char* lastBlock = dataList.at(dataList.size() - 1);
-      size_t left = FileSystem::blockSize - blockIndex;	//Left bytes in the last block
-      size_t howMuch = (_size <= left) ? _size : left;
+      int64_t left = FileSystem::blockSize - blockIndex;	//Left bytes in the last block
+      int64_t howMuch = (_size <= left) ? _size : left;
       memcpy(lastBlock + blockIndex, _data + (backupSize - _size), howMuch);
       _size -= howMuch;
       size += howMuch;	  //increase file size
@@ -220,7 +220,7 @@ long FileNode::write(const char* _data, size_t _offset, size_t _size) {
   return retValue;
 }
 
-bool FUSESwift::FileNode::truncate(size_t _size) {
+bool FUSESwift::FileNode::truncate(int64_t _size) {
   int64_t truncateDiff = _size - getSize();
 
   if(truncateDiff == 0)
@@ -231,7 +231,7 @@ bool FUSESwift::FileNode::truncate(size_t _size) {
     return false;
   else if(_size > size) { //Expand
     //we just call write with '\0' chars buffers
-    size_t diff = _size-size;
+    int64_t diff = _size-size;
     while(diff > 0) {
       long howMuch = (diff>FileSystem::blockSize)?FileSystem::blockSize:diff;
       char buff[howMuch];
@@ -245,9 +245,9 @@ bool FUSESwift::FileNode::truncate(size_t _size) {
   else {//Shrink
   	//Acquire lock
   	lock_guard<recursive_mutex> lock(ioMutex);
-    size_t diff = size-_size;
+    int64_t diff = size-_size;
     while(diff > 0) {
-      if(blockIndex >= diff) {
+      if((int64_t)blockIndex >= diff) {
         blockIndex -= diff;
         size -= diff;
         MemoryContorller::getInstance().releaseMemory(truncateDiff*-1);
@@ -438,7 +438,7 @@ std::string FileNode::getMD5() {
   lock_guard<recursive_mutex> lk(ioMutex);
   Poco::MD5Engine md5;
   md5.reset();
-  size_t blockSize = FileSystem::blockSize;
+  int64_t blockSize = FileSystem::blockSize;
   for(uint i=0;i<dataList.size()-1;i++)
     md5.update(dataList[i],blockSize);
   //last block might not be full
@@ -560,7 +560,7 @@ long ReadBuffer::readBuffered(void* _dstBuff,uint64_t _reqOffset,uint64_t _reqSi
 	}
 }
 
-long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
+long FileNode::readRemote(char* _data, int64_t _offset, int64_t _size) {
 	//fprintf(stderr,"BLCOK SIZE:%lu\n",_size);
 	//Check offset
 /*	if(_offset >= this->size)//This fucks up move operation
@@ -600,14 +600,14 @@ long FileNode::readRemote(char* _data, size_t _offset, size_t _size) {
 #endif
 }
 
-long FileNode::writeRemote(const char* _data, size_t _offset, size_t _size) {
+long FileNode::writeRemote(const char* _data, int64_t _offset, int64_t _size) {
 	if(_size == 0)
 	  return 0;
 #ifdef BFS_ZERO
 	unsigned long written = BFSNetwork::writeRemoteFile(
 	    _data,_size,_offset,this->getFullPath(),remoteHostMAC);
 #else
-	unsigned long written = BFSTcpServer::writeRemoteFile(
+	int64_t written = BFSTcpServer::writeRemoteFile(
 	      _data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
 #endif
 	if(written!=_size)
@@ -624,7 +624,7 @@ bool FileNode::rmRemote() {
 #endif
 }
 
-bool FileNode::truncateRemote(size_t size) {
+bool FileNode::truncateRemote(int64_t size) {
 #ifdef BFS_ZERO
   return BFSNetwork::truncateRemoteFile(getFullPath(),size, remoteHostMAC);
 #else
@@ -685,7 +685,7 @@ void FileNode::setMoving(bool _isMoving) {
  * Success:
  * >= 0 written bytes
  */
-long FileNode::writeHandler(const char* _data, size_t _offset, size_t _size, FileNode* &_afterMoveNewNode) {
+long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, FileNode* &_afterMoveNewNode) {
   //By default no moves happen so
   _afterMoveNewNode = nullptr;
 

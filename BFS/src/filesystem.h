@@ -40,7 +40,7 @@ class FileSystem: public Tree {
   FileNode* mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote);
 public:
   //Constants
-  static const size_t blockSize = 1024*512;
+  static const int64_t blockSize = 1024ll*512ll;
   static const std::string delimiter;
   //Functions
   void initialize(FileNode* _root);

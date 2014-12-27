@@ -364,7 +364,7 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
 
 bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
-  if(mostFreeNode.freeSpace < _localFile->getSize()*2) //Could not find a node with enough space :(
+  if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2) //Could not find a node with enough space :(
     return false;
   //First advertise the list of files you have to make sure the dst node will see this file
   ZooHandler::getInstance().publishListOfFiles();

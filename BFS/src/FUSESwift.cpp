@@ -638,7 +638,7 @@ void* swift_init(struct fuse_conn_info* conn) {
   DownloadQueue::getInstance().startSynchronization();
   LOG(INFO)<<"SyncThreads running...";
   //Start Zoo Election
-  ZooHandler::getInstance().startElection();
+  //ZooHandler::getInstance().startElection();
   LOG(INFO)<<"ZooHandler running...";
 
   return nullptr;
@@ -694,7 +694,9 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   size_t diff = size - node->getSize();
   if(diff > 0)
     if(!MemoryContorller::getInstance().checkPossibility(diff)) {
-      LOG(ERROR)<<"Ftruncate failed(not enough space): "<<(path==nullptr?"null":path)<<" newSize:"<<node->getSize();
+      LOG(ERROR)<<"Ftruncate failed(not enough space): "<<(path==nullptr?"null":path)<<" newSize:"<<node->getSize()<<" MemUtil:"<<
+    		  MemoryContorller::getInstance().getMemoryUtilization()<<" TotalMem:"<<MemoryContorller::getInstance().getTotal()<<
+			  " MemAvail:"<<MemoryContorller::getInstance().getAvailableMemory();
       node->close(inodeNum);
       return -ENOSPC;
     }
