@@ -11,13 +11,13 @@ LOG_FLUSH_THRESHOLD = 1 ## Flush after every 1 logs
 
 * DEBUG:
 ENABLED = false
-To_Standard_Output = true
+To_Standard_Output = false
 
 * FATAL:
-To_Standard_Output = true
+To_Standard_Output = false
 
 * ERROR:
-To_Standard_Output = true
+To_Standard_Output = false
 
 * INFO:
-To_Standard_Output = true
+To_Standard_Output = false

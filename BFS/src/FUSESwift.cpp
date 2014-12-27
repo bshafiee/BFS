@@ -691,7 +691,7 @@ int swift_ftruncate(const char* path, off_t size, struct fuse_file_info* fi) {
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
 
   //Checking Space availability
-  size_t diff = size - node->getSize();
+  int64_t diff = size - node->getSize();
   if(diff > 0)
     if(!MemoryContorller::getInstance().checkPossibility(diff)) {
       LOG(ERROR)<<"Ftruncate failed(not enough space): "<<(path==nullptr?"null":path)<<" newSize:"<<node->getSize()<<" MemUtil:"<<
