@@ -17,6 +17,7 @@
 #include "MemoryController.h"
 #include "ZooHandler.h"
 #include "LoggerInclude.h"
+#include "Statistics.h"
 
 using namespace std;
 
@@ -383,6 +384,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
   if(readBytes >= 0) {
     if(DEBUG_READ)
       LOG(DEBUG)<<"Successful read from:path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset;
+    Statistics::reportRead(size);
     return readBytes;
   }
   else {
@@ -395,8 +397,11 @@ int swift_write_error_tolerant(const char* path, const char* buf, size_t size, o
   int retry = 3;
   while(retry>0) {
     int res = swift_write(path, buf, size, offset,fi);
-    if (res != -EIO)
+    if (res != -EIO){
+      if(res > 0)
+    	  Statistics::reportWrite(size);
       return res;
+    }
     LOG(ERROR)<<"write failed for:"<<(path==nullptr?"null":path)<<" retrying:"<<(3-retry+1)<<" Time.";
     retry--;
   }
@@ -452,6 +457,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
       return -EIO;
     }
   }
+
   return written;
 }
 

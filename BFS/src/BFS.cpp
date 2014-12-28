@@ -51,6 +51,7 @@
 #include "ZooHandler.h"
 #include "Timer.h"
 #include <thread>
+#include "Statistics.h"
 
 
 //Initialize logger
@@ -120,6 +121,7 @@ static struct fuse_operations fuse_oper = {
 
 void shutdown(void* userdata) {
   LOG(INFO) <<"Leaving...";
+  Statistics::logStatInfo();
 #ifdef BFS_ZERO
   BFSNetwork::stopNetwork();
 #else
