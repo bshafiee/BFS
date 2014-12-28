@@ -644,7 +644,7 @@ void* swift_init(struct fuse_conn_info* conn) {
   DownloadQueue::getInstance().startSynchronization();
   LOG(INFO)<<"SyncThreads running...";
   //Start Zoo Election
-  //ZooHandler::getInstance().startElection();
+  ZooHandler::getInstance().startElection();
   LOG(INFO)<<"ZooHandler running...";
 
   return nullptr;
