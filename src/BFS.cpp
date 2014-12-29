@@ -172,32 +172,11 @@ void initLogger(int argc, char *argv[]) {
   el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
 }
 
-void readRemote(){
-  sleep(5);
-  FUSESwift::Timer t;
-  t.begin();
-  long len = 1024l*1024l*1024l;
-  char* buff= new char[len];
-#ifdef BFS_ZERO
-  unsigned char mac[6]={0x00,0x24,0x8c,0x05,0xee,0xdd};//Kali
-  //unsigned char mac[6]={0x90,0xe2,0xba,0x33,0x59,0xfa};//Behrooz
-  long res = BFSNetwork::readRemoteFile(buff,len,0,"/1G",mac);
-#else
-  long res = BFSTcpServer::readRemoteFile(buff,len,0,"/1G","10.42.0.83",5555);
-#endif
-  memcpy(buff,buff,len);
-  t.end();
-  cout<<endl<<"Read Result:"<<endl<<flush;
-  cout<<"Read "<<res<<" bytes in:"<<t.elapsedMillis()<<" milli, RATE:"<<((res*8ll)/(1024ll*1024ll))/(t.elapsedMillis()/1000.00)<<endl<<flush;
-  cout<<endl;
-}
-
 int main(int argc, char *argv[]) {
   initLogger(argc,argv);
-	//Load configs first
+  //Load configs first
   SettingManager::load("config");
-	//new thread(readRemote);
-	//Set signal handlers
+  //Set signal handlers
   signal(SIGINT, sigproc);
   signal(SIGTERM, sigproc);
   //set the new_handler
@@ -221,17 +200,18 @@ int main(int argc, char *argv[]) {
   if (argc < 1)
     bfs_usage();
 
-
-  SwiftBackend swiftBackend;
-  swiftBackend.initialize(&info);
-  BackendManager::registerBackend(&swiftBackend);
+  if(SettingManager::runtimeMode()!=RUNTIME_MODE::STANDALONE){
+    SwiftBackend swiftBackend;
+    swiftBackend.initialize(&info);
+    BackendManager::registerBackend(&swiftBackend);
+  }
 
   //Get Physical Memory amount
   LOG(INFO) <<"Total Physical Memory:" << MemoryContorller::getInstance().getTotalSystemMemory()/1024/1024 << " MB";
   LOG(INFO) <<"BFS Available Memory:" << MemoryContorller::getInstance().getAvailableMemory()/1024/1024 << " MB";
   LOG(INFO) <<"Memory Utilization:" << MemoryContorller::getInstance().getMemoryUtilization()*100<< "%";
 
-
+  if(SettingManager::runtimeMode() == RUNTIME_MODE::DISTRIBUTED) {
 #ifdef BFS_ZERO
   //Start BFS Network(before zoo, zoo uses mac info from this package)
 	if(!BFSNetwork::startNetwork()) {
@@ -244,6 +224,7 @@ int main(int argc, char *argv[]) {
     shutdown(nullptr);
 	}
 #endif
+  }
 
   // turn over control to fuse
   LOG(INFO) <<"calling fuse_main";

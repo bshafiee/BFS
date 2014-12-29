@@ -24,6 +24,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace FUSESwift {
 
+enum class RUNTIME_MODE {DISTRIBUTED,STANDALONE_SWIFT,STANDALONE};
+
 static const std::string CONFIG_KEY_MODE = "mode";
 static const std::string CONFIG_KEY_SWIFT_USERNAME = "username";
 static const std::string CONFIG_KEY_SWIFT_PASSWORD = "password";
@@ -40,6 +42,7 @@ static const std::string CONFIG_KEY_DEBUG_SWIFT_CPP_SDK = "debug_swift_cpp_sdk";
 class SettingManager {
 typedef std::unordered_map<std::string,std::string> Dictionary;
 	static Dictionary config;
+	static RUNTIME_MODE runtimeMod;
 	SettingManager();
 public:
 	virtual ~SettingManager();
@@ -51,6 +54,7 @@ public:
 	static double getDouble(std::string key);
 	static void set(std::string key,std::string value);
 	static void load(std::string path);
+	static RUNTIME_MODE runtimeMode();
 };
 
 } /* namespace FUSESwift */

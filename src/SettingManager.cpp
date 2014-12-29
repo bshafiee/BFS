@@ -28,6 +28,7 @@ namespace FUSESwift {
 
 //const std::string SettingManager::KEY_MODE = "MODE";
 SettingManager::Dictionary SettingManager::config;
+RUNTIME_MODE SettingManager::runtimeMod = RUNTIME_MODE::DISTRIBUTED;
 
 SettingManager::SettingManager() {}
 
@@ -100,6 +101,23 @@ void SettingManager::load(std::string path) {
 
 		set(key,value);
 	}
+	string runtimeModeStr = get(CONFIG_KEY_MODE);
+	if(runtimeModeStr == "DISTRIBUTED")
+		runtimeMod = RUNTIME_MODE::DISTRIBUTED;
+	else if(runtimeModeStr == "STANDALONE_SWIFT")
+		runtimeMod = RUNTIME_MODE::STANDALONE_SWIFT;
+	else if(runtimeModeStr == "STANDALONE")
+		runtimeMod = RUNTIME_MODE::STANDALONE;
+	else{
+		LOG(FATAL)<<"Can't determine runtime mode, using default mode: Distributed";
+	}
+	LOG(INFO)<<"Runtime Mode:"<<runtimeModeStr;
+}
+
+RUNTIME_MODE SettingManager::runtimeMode() {
+  return runtimeMod;
 }
 
 } /* namespace FUSESwift */
+
+

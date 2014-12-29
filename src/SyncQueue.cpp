@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdio>
 #include <mutex>
 #include "BackendManager.h"
+#include "SettingManager.h"
 
 namespace FUSESwift {
 
@@ -32,7 +33,10 @@ SyncQueue::~SyncQueue() {
 }
 
 bool SyncQueue::push(SyncEvent* _event) {
-	lock_guard<std::mutex> lock(queueMutex);
+  if(SettingManager::runtimeMode() == RUNTIME_MODE::STANDALONE)
+    return true;
+
+  lock_guard<std::mutex> lock(queueMutex);
 
   if(_event == nullptr)
     return false;

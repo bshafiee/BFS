@@ -5,6 +5,6 @@
 *.settings
 *.log
 core
-BFS/BFS
+BFS
 log.txt
 BFS/mountdir

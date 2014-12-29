@@ -413,6 +413,8 @@ void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
 }
 
 void ZooHandler::publishListOfFiles() {
+	if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
+		return;
 	if (sessionState != ZOO_CONNECTED_STATE
 	    || (electionState != ElectionState::LEADER
 	        && electionState != ElectionState::READY)) {
@@ -476,6 +478,8 @@ std::vector<ZooNode> ZooHandler::getGlobalView() {
  * 4)update globalView
  **/
 void ZooHandler::updateGlobalView() {
+  if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
+    return;
   lock_guard<mutex> lk(lockGlobalView);
 
 	if (sessionState != ZOO_CONNECTED_STATE

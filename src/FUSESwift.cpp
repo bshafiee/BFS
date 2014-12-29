@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "LoggerInclude.h"
 #include "Params.h"
 #include "Statistics.h"
+#include "SettingManager.h"
 
 using namespace std;
 
@@ -649,14 +650,19 @@ void* swift_init(struct fuse_conn_info* conn) {
   if(DEBUG_INIT)
     LOG(INFO)<<"Fuse Initialization";
 
-  LOG(INFO)<<"Starting SyncThreads";
-  //Start SyncQueue threads
-  UploadQueue::getInstance().startSynchronization();
-  DownloadQueue::getInstance().startSynchronization();
-  LOG(INFO)<<"SyncThreads running...";
-  //Start Zoo Election
-  ZooHandler::getInstance().startElection();
-  LOG(INFO)<<"ZooHandler running...";
+  if(SettingManager::runtimeMode()!=RUNTIME_MODE::STANDALONE){
+    LOG(INFO)<<"Starting SyncThreads";
+    //Start SyncQueue threads
+    UploadQueue::getInstance().startSynchronization();
+    DownloadQueue::getInstance().startSynchronization();
+    LOG(INFO)<<"SyncThreads running...";
+  }
+
+  if(SettingManager::runtimeMode()==RUNTIME_MODE::DISTRIBUTED){
+    //Start Zoo Election
+    ZooHandler::getInstance().startElection();
+    LOG(INFO)<<"ZooHandler running...";
+  }
 
   return nullptr;
 }
