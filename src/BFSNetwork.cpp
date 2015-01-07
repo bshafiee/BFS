@@ -99,6 +99,28 @@ bool BFSNetwork::startNetwork() {
   //Start Move Loop
   moveThread = new thread(moveLoop);
 
+  //Setup filtering rules
+  //1)Forward BFS packets
+  filtering_rule ruleBFS;
+  memset(&ruleBFS, 0, sizeof(ruleBFS));
+  ruleBFS.rule_id = 1;
+  ruleBFS.rule_action = rule_action_behaviour::forward_packet_and_stop_rule_evaluation;
+  ruleBFS.core_fields.eth_type = 0xCCCC;//BFS PROTO
+  if(pfring_add_filtering_rule((pfring*)pd,&ruleBFS) < 0)
+    LOG(FATAL)<<"Failed to add filtering ruleBFS.";
+  else
+    LOG(INFO)<<"Filtering ruleBFS added successfully.";
+  //2)drop every other packet
+  filtering_rule ruleDROPALL;
+  memset(&ruleDROPALL, 0, sizeof(ruleDROPALL));
+  ruleDROPALL.rule_id = 2;
+  ruleDROPALL.rule_action = rule_action_behaviour::dont_forward_packet_and_stop_rule_evaluation;
+  ruleDROPALL.core_fields.eth_type = 0;//wildcard
+  if(pfring_add_filtering_rule((pfring*)pd,&ruleDROPALL) < 0)
+    LOG(FATAL)<<"Failed to add filtering ruleDROPALL.";
+  else
+    LOG(INFO)<<"Filtering ruleDROPALL added successfully.";
+
 	return true;
 }
 
@@ -509,15 +531,19 @@ void BFSNetwork::rcvLoop() {
 			continue;
 		}
 		//rcv++;
+		/*
     //Return not a valid packet of our protocol!
     if(_packet[PROTO_BYTE_INDEX1] != BFS_PROTO_BYTE1 ||
        _packet[PROTO_BYTE_INDEX2] != BFS_PROTO_BYTE2 ){
-      /*printf("Byte[%d]=%.2x,Byte[%d]=%.2x\n",PROTO_BYTE_INDEX1,
-          _packet[PROTO_BYTE_INDEX1],PROTO_BYTE_INDEX2,_packet[PROTO_BYTE_INDEX2]);*/
+      printf("Byte[%d]=%.2x,Byte[%d]=%.2x\n",PROTO_BYTE_INDEX1,
+          _packet[PROTO_BYTE_INDEX1],PROTO_BYTE_INDEX2,_packet[PROTO_BYTE_INDEX2]);
       //notmine++;
       continue;
     }
 
+    printf("Byte[%d]=%.2x,Byte[%d]=%.2x\n",PROTO_BYTE_INDEX1,
+              _packet[PROTO_BYTE_INDEX1],PROTO_BYTE_INDEX2,_packet[PROTO_BYTE_INDEX2]);
+*/
 		//return if it's not of our size
 		if(_header.len != (unsigned int)MTU) {
 		  LOG(ERROR)<<"Fragmentation! dropping. CapLen:"<<_header.caplen <<"Len:"<<_header.len;

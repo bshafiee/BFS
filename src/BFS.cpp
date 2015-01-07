@@ -127,13 +127,15 @@ static struct fuse_operations fuse_oper = {
 void shutdown(void* context) {
   LOG(INFO) <<"Leaving...";
   Statistics::logStatInfo();
+  if(SettingManager::runtimeMode() == RUNTIME_MODE::DISTRIBUTED) {
 #ifdef BFS_ZERO
-  BFSNetwork::stopNetwork();
+    BFSNetwork::stopNetwork();
 #else
-  BFSTcpServer::stop();
+    BFSTcpServer::stop();
 #endif
-  ZooHandler::getInstance().stopZooHandler();
-  MasterHandler::stopLeadership();
+    ZooHandler::getInstance().stopZooHandler();
+    MasterHandler::stopLeadership();
+  }
   FileSystem::getInstance().destroy();
   exit(0);
 }
@@ -200,8 +202,8 @@ int main(int argc, char *argv[]) {
   if (argc < 1)
     bfs_usage();
 
+  SwiftBackend swiftBackend;
   if(SettingManager::runtimeMode()!=RUNTIME_MODE::STANDALONE){
-    SwiftBackend swiftBackend;
     swiftBackend.initialize(&info);
     BackendManager::registerBackend(&swiftBackend);
   }

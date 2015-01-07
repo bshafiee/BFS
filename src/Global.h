@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 //Determines Networking mode
-//#define BFS_ZERO 1
+#define BFS_ZERO 1
 
 
 #endif /* SRC_GLOBAL_H_ */

@@ -40,7 +40,7 @@ namespace FUSESwift {
  *  0 _________________________________HEADER__________________________________
  * |                  |                  |                  |                  |
  * |  6 Byte DST_MAC  |  6 Byte SRC_MAC  |  1 Byte POROTO_1 |  1 Byte POROTO_2 |
- * |  Index: [0->5]   |  Index: [6->11]  | Index: [12]=0XAA | Index: [13]=0XAA |
+ * |  Index: [0->5]   |  Index: [6->11]  | Index: [12]=0XCC | Index: [13]=0XCC |
  * |-----------------------------------PAYLOAD---------------------------------|
  * |                                                                           |
  * |                               MTU-14 Bytes                                |
@@ -382,8 +382,8 @@ private:
 	static const int PROTO_BYTE_INDEX1 = 12;
 	static const int PROTO_BYTE_INDEX2 = 13;
 	static const int OP_CODE_INDEX = 14;
-	static const unsigned char BFS_PROTO_BYTE1 = 0xaa;
-	static const unsigned char BFS_PROTO_BYTE2 = 0xaa;
+	static const unsigned char BFS_PROTO_BYTE1 = 0xCC;
+	static const unsigned char BFS_PROTO_BYTE2 = 0xCC;
 	static unsigned char MAC[6];
 	static std::atomic<bool> macInitialized;
 	//Variables

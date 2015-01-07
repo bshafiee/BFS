@@ -621,7 +621,7 @@ long FileNode::writeRemote(const char* _data, int64_t _offset, int64_t _size) {
 	int64_t written = BFSTcpServer::writeRemoteFile(
 	      _data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
 #endif
-	if(written!=_size)
+	if(written!=(uint64_t)_size)
 	  return -3;//ACK error
 	else
 	  return written;

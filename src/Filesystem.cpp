@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Filenode.h"
 #include "Filesystem.h"
 #include "LoggerInclude.h"
+#include "SettingManager.h"
 #include "Timer.h"
 
 using namespace std;
@@ -231,8 +232,10 @@ FileNode* FileSystem::findParent(const string &_path) {
 
 void FileSystem::destroy() {
   //Important, first kill download and upload thread
-  DownloadQueue::getInstance().stopSynchronization();
-  UploadQueue::getInstance().stopSynchronization();
+  if(SettingManager::runtimeMode() != RUNTIME_MODE::STANDALONE) {
+    DownloadQueue::getInstance().stopSynchronization();
+    UploadQueue::getInstance().stopSynchronization();
+  }
   //Empty InodeMap so no body can find anything!
   inodeMapMutex.lock();
   inodeMap.clear();
