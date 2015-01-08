@@ -38,8 +38,7 @@
 <h3>
 <a id="preliminary-evaluation" class="anchor" href="#preliminary-evaluation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Preliminary evaluation</h3>
 
-<p>BFS can be used as a standalone filesystem on a single machine (STANDALONE_MODE) or even as a replacement for Apache Hadoop HDFS. In order to evaluate BFS performance, three different sets of experiments were defined. First, BFS was evaluated using IOZONE filesystem benchmark tool in standalone mode in which all<br>
-IO operations are performed on a single machine. Second, BFS remote operations were evaluated using IOZONE; however, this time all IO operation were performed on a remote node. Finally, BFS was used as the underlying Hadoop mapreduce distributed file system.</p>
+<p>BFS can be used as a standalone filesystem on a single machine (STANDALONE_MODE) or even as a replacement for Apache Hadoop HDFS. In order to evaluate BFS performance, three different sets of experiments were defined. First, BFS was evaluated using IOZONE filesystem benchmark tool in standalone mode in which all IO operations are performed on a single machine. Second, BFS remote operations were evaluated using IOZONE; however, this time all IO operation were performed on a remote node. Finally, BFS was used as the underlying Hadoop mapreduce distributed file system.</p>
 
 <p><strong>Evaluation Environment</strong></p>
 
@@ -64,20 +63,13 @@ IO operations are performed on a single machine. Second, BFS remote operations w
 
 <p><img src="http://i.imgur.com/iVNg9e6.png" alt="Write on a single node locally."></p>
 
-<p>As it can be seen from the graphs increasing block size improves IO rate; however, the peak<br>
-rate happens at 64KB and 128KB block size and does not increase anymore.</p>
+<p>As it can be seen from the graphs increasing block size improves IO rate; however, the peak rate happens at 64KB and 128KB block size and does not increase anymore.</p>
 
 <p><strong>Network Mode</strong></p>
 
-<p>In this mode, one of the cluster nodes was configured to zero byte available memory and the<br>
-rest of cluster nodes were configured with 70% of physical memory (1.3GB) as available<br>
-memory. Then the node with zero byte available memory was instructed to run IOZONE<br>
-benchmark; therefore, all of it’s operations were performed on remote nodes. In fact, even<br>
-though the whole cluster was available only one other node would be used in this scenario because IOZONE performs all of its operations on one file;therefore, whoever is storing that<br>
-file will perform IO operations instructed remotely by the zero byte node. </p>
+<p>In this mode, one of the cluster nodes was configured to zero byte available memory and the rest of cluster nodes were configured with 70% of physical memory (1.3GB) as available memory. Then the node with zero byte available memory was instructed to run IOZONE benchmark; therefore, all of it’s operations were performed on remote nodes. In fact, even though the whole cluster was available only one other node would be used in this scenario because IOZONE performs all of its operations on one file;therefore, whoever is storing that file will perform IO operations instructed remotely by the zero byte node. </p>
 
-<p>BFS implements two modes of remote communications: TCP and ZERO networking. TCP<br>
-mode was implemented by a non­blocking socket model using select IO model with Poco C++ library. ZERO mode was implemented using PF_RING library. PF_RING is a high speed packet capture library which is usually used by packet filtering applications. The main benefit of PF_RING library is capturing and sending packets without going through kernel standard data structures. BFS utilizes PF_RING to communicate among nodes in the same subnet. Due to the fact that in a subnet with Ethernet Flow­Control enabled on all nodes and switches no packet is lost, BFS has no need for a reliable transport protocol. Thus, BFS implements only a minimal transport protocol capable of multiplexing and demultiplexing different tasks simultaneously (Similar to the concept of a socket).</p>
+<p>BFS implements two modes of remote communications: TCP and ZERO networking. TCP mode was implemented by a non­blocking socket model using select IO model with Poco C++ library. ZERO mode was implemented using PF_RING library. PF_RING is a high speed packet capture library which is usually used by packet filtering applications. The main benefit of PF_RING library is capturing and sending packets without going through kernel standard data structures. BFS utilizes PF_RING to communicate among nodes in the same subnet. Due to the fact that in a subnet with Ethernet Flow-­Control enabled on all nodes and switches no packet is lost, BFS has no need for a reliable transport protocol. Thus, BFS implements only a minimal transport protocol capable of multiplexing and demultiplexing different tasks simultaneously (Similar to the concept of a socket).</p>
 
 <p><strong>Read remotely TCP:</strong></p>
 
@@ -97,12 +89,12 @@ mode was implemented by a non­blocking socket model using select IO model with 
 
 <p><strong>Hadoop Mapreduce DFSIO Benchmark</strong></p>
 
-<p>Hadoop Mapreduce framework uses Hadoop Distributed File System(HDFS) as the default file system. HDFS is a highly distributed, replicated, scalable and portable file system written in JAVA. HDFS is accessed in mapreduce  applications using a standard set of libraries and it does not provide a POSIX interface;therefore, in order to use hdfs, developers need to first copy input data into hdfs and then after processing is finished copy back results from hdfs to the local filesystem. Moreover, HDFS does not support random reads and writes. Therefore,<br>
-using BFS as hadoop filesystem provides many opportunities to improve the performance of mapreduce applications.  </p>
+<p>Hadoop mapreduce framework uses Hadoop Distributed File System(HDFS) as the default file system. HDFS is a highly distributed, replicated, scalable and portable file system written in JAVA. HDFS is accessed in mapreduce  applications using a standard set of libraries and it does not provide a POSIX interface;therefore, in order to use HDFS, developers need to first copy input data into hdfs and then after processing is finished copy back results from HDFS to the local filesystem. Moreover, HDFS does not support random reads and writes. Therefore,<br>
+using BFS as HADOOP filesystem provides many opportunities to improve the performance of mapreduce applications.  </p>
 
-<p>In order to solve the problem of copying data back and forth, some parts of Hadoop Mapreduce framework need to be modified. However, the goal was not to modify the code and only hadoop configuration files were hacked to use BFS instead of HDFS.</p>
+<p>In order to solve the problem of copying data back and forth, some parts of Hadoop mapreduce framework need to be modified. However, the goal was not to modify the code and only Hadoop configuration files were hacked to use BFS instead of HDFS.</p>
 
-<p>After replacing HDFS with BFS, hadoop DFSIO test was used to measure the improvements made by using BFS instead of HDFS. DFSIO test is a stress test originally developed by hadoop team to stress HDFS and find IO bottlenecks. DFSIO performs distributed writes and reads and reports the average IO rate. Benchmark inputs include number of files, size of each file, and block size.</p>
+<p>After replacing HDFS with BFS, Hadoop DFSIO test was used to measure the improvements made by using BFS instead of HDFS. DFSIO test is a stress test originally developed by HADOOP team to stress HDFS and find IO bottlenecks. DFSIO performs distributed writes and reads and reports the average IO rate. Benchmark inputs include number of files, size of each file, and block size.</p>
 
 <p>DFSIO test was performed 10 times using HDFS, BFS_TCP, and BFS_ZERO mode. The file size was set to 1 GB and number of files was set to 4.  </p>
 
