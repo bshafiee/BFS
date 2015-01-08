@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Behrooz File System (BFS) by bshafiee</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Behrooz File System (BFS)</h1>
+        <h2>An in-memory distributed POSIX-compatible file system</h2>
+        <a href="https://github.com/bshafiee/BFS" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h3>
+<a id="welcome-to-bfs" class="anchor" href="#welcome-to-bfs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to BFS</h3>
+
+<p>BFS is an open-source distributed, scalable, replicated in-memory filesystem. BFS provides a POSIX compatible interface and can be mounted under any directory and be used same as a traditional filesystem such as Ext4 or NTFS as a userspace application without any kernel modification. BFS utilizes memory to store data which means a blazingly fast read/write speed. BFS is backed by Openstack Swift object storage (backend storage can be a disk, Amazon S3, or any other persistent storage as well). BFS nodes can communicate thorough a TCP connection or a faster ZERO_Networking solution. In ZERO_Networking mode the regular operating system network stack is bypassed and raw packets are shared between userspace and kernel.</p>
+
+<p>BFS has been developed as part of Behrooz Shafiee Sarjaz master thesis under supervision of professor <a href="https://cs.uwaterloo.ca/%7Emkarsten/">Martin Karsten</a> at <a href="https://cs.uwaterloo.ca/">Cheriton School of Computer Science</a>, <a href="https://uwaterloo.ca/">University of Waterloo</a>.</p>
+
+<pre><code>$ cd your_repo_root/repo_name
+$ git fetch origin
+$ git checkout gh-pages
+</code></pre>
+
+<h3>
+<a id="preliminary-evaluation" class="anchor" href="#preliminary-evaluation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Preliminary evaluation</h3>
+
+<p>BFS can be used as a standalone filesystem on a single machine (STANDALONE_MODE) or even as a replacement for Apache Hadoop HDFS. In order to evaluate BFS performance, three different sets of experiments were defined. First, BFS was evaluated using IOZONE filesystem benchmark tool in standalone mode in which all<br>
+IO operations are performed on a single machine. Second, BFS remote operations were evaluated using IOZONE; however, this time all IO operation were performed on a remote node. Finally, BFS was used as the underlying Hadoop mapreduce distributed file system.</p>
+
+<p>** Evaluation Environment **
+Evaluation   environment   includes   a   cluster   of   7   machines   each   with   the   following   specification:<br>
+2GB 266MHz DDR Memory 
+Intel(R) Xeon(TM) CPU 3.06GHz Quad core 32 bit processor 
+Intel 66MHz Gigabit Ethernet Controller 
+operated by Debian i686(32 bit) GNU/Linux 8.0 (Kernel 3.16.7)</p>
+
+<p>** Standalone mode **
+In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, random read, and random write operations, all performed locally on a single node. Block size was varied from standard 4 KB to 16 MB with file size from 1MB to 1GB. Unfortunately, fuse library which is used by BFS to provide a transparent POSIX compatible interface to applications does not support block sizes larger than 128KB. Therefore, it was patched to support block sizes up to 16 MB. </p>
+
+<p>image:
+<img src="http://www.newyorker.com/wp-content/uploads/2012/09/philip-roth-af.jpg" alt=""></p>
+
+<p>Read on a single node locally:
+<img src="http://i.imgur.com/jJSNs7J.png" alt="Read on a single node locally."></p>
+
+<p>Write on a single node locally:
+<img src="http://i.imgur.com/vECwIW6.png" alt="Write on a single node locally."></p>
+
+<p>Preliminary evaluation</p>
+
+<h3>
+<a id="rather-drive-stick" class="anchor" href="#rather-drive-stick" aria-hidden="true"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+
+<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+
+<h3>
+<a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
+
+<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+
+<h3>
+<a id="support-or-contact" class="anchor" href="#support-or-contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+
+<p>Having trouble with Pages? Check out the documentation at <a href="https://help.github.com/pages">https://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/bshafiee/BFS/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/bshafiee/BFS/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/bshafiee/BFS"></a> is maintained by <a href="https://github.com/bshafiee">bshafiee</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
