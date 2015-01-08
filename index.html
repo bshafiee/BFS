@@ -35,11 +35,6 @@
 
 <p>BFS has been developed as part of Behrooz Shafiee Sarjaz master thesis under supervision of professor <a href="https://cs.uwaterloo.ca/%7Emkarsten/">Martin Karsten</a> at <a href="https://cs.uwaterloo.ca/">Cheriton School of Computer Science</a>, <a href="https://uwaterloo.ca/">University of Waterloo</a>.</p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
-
 <h3>
 <a id="preliminary-evaluation" class="anchor" href="#preliminary-evaluation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Preliminary evaluation</h3>
 
@@ -47,11 +42,14 @@ $ git checkout gh-pages
 IO operations are performed on a single machine. Second, BFS remote operations were evaluated using IOZONE; however, this time all IO operation were performed on a remote node. Finally, BFS was used as the underlying Hadoop mapreduce distributed file system.</p>
 
 <p>** Evaluation Environment **
-Evaluation   environment   includes   a   cluster   of   7   machines   each   with   the   following   specification:<br>
-2GB 266MHz DDR Memory 
-Intel(R) Xeon(TM) CPU 3.06GHz Quad core 32 bit processor 
-Intel 66MHz Gigabit Ethernet Controller 
-operated by Debian i686(32 bit) GNU/Linux 8.0 (Kernel 3.16.7)</p>
+Evaluation environment includes a cluster of 7 machines each with the following specification:  </p>
+
+<ul>
+<li>2GB 266MHz DDR Memory </li>
+<li>Intel(R) Xeon(TM) CPU 3.06GHz Quad core 32 bit processor </li>
+<li>Intel 66MHz Gigabit Ethernet Controller </li>
+<li>operated by Debian i686(32 bit) GNU/Linux 8.0 (Kernel 3.16.7)</li>
+</ul>
 
 <p>** Standalone mode **
 In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, random read, and random write operations, all performed locally on a single node. Block size was varied from standard 4 KB to 16 MB with file size from 1MB to 1GB. Unfortunately, fuse library which is used by BFS to provide a transparent POSIX compatible interface to applications does not support block sizes larger than 128KB. Therefore, it was patched to support block sizes up to 16 MB. </p>
