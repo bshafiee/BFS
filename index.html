@@ -52,8 +52,9 @@ IO operations are performed on a single machine. Second, BFS remote operations w
 <li>operated by Debian i686(32 bit) GNU/Linux 8.0 (Kernel 3.16.7)</li>
 </ul>
 
-<p>** Standalone mode **
-In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, random read, and random write operations, all performed locally on a single node. Block size was varied from standard 4 KB to 16 MB with file size from 1MB to 1GB. Unfortunately, fuse library which is used by BFS to provide a transparent POSIX compatible interface to applications does not support block sizes larger than 128KB. Therefore, it was patched to support block sizes up to 16 MB. </p>
+<p><strong>Standalone mode</strong></p>
+
+<p>In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, random read, and random write operations, all performed locally on a single node. Block size was varied from standard 4 KB to 16 MB with file size from 1MB to 1GB. Unfortunately, fuse library which is used by BFS to provide a transparent POSIX compatible interface to applications does not support block sizes larger than 128KB. Therefore, it was patched to support block sizes up to 16 MB. </p>
 
 <p><strong>Read on a single node locally:</strong></p>
 
@@ -66,8 +67,9 @@ In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, rando
 <p>As it can be seen from the graphs increasing block size improves IO rate; however, the peak<br>
 rate happens at 64KB and 128KB block size and does not increase anymore.</p>
 
-<p>** Network Mode **
-In this mode, one of the cluster nodes was configured to zero byte available memory and the<br>
+<p><strong>Network Mode</strong></p>
+
+<p>In this mode, one of the cluster nodes was configured to zero byte available memory and the<br>
 rest of cluster nodes were configured with 70% of physical memory (1.3GB) as available<br>
 memory. Then the node with zero byte available memory was instructed to run IOZONE<br>
 benchmark; therefore, all of it’s operations were performed on remote nodes. In fact, even<br>
@@ -93,7 +95,7 @@ mode was implemented by a non­blocking socket model using select IO model with 
 
 <p><img src="http://i.imgur.com/GdowVeQ.png" alt="Read Remote Zero_Networking"></p>
 
-<p>** Hadoop Mapreduce DFSIO Benchmark **</p>
+<p><strong>Hadoop Mapreduce DFSIO Benchmark</strong></p>
 
 <p>Hadoop Mapreduce framework uses Hadoop Distributed File System(HDFS) as the default file system. HDFS is a highly distributed, replicated, scalable and portable file system written in JAVA. HDFS is accessed in mapreduce  applications using a standard set of libraries and it does not provide a POSIX interface;therefore, in order to use hdfs, developers need to first copy input data into hdfs and then after processing is finished copy back results from hdfs to the local filesystem. Moreover, HDFS does not support random reads and writes. Therefore,<br>
 using BFS as hadoop filesystem provides many opportunities to improve the performance of mapreduce applications.  </p>
