@@ -56,31 +56,69 @@ operated by Debian i686(32 bit) GNU/Linux 8.0 (Kernel 3.16.7)</p>
 <p>** Standalone mode **
 In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, random read, and random write operations, all performed locally on a single node. Block size was varied from standard 4 KB to 16 MB with file size from 1MB to 1GB. Unfortunately, fuse library which is used by BFS to provide a transparent POSIX compatible interface to applications does not support block sizes larger than 128KB. Therefore, it was patched to support block sizes up to 16 MB. </p>
 
-<p>image:
-<img src="http://www.newyorker.com/wp-content/uploads/2012/09/philip-roth-af.jpg" alt=""></p>
-
 <p>Read on a single node locally:
 <img src="http://i.imgur.com/jJSNs7J.png" alt="Read on a single node locally."></p>
 
 <p>Write on a single node locally:
 <img src="http://i.imgur.com/vECwIW6.png" alt="Write on a single node locally."></p>
 
-<p>Preliminary evaluation</p>
+<p>As it can be seen from the graphs increasing block size improves IO rate; however, the peak<br>
+rate happens at 64KB and 128KB block size and does not increase anymore.</p>
+
+<p>** Network Mode **
+In this mode, one of the cluster nodes was configured to zero byte available memory and the<br>
+rest of cluster nodes were configured with 70% of physical memory (1.3GB) as available<br>
+memory. Then the node with zero byte available memory was instructed to run IOZONE<br>
+benchmark; therefore, all of it’s operations were performed on remote nodes. In fact, even<br>
+though the whole cluster was available only one other node would be used in this scenario because IOZONE performs all of its operations on one file;therefore, whoever is storing that<br>
+file will perform IO operations instructed remotely by the zero byte node. </p>
+
+<p>BFS implements two modes of remote communications: TCP and ZERO networking. TCP<br>
+mode was implemented by a non­blocking socket model using select IO model with Poco C++ library. ZERO mode was implemented using PF_RING library. PF_RING is a high speed packet capture library which is usually used by packet filtering applications. The main benefit of PF_RING library is capturing and sending packets without going through kernel standard data structures. BFS utilizes PF_RING to communicate among nodes in the same subnet. Due to the fact that in a subnet with Ethernet Flow­Control enabled on all nodes and switches no packet is lost, BFS has no need for a reliable transport protocol. Thus, BFS implements only a minimal transport protocol capable of multiplexing and demultiplexing different tasks simultaneously (Similar to the concept of a socket).</p>
+
+<p>Read remotely TCP:
+<img src="http://i.imgur.com/B5mHNMu.png" alt="Read Remotely TCP"></p>
+
+<p>Read Remotely ZERO_Networking:
+<img src="http://i.imgur.com/femrPc4.png" alt="Read Remote Zero_Networking"></p>
+
+<p>Write remotely TCP:
+<img src="http://i.imgur.com/femrPc4.png" alt="Read Remote Zero_Networking"></p>
+
+<p>Write Remotely ZERO_Networking:
+<img src="http://i.imgur.com/femrPc4.png" alt="Read Remote Zero_Networking"></p>
+
+<p>** Hadoop Mapreduce DFSIO Benchmark **
+Hadoop Mapreduce framework uses Hadoop Distributed File System(HDFS) as the default file system. HDFS is a highly distributed, replicated, scalable and portable file system written in JAVA. HDFS is accessed in mapreduce  applications using a standard set of libraries and it does not provide a POSIX interface;therefore, in order to use hdfs, developers need to first copy input data into hdfs and then after processing is finished copy back results from hdfs to the local filesystem. Moreover, HDFS does not support random reads and writes. Therefore,<br>
+using BFS as hadoop filesystem provides many opportunities to improve the performance of mapreduce applications.  </p>
+
+<p>In order to solve the problem of copying data back and forth, some parts of Hadoop Mapreduce framework need to be modified. However, the goal was not to modify the code and only hadoop configuration files were hacked to use BFS instead of HDFS.</p>
+
+<p>After replacing HDFS with BFS, hadoop DFSIO test was used to measure the improvements made by using BFS instead of HDFS. DFSIO test is a stress test originally developed by hadoop team to stress HDFS and find IO bottlenecks. DFSIO performs distributed writes and reads and reports the average IO rate. Benchmark inputs include number of files, size of each file, and block size.</p>
+
+<p>DFSIO test was performed 10 times using HDFS, BFS_TCP, and BFS_ZERO mode. The file size was set to 1 GB and number of files was set to 4.<br>
+** Write Test **
+it can be seen from the graph that both BFS TCP and BFS ZERO perform significantly better than HDFS (10X faster) with a small error bar (std). This shows that all the engaging node performed write locally (in their memory). </p>
+
+<p>** Read test **
+There is a wide range of Avg IO rate in the read test results from 20MB to 140MB per second. This is due to the fact that some of the engaged nodes read local data (in their memory) and some of them read data in the remote nodes. This can be proved by noticing the error bar on each of data points. For example when in BFS_ZERO the avg rate is 135MB/Sec the std is almost zero meaning that all the nodes read their data locally. Similarly, when the average rate is so small 25MB/Sec the std is also significantly small meaning that all the nodes performed their read remotely. Finally, in between average IO rates such as 50MB/Sec have the highest std because some of the nodes performed their reads locally and some remotely. </p>
+
+<p>Another noticeable point about read was that even though the block size was set to 16MB, non of reads were performed in 16MB and the all used a very small varying block size from 4KB to around 512KB. This can explain the low IO rate when nodes read data remotely.</p>
 
 <h3>
-<a id="rather-drive-stick" class="anchor" href="#rather-drive-stick" aria-hidden="true"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+<a id="disclaimer" class="anchor" href="#disclaimer" aria-hidden="true"><span class="octicon octicon-link"></span></a>DISCLAIMER</h3>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+<p>BFS is still under heavy development and is not recommended for production level use. You can use BFS at your own risk.</p>
 
 <h3>
 <a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
 
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+<p>BFS has been developed as part of Behrooz Shafiee Sarjaz (<a href="https://github.com/bshafiee" class="user-mention">@bshafiee</a>) master thesis under supervision of professor <a href="https://cs.uwaterloo.ca/%7Emkarsten/">Martin Karsten</a> at <a href="https://cs.uwaterloo.ca/">Cheriton School of Computer Science</a>, <a href="https://uwaterloo.ca/">University of Waterloo</a>.</p>
 
 <h3>
-<a id="support-or-contact" class="anchor" href="#support-or-contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+<a id="contact" class="anchor" href="#contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contact</h3>
 
-<p>Having trouble with Pages? Check out the documentation at <a href="https://help.github.com/pages">https://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+<p>Reach me at <a href="mailto:bshafiee@uwaterloo.ca">bshafiee@uwaterloo.ca</a> </p>
         </section>
 
         <aside id="sidebar">
