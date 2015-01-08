@@ -94,8 +94,9 @@ mode was implemented by a non­blocking socket model using select IO model with 
 
 <p><img src="http://i.imgur.com/GdowVeQ.png" alt="Read Remote Zero_Networking"></p>
 
-<p>** Hadoop Mapreduce DFSIO Benchmark **
-Hadoop Mapreduce framework uses Hadoop Distributed File System(HDFS) as the default file system. HDFS is a highly distributed, replicated, scalable and portable file system written in JAVA. HDFS is accessed in mapreduce  applications using a standard set of libraries and it does not provide a POSIX interface;therefore, in order to use hdfs, developers need to first copy input data into hdfs and then after processing is finished copy back results from hdfs to the local filesystem. Moreover, HDFS does not support random reads and writes. Therefore,<br>
+<p>** Hadoop Mapreduce DFSIO Benchmark **</p>
+
+<p>Hadoop Mapreduce framework uses Hadoop Distributed File System(HDFS) as the default file system. HDFS is a highly distributed, replicated, scalable and portable file system written in JAVA. HDFS is accessed in mapreduce  applications using a standard set of libraries and it does not provide a POSIX interface;therefore, in order to use hdfs, developers need to first copy input data into hdfs and then after processing is finished copy back results from hdfs to the local filesystem. Moreover, HDFS does not support random reads and writes. Therefore,<br>
 using BFS as hadoop filesystem provides many opportunities to improve the performance of mapreduce applications.  </p>
 
 <p>In order to solve the problem of copying data back and forth, some parts of Hadoop Mapreduce framework need to be modified. However, the goal was not to modify the code and only hadoop configuration files were hacked to use BFS instead of HDFS.</p>
