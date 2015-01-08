@@ -1,34 +1,37 @@
 <!DOCTYPE html>
 <html>
+
   <head>
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+    <meta name="description" content="Behrooz File System (BFS) : An in-memory distributed POSIX-compatible file system">
 
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>Behrooz File System (BFS) by bshafiee</title>
+    <title>Behrooz File System (BFS)</title>
   </head>
 
   <body>
-    <header>
-      <div class="inner">
-        <h1>Behrooz File System (BFS)</h1>
-        <h2>An in-memory distributed POSIX-compatible file system</h2>
-        <a href="https://github.com/bshafiee/BFS" class="button"><small>View project on</small> GitHub</a>
-      </div>
-    </header>
 
-    <div id="content-wrapper">
-      <div class="inner clearfix">
-        <section id="main-content">
-          <h3>
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/bshafiee/BFS">View on GitHub</a>
+
+          <h1 id="project_title">Behrooz File System (BFS)</h1>
+          <h2 id="project_tagline">An in-memory distributed POSIX-compatible file system</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/bshafiee/BFS/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/bshafiee/BFS/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h3>
 <a id="welcome-to-bfs" class="anchor" href="#welcome-to-bfs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to BFS</h3>
 
 <p>BFS is an open-source distributed, scalable, replicated in-memory filesystem. BFS provides a POSIX compatible interface and can be mounted under any directory and be used same as a traditional filesystem such as Ext4 or NTFS as a userspace application without any kernel modification. BFS utilizes memory to store data which means a blazingly fast read/write speed. BFS is backed by Openstack Swift object storage (backend storage can be a disk, Amazon S3, or any other persistent storage as well). BFS nodes can communicate thorough a TCP connection or a faster ZERO_Networking solution. In ZERO_Networking mode the regular operating system network stack is bypassed and raw packets are shared between userspace and kernel.</p>
@@ -56,11 +59,13 @@ operated by Debian i686(32 bit) GNU/Linux 8.0 (Kernel 3.16.7)</p>
 <p>** Standalone mode **
 In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, random read, and random write operations, all performed locally on a single node. Block size was varied from standard 4 KB to 16 MB with file size from 1MB to 1GB. Unfortunately, fuse library which is used by BFS to provide a transparent POSIX compatible interface to applications does not support block sizes larger than 128KB. Therefore, it was patched to support block sizes up to 16 MB. </p>
 
-<p>Read on a single node locally:
-<img src="http://i.imgur.com/jJSNs7J.png" alt="Read on a single node locally."></p>
+<p><strong>Read on a single node locally:</strong></p>
 
-<p>Write on a single node locally:
-<img src="http://i.imgur.com/vECwIW6.png" alt="Write on a single node locally."></p>
+<p><img src="http://i.imgur.com/TWq1BLL.png" alt="Read on a single node locally."></p>
+
+<p>** Write on a single node locally:**</p>
+
+<p><img src="http://i.imgur.com/iVNg9e6.png" alt="Write on a single node locally."></p>
 
 <p>As it can be seen from the graphs increasing block size improves IO rate; however, the peak<br>
 rate happens at 64KB and 128KB block size and does not increase anymore.</p>
@@ -119,25 +124,18 @@ There is a wide range of Avg IO rate in the read test results from 20MB to 140MB
 <a id="contact" class="anchor" href="#contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contact</h3>
 
 <p>Reach me at <a href="mailto:bshafiee@uwaterloo.ca">bshafiee@uwaterloo.ca</a> </p>
-        </section>
-
-        <aside id="sidebar">
-          <a href="https://github.com/bshafiee/BFS/zipball/master" class="button">
-            <small>Download</small>
-            .zip file
-          </a>
-          <a href="https://github.com/bshafiee/BFS/tarball/master" class="button">
-            <small>Download</small>
-            .tar.gz file
-          </a>
-
-          <p class="repo-owner"><a href="https://github.com/bshafiee/BFS"></a> is maintained by <a href="https://github.com/bshafiee">bshafiee</a>.</p>
-
-          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
-        </aside>
-      </div>
+      </section>
     </div>
 
-  
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Behrooz File System (BFS) maintained by <a href="https://github.com/bshafiee">bshafiee</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
   </body>
 </html>
