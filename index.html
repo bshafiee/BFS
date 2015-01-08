@@ -63,7 +63,7 @@ In this mode BFS was evaluated by IOZONE for write, rewrite, read, reread, rando
 
 <p><img src="http://i.imgur.com/TWq1BLL.png" alt="Read on a single node locally."></p>
 
-<p>** Write on a single node locally:**</p>
+<p><strong>Write on a single node locally:</strong></p>
 
 <p><img src="http://i.imgur.com/iVNg9e6.png" alt="Write on a single node locally."></p>
 
@@ -81,17 +81,21 @@ file will perform IO operations instructed remotely by the zero byte node. </p>
 <p>BFS implements two modes of remote communications: TCP and ZERO networking. TCP<br>
 mode was implemented by a non­blocking socket model using select IO model with Poco C++ library. ZERO mode was implemented using PF_RING library. PF_RING is a high speed packet capture library which is usually used by packet filtering applications. The main benefit of PF_RING library is capturing and sending packets without going through kernel standard data structures. BFS utilizes PF_RING to communicate among nodes in the same subnet. Due to the fact that in a subnet with Ethernet Flow­Control enabled on all nodes and switches no packet is lost, BFS has no need for a reliable transport protocol. Thus, BFS implements only a minimal transport protocol capable of multiplexing and demultiplexing different tasks simultaneously (Similar to the concept of a socket).</p>
 
-<p>Read remotely TCP:
-<img src="http://i.imgur.com/B5mHNMu.png" alt="Read Remotely TCP"></p>
+<p><strong>Read remotely TCP:</strong></p>
 
-<p>Read Remotely ZERO_Networking:
-<img src="http://i.imgur.com/femrPc4.png" alt="Read Remote Zero_Networking"></p>
+<p><img src="http://i.imgur.com/MNYOBbU.png" alt="Read Remotely TCP"></p>
 
-<p>Write remotely TCP:
-<img src="http://i.imgur.com/femrPc4.png" alt="Read Remote Zero_Networking"></p>
+<p><strong>Read Remotely ZERO_Networking:</strong></p>
 
-<p>Write Remotely ZERO_Networking:
-<img src="http://i.imgur.com/femrPc4.png" alt="Read Remote Zero_Networking"></p>
+<p><img src="http://i.imgur.com/9Uwootz.png" alt="Read Remote Zero_Networking"></p>
+
+<p><strong>Write remotely TCP:</strong></p>
+
+<p><img src="http://i.imgur.com/kTxa76a.png" alt="Write Remote TCP"></p>
+
+<p><strong>Write Remotely ZERO_Networking:</strong></p>
+
+<p><img src="http://i.imgur.com/GdowVeQ.png" alt="Read Remote Zero_Networking"></p>
 
 <p>** Hadoop Mapreduce DFSIO Benchmark **
 Hadoop Mapreduce framework uses Hadoop Distributed File System(HDFS) as the default file system. HDFS is a highly distributed, replicated, scalable and portable file system written in JAVA. HDFS is accessed in mapreduce  applications using a standard set of libraries and it does not provide a POSIX interface;therefore, in order to use hdfs, developers need to first copy input data into hdfs and then after processing is finished copy back results from hdfs to the local filesystem. Moreover, HDFS does not support random reads and writes. Therefore,<br>
@@ -101,12 +105,19 @@ using BFS as hadoop filesystem provides many opportunities to improve the perfor
 
 <p>After replacing HDFS with BFS, hadoop DFSIO test was used to measure the improvements made by using BFS instead of HDFS. DFSIO test is a stress test originally developed by hadoop team to stress HDFS and find IO bottlenecks. DFSIO performs distributed writes and reads and reports the average IO rate. Benchmark inputs include number of files, size of each file, and block size.</p>
 
-<p>DFSIO test was performed 10 times using HDFS, BFS_TCP, and BFS_ZERO mode. The file size was set to 1 GB and number of files was set to 4.<br>
-** Write Test **
-it can be seen from the graph that both BFS TCP and BFS ZERO perform significantly better than HDFS (10X faster) with a small error bar (std). This shows that all the engaging node performed write locally (in their memory). </p>
+<p>DFSIO test was performed 10 times using HDFS, BFS_TCP, and BFS_ZERO mode. The file size was set to 1 GB and number of files was set to 4.  </p>
 
-<p>** Read test **
-There is a wide range of Avg IO rate in the read test results from 20MB to 140MB per second. This is due to the fact that some of the engaged nodes read local data (in their memory) and some of them read data in the remote nodes. This can be proved by noticing the error bar on each of data points. For example when in BFS_ZERO the avg rate is 135MB/Sec the std is almost zero meaning that all the nodes read their data locally. Similarly, when the average rate is so small 25MB/Sec the std is also significantly small meaning that all the nodes performed their read remotely. Finally, in between average IO rates such as 50MB/Sec have the highest std because some of the nodes performed their reads locally and some remotely. </p>
+<p>** Write Test **</p>
+
+<p><img src="http://i.imgur.com/5T5YZPt.png" alt="Write DFSIO"></p>
+
+<p>it can be seen from the graph that both BFS TCP and BFS ZERO perform significantly better than HDFS (10X faster) with a small error bar (std). This shows that all the engaging node performed write locally (in their memory). </p>
+
+<p>** Read test **</p>
+
+<p><img src="http://i.imgur.com/amD9U5F.png" alt="Read DFSIO"></p>
+
+<p>There is a wide range of Avg IO rate in the read test results from 20MB to 140MB per second. This is due to the fact that some of the engaged nodes read local data (in their memory) and some of them read data in the remote nodes. This can be proved by noticing the error bar on each of data points. For example when in BFS_ZERO the avg rate is 135MB/Sec the std is almost zero meaning that all the nodes read their data locally. Similarly, when the average rate is so small 25MB/Sec the std is also significantly small meaning that all the nodes performed their read remotely. Finally, in between average IO rates such as 50MB/Sec have the highest std because some of the nodes performed their reads locally and some remotely. </p>
 
 <p>Another noticeable point about read was that even though the block size was set to 16MB, non of reads were performed in 16MB and the all used a very small varying block size from 4KB to around 512KB. This can explain the low IO rate when nodes read data remotely.</p>
 
