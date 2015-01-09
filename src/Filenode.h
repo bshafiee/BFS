@@ -66,6 +66,9 @@ class FileNode: public Node {
   std::vector<char*> dataList;
   uint64_t blockIndex;
   std::atomic<bool> needSync;
+  //Flush stuff
+  std::atomic<bool> isFlushed;
+
   std::atomic<bool> mustDeleted;//To indicate this file should be deleted after being closed
   std::atomic<bool> hasInformedDelete;//To indicate if we have already informed the world about deleting this file or not(delete fucntion might be called several times on a file)
   std::atomic<bool> isRem;//indicates whether this node exist on the local RAM or on a remote machine
@@ -82,6 +85,7 @@ class FileNode: public Node {
 	//ReadBuffer* readBuffer;
 
   long write(const char *_data, int64_t _offset, int64_t _size);
+  bool flushRemote();
 public:
   FileNode(std::string _name,std::string _fullPath,bool _isDir,bool _isRemote);
   virtual ~FileNode();
@@ -157,6 +161,8 @@ public:
   bool open();
   void close(uint64_t _inodeNum);
   bool isOpen();
+  bool flush();
+  bool flushed();
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   void fillPackedStat(struct packed_stat_info &st);

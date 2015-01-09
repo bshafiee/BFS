@@ -97,6 +97,11 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     return false;
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
   LOG(DEBUG)<<"GOT: "<<node<<" to upload!How many Open?"<<node->concurrentOpen()<<" name:"<<_putEvent->fullPathBuffer;
+  //Double check if not already uploaded
+  if(node->flushed()){
+    node->close(inodeNum);
+    return true;
+  }
 
   SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
   Object *obj = nullptr;
@@ -111,17 +116,17 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     delete res;
     //release file delete lock, so they can delete it
     node->close(inodeNum);
-    return false;
+    return true;//going to be deletes so anyway say it's synced!
   }
   //If file is open just return! because if it's a write this is a waste if
   //it's a read this will slow it down!
-  if(node->concurrentOpen() > 1){
+  /*if(node->concurrentOpen() > 2){//in flush case it's once open by the app and once here
     //release file delete lock, so they can delete it
     node->setNeedSync(true);//Reschedule again
     delete res;
     node->close(inodeNum);
     return false;
-  }
+  }*/
 
 
   bool shouldDeleteOBJ = false;
@@ -157,7 +162,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     delete res;
     if(shouldDeleteOBJ)delete obj;
     node->close(inodeNum);
-    return false;
+    return true;
   }
 
 
@@ -173,7 +178,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   }
 
   //Ready to write (write each time a blocksize)
-  uint64_t buffSize = 1024l*1024l*10l;
+  uint64_t buffSize = 1024ll*1024ll*10ll;
   char *buff = new char[buffSize];//10MB buffer
   size_t offset = 0;
   long read = 0;
@@ -187,7 +192,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       delete []buff;
       buff = nullptr;
       node->close(inodeNum);
-      return false;
+      return true;
     }
 
     if(node->mustBeDeleted()){//Check Delete
@@ -197,7 +202,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
       delete []buff;
       buff = nullptr;
       node->close(inodeNum);
-      return false;
+      return true;
     }
 
     //get lock delete so file won't be deleted
@@ -217,7 +222,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     delete res;
     if(shouldDeleteOBJ) delete obj;
     node->close(inodeNum);
-    return false;
+    return true;
   }
 
   //Now send object

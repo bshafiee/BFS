@@ -158,6 +158,7 @@ string getNameFromPath(const string &_path) {
 }
 
 FileNode* FileSystem::mkFile(const string &_path,bool _isRemote,bool _open) {
+  TIMED_FUNC(objname2);
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start
@@ -485,6 +486,9 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
 }
 
 bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
+  //TIMED_FUNC(objname);
+  Timer t;
+  t.begin();
   //Grab locks
   lock_guard<recursive_mutex> lk(deleteQueueMutex);
   lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
@@ -542,16 +546,24 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
         UploadQueue::getInstance().push(
             new SyncEvent(SyncEventType::DELETE,_node->getFullPath()));
 
+  t.end();
+  //LOG(INFO)<<"Before publish:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
+  t.begin();
   //4)) Inform rest of World that I'm gone
   if(!_node->isRemote())
     if(!_node->hasInformedDelete)//Only once
       ZooHandler::getInstance().publishListOfFiles();
-
+  t.end();
+  //LOG(INFO)<<"Publish took:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
+  t.begin();
   bool resultRemote = true;
   if(_node->isRemote() && _informRemoteOwner)
     if(!_node->hasInformedDelete){
       resultRemote = _node->rmRemote();
     }
+  t.end();
+  //LOG(INFO)<<"REMOVE REMOTE TOOK:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
+
 
   _node->hasInformedDelete = true;
   //5) if is open just return and we'll come back later
@@ -586,8 +598,12 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
     }
   //}
 
+  t.begin();
   //Actual release of memory!
   delete _node;//this will recursively call signalDelete on all kids of this node
+  t.end();
+  //LOG(INFO)<<"Recursive delete took:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
+
 
   return resultRemote;
 }

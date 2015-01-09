@@ -48,6 +48,7 @@ taskMap<uint32_t,ReadRcvTask*> BFSNetwork::readRcvTasks(2000);
 taskMap<uint32_t,WriteDataTask> BFSNetwork::writeDataTasks(2000);
 taskMap<uint32_t,ReadRcvTask*> BFSNetwork::attribRcvTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::deleteSendTasks(2000);
+taskMap<uint32_t,WriteSndTask*> BFSNetwork::flushSendTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::truncateSendTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::createSendTasks(2000);
 taskMap<uint32_t,MoveConfirmTask*> BFSNetwork::moveConfirmSendTasks(1000);
@@ -98,7 +99,7 @@ bool BFSNetwork::startNetwork() {
   sndThread = new thread(sendLoop);
   //Start Move Loop
   moveThread = new thread(moveLoop);
-
+/*
   //Setup filtering rules
   //1)Forward BFS packets
   filtering_rule ruleBFS;
@@ -120,7 +121,7 @@ bool BFSNetwork::startNetwork() {
     LOG(FATAL)<<"Failed to add filtering ruleDROPALL.";
   else
     LOG(INFO)<<"Filtering ruleDROPALL added successfully.";
-
+*/
 	return true;
 }
 
@@ -500,6 +501,10 @@ static inline BFS_OPERATION toBFSOperation(uint32_t op){
       return BFS_OPERATION::CREATE_REQUEST;
     case 13:
       return BFS_OPERATION::CREATE_RESPONSE;
+    case 14:
+      return BFS_OPERATION::FLUSH_REQUEST;
+    case 15:
+      return BFS_OPERATION::FLUSH_RESPONSE;
 	}
 	return BFS_OPERATION::UNKNOWN;
 }
@@ -531,19 +536,16 @@ void BFSNetwork::rcvLoop() {
 			continue;
 		}
 		//rcv++;
-		/*
+
     //Return not a valid packet of our protocol!
     if(_packet[PROTO_BYTE_INDEX1] != BFS_PROTO_BYTE1 ||
        _packet[PROTO_BYTE_INDEX2] != BFS_PROTO_BYTE2 ){
-      printf("Byte[%d]=%.2x,Byte[%d]=%.2x\n",PROTO_BYTE_INDEX1,
-          _packet[PROTO_BYTE_INDEX1],PROTO_BYTE_INDEX2,_packet[PROTO_BYTE_INDEX2]);
+      //printf("Byte[%d]=%.2x,Byte[%d]=%.2x\n",PROTO_BYTE_INDEX1,
+          //_packet[PROTO_BYTE_INDEX1],PROTO_BYTE_INDEX2,_packet[PROTO_BYTE_INDEX2]);
       //notmine++;
       continue;
     }
 
-    printf("Byte[%d]=%.2x,Byte[%d]=%.2x\n",PROTO_BYTE_INDEX1,
-              _packet[PROTO_BYTE_INDEX1],PROTO_BYTE_INDEX2,_packet[PROTO_BYTE_INDEX2]);
-*/
 		//return if it's not of our size
 		if(_header.len != (unsigned int)MTU) {
 		  LOG(ERROR)<<"Fragmentation! dropping. CapLen:"<<_header.caplen <<"Len:"<<_header.len;
@@ -619,6 +621,12 @@ void BFSNetwork::rcvLoop() {
         break;
       case BFS_OPERATION::CREATE_RESPONSE:
         onCreateResPacket(_packet);
+        break;
+      case BFS_OPERATION::FLUSH_REQUEST:
+        onFlushReqPacket(_packet);
+        break;
+      case BFS_OPERATION::FLUSH_RESPONSE:
+        onFlushResPacket(_packet);
         break;
 			default:
 			  LOG(ERROR)<<"UNKNOWN OPCODE:"<<opCode;
@@ -1249,6 +1257,8 @@ void BFSNetwork::onDeleteResPacket(const u_char* _packet) {
   else
     deleteTask->acked = false;
 
+  deleteTask->size = size;
+
   deleteTask->ack_ready = true;
   lk.unlock();
   deleteTask->ack_cv.notify_one();
@@ -1313,7 +1323,7 @@ bool BFSNetwork::deleteRemoteFile(const std::string& _remoteFile,
   if(!task.ack_ready){
     //printf("DeleteRequest Timeout: fileID%d ElapsedMILLIS:%f\n",task.fileID,t.elapsedMillis());
   }
-  if(!task.acked && task.size == 0)
+  if(!task.acked || task.size == 0)
     LOG(ERROR)<<"DeleteRequest failed: "<<task.remoteFile;
 
   ack_lk.unlock();
@@ -1637,6 +1647,138 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
     createSendTasks.erase(resPair.first);
     return task.acked;
   }
+}
+
+void BFSNetwork::onFlushReqPacket(const u_char* _packet) {
+  WriteReqPacket *reqPacket = (WriteReqPacket*)_packet;
+  //Local file
+  string fileName = string(reqPacket->fileName);
+  uint32_t fileID = ntohl(reqPacket->fileID);
+
+  //Response Packet
+  char buffer[MTU];
+  WriteDataPacket *flushAck = (WriteDataPacket *)buffer;
+  fillBFSHeader((char*)flushAck,reqPacket->srcMac);
+  flushAck->opCode = htonl((uint32_t)BFS_OPERATION::FLUSH_RESPONSE);
+  //set fileID
+  flushAck->fileID = htonl(fileID);
+
+  //Size == 0 means failed! greater than 0 means success
+  flushAck->size = 0;//zero is zero anyway
+
+  //Find file and lock it!
+  FileNode* fNode = FileSystem::getInstance().findAndOpenNode(fileName);
+  if(fNode == nullptr) {
+    //Now send packet on the wire
+    if(!ZeroNetwork::send(buffer,MTU)) {
+      LOG(ERROR)<<"Failed to send flushAckpacket.";
+    }
+    LOG(ERROR)<<"File Not found:"<<fileName;
+    return;
+  }
+  //Assign inode and close it
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+  LOG(DEBUG)<<"FLUSH FROM BFSNetwork:"<<fNode->getFullPath();
+  bool resFlush = fNode->flush();
+  fNode->close(inodeNum);
+  if(resFlush){
+    flushAck->size = htobe64(1);
+  }
+  //Send the ack on the wires
+  if(!ZeroNetwork::send(buffer,MTU)) {
+    LOG(ERROR)<<"Failed to send flushAckpacket.";
+  }
+}
+
+void BFSNetwork::onFlushResPacket(const u_char* _packet) {
+  WriteDataPacket *resPacket = (WriteDataPacket*)_packet;
+  //Find write sendTask
+  uint32_t fileID = ntohl(resPacket->fileID);
+  uint64_t size = be64toh(resPacket->size);
+
+  auto taskIt = flushSendTasks.find(fileID);
+  flushSendTasks.lock();
+  if(taskIt == flushSendTasks.end()) {
+    LOG(ERROR)<<"No valid Task found. fileID:"<<fileID;
+    flushSendTasks.unlock();
+    return;
+  }
+  WriteSndTask* flushTask = (WriteSndTask*)taskIt->second;
+
+  //Signal
+  unique_lock<mutex> lk(flushTask->ack_m);
+  if(size > 0)
+    flushTask->acked = true;
+  else
+    flushTask->acked = false;
+
+  flushTask->size = size;
+
+  flushTask->ack_ready = true;
+  lk.unlock();
+  flushTask->ack_cv.notify_one();
+
+  flushSendTasks.unlock();
+}
+
+bool BFSNetwork::flushRemoteFile(const std::string& _remoteFile,
+    const unsigned char _dstMAC[6]) {
+
+  if(_remoteFile.length() > DATA_LENGTH){
+    LOG(ERROR)<<"Filename too long!";
+    return false;
+  }
+
+  //Create a new task
+  WriteSndTask task;
+  task.srcBuffer = nullptr;
+  task.size = 0;
+  task.offset = 0;
+  task.fileID = getNextFileID();
+  task.remoteFile = _remoteFile;
+  task.acked = false;
+  memcpy(task.dstMac,_dstMAC,6);
+  task.ready = false;
+  task.ack_ready = false;
+
+  //First Send a write request
+  char buffer[MTU];
+  WriteReqPacket *flushReqPkt = (WriteReqPacket*)buffer;
+  fillWriteReqPacket(flushReqPkt,task.dstMac,task);
+  flushReqPkt->opCode = htonl((uint32_t)BFS_OPERATION::FLUSH_REQUEST);
+
+  //Put it on the flushSendTask map!
+  auto resPair = flushSendTasks.insert(task.fileID,&task);
+  if(!resPair.second) {
+    LOG(ERROR)<<"error in inserting task to flushSendTas! size:"<<flushSendTasks.size();
+    return false;
+  }
+
+  //Now send packet on the wire
+  if(!ZeroNetwork::send(buffer,MTU)) {
+    LOG(ERROR)<<"Failed to send flushReqpacket.";
+    flushSendTasks.erase(resPair.first);
+    return false;
+  }
+
+  //Timer t;
+  unique_lock<mutex> ack_lk(task.ack_m);
+  //t.begin();
+  //Now wait for the ACK!
+  while(!task.ack_ready) {
+    //task.ack_cv.wait_for(ack_lk,chrono::milliseconds(ACK_TIMEOUT));
+    task.ack_cv.wait(ack_lk);
+    //t.end();
+    if(!task.ack_ready)
+      ack_lk.unlock();
+  }
+
+  if(!task.acked || task.size == 0)
+    LOG(ERROR)<<"FlushRequest failed: "<<task.remoteFile;
+
+  ack_lk.unlock();
+  flushSendTasks.erase(resPair.first);
+  return task.acked;
 }
 
 } /* namespace FUSESwift */

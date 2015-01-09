@@ -413,6 +413,7 @@ void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
 }
 
 void ZooHandler::publishListOfFiles() {
+  //TIMED_FUNC(objname3);
 	if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
 		return;
 	if (sessionState != ZOO_CONNECTED_STATE
@@ -453,6 +454,8 @@ void ZooHandler::publishListOfFiles() {
       MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
 
 	//Send data
+  {
+  //TIMED_SCOPE(timerBlkObj, "SET PUBLISH for:"+to_string(listOfFiles.size())+" took:");
 	string str = zooNode.toString();
 	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
 	    str.length(), -1);
@@ -463,6 +466,7 @@ void ZooHandler::publishListOfFiles() {
 	}
 
 	LOG(DEBUG)<<"publishListOfFiles successfully:"<<str;
+  }
 }
 
 std::vector<ZooNode> ZooHandler::getGlobalView() {

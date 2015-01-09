@@ -480,11 +480,16 @@ int swift_flush(const char* path, struct fuse_file_info* fi) {
   if(DEBUG_FLUSH)
     LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi;
   int retstat = 0;
-  //Get associated FileNode*
-  //FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
-  //LOG(ERROR)<<"FLUSH is not implemeted! path="<<(path==nullptr?"null":path)<<" fi->fh="<<fi->fh;
 
-  return retstat;
+  //Get associated FileNode*
+  FileNode* node = (FileNode*)FileSystem::getInstance().getNodeByINodeNum(fi->fh);
+
+  if(node->flush())
+    return retstat;
+  else{
+    LOG(ERROR)<<"Flush failed for:"<<node->getFullPath();
+    return -EIO;
+  }
 }
 
 int swift_release(const char* path, struct fuse_file_info* fi) {

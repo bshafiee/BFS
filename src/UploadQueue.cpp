@@ -136,8 +136,7 @@ bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
       //Check if there is another delete or update in the queue coming
       for(uint i=0;i<list.size();i++) {
         SyncEvent *upcomingEvent = list[i];
-        if(upcomingEvent->type == SyncEventType::DELETE ||
-            upcomingEvent->type == SyncEventType::UPDATE_CONTENT)
+        if(upcomingEvent->type == SyncEventType::DELETE)
           if(upcomingEvent->fullPathBuffer == _event.fullPathBuffer) {
             //printf("SAVED a UPLOAD OPERATION FullBuffer:%s\n",_event.fullPathBuffer.c_str());
             return false;

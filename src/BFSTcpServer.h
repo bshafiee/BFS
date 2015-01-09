@@ -77,6 +77,8 @@ public:
       const std::string &remoteFile,  const std::string &_ip,uint _port);
   static int64_t deleteRemoteFile(const std::string &remoteFile,
       const std::string &_ip,uint _port);
+  static int64_t flushRemoteFile(const std::string &remoteFile,
+      const std::string &_ip,uint _port);
   static int64_t truncateRemoteFile(const std::string& _remoteFile,
       size_t _newSize,const std::string& _ip, uint _port);
   static int64_t createRemoteFile(const std::string &remoteFile,

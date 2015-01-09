@@ -33,10 +33,11 @@ using namespace std;
 
 namespace FUSESwift {
 
-FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):Node(_name,_fullPath),
-    isDir(_isDir),size(0),refCount(0),blockIndex(0), needSync(false),
-    mustDeleted(false), hasInformedDelete(false),isRem(_isRemote),
-    mustInformRemoteOwner(true), moving(false), remoteIP(""),remotePort(0) {
+FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):
+    Node(_name,_fullPath),isDir(_isDir),size(0),refCount(0),blockIndex(0),
+    needSync(false), isFlushed(true), mustDeleted(false),
+    hasInformedDelete(false), isRem(_isRemote), mustInformRemoteOwner(true),
+    moving(false), remoteIP(""),remotePort(0) {
 	/*if(_isRemote)
 		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
@@ -404,8 +405,7 @@ void FileNode::close(uint64_t _inodeNum) {
     LOG(ERROR)<<"SPURIOUS CLOSE:"<<key<<" ptr:"<<this;
   }
   if(refCount == 0) {
-  	//If all refrences to this files are deleted so it can be deleted
-
+  	//If all references to this files are deleted so it can be deleted
   	if(mustDeleted){
   	  LOG(DEBUG)<<"SIGNAL FROM CLOSE KEY:"<<getFullPath()<<" isOpen?"<<refCount<<" isRemote():"<<isRemote()<<" ptr:"<<this;
   	  FileSystem::getInstance().signalDeleteNode(this,mustInformRemoteOwner);//It's close now! so will be removed
@@ -436,6 +436,8 @@ bool FUSESwift::FileNode::getNeedSync() {
 
 void FUSESwift::FileNode::setNeedSync(bool _need) {
   needSync = _need;
+  if(needSync)
+    isFlushed = false;
   //LOG(ERROR)<<"NeedSync:"<<_need<<" for:"<<key;
 }
 
@@ -507,7 +509,7 @@ bool FileNode::getStat(struct stat *stbuff) {
 #ifdef BFS_ZERO
 		bool res = BFSNetwork::readRemoteFileAttrib(&packedSt,this->getFullPath(),remoteHostMAC);
 #else
-		bool res = BFSTcpServer::attribRemoteFile(&packedSt,this->getFullPath(),remoteIP,remotePort);
+		bool res = BFSTcpServer::attribRemoteFile(&packedSt,this->getFullPath(),remoteIP,remotePort)==200;
 #endif
 		fillStatWithPacket(*stbuff,packedSt);
 
@@ -615,13 +617,13 @@ long FileNode::writeRemote(const char* _data, int64_t _offset, int64_t _size) {
 	if(_size == 0)
 	  return 0;
 #ifdef BFS_ZERO
-	unsigned long written = BFSNetwork::writeRemoteFile(
+	int64_t written = BFSNetwork::writeRemoteFile(
 	    _data,_size,_offset,this->getFullPath(),remoteHostMAC);
 #else
 	int64_t written = BFSTcpServer::writeRemoteFile(
 	      _data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
 #endif
-	if(written!=(uint64_t)_size)
+	if(written!=_size)
 	  return -3;//ACK error
 	else
 	  return written;
@@ -631,7 +633,7 @@ bool FileNode::rmRemote() {
 #ifdef BFS_ZERO
   return BFSNetwork::deleteRemoteFile(getFullPath(),remoteHostMAC);
 #else
-  return BFSTcpServer::deleteRemoteFile(getFullPath(),remoteIP,remotePort);
+  return BFSTcpServer::deleteRemoteFile(getFullPath(),remoteIP,remotePort) == 200;
 #endif
 }
 
@@ -639,7 +641,7 @@ bool FileNode::truncateRemote(int64_t size) {
 #ifdef BFS_ZERO
   return BFSNetwork::truncateRemoteFile(getFullPath(),size, remoteHostMAC);
 #else
-  return BFSTcpServer::truncateRemoteFile(getFullPath(),size, remoteIP,remotePort);
+  return BFSTcpServer::truncateRemoteFile(getFullPath(),size, remoteIP,remotePort) == 200;
 #endif
 }
 
@@ -778,6 +780,30 @@ void FileNode::fillPackedStat(struct packed_stat_info& st) {
   st.st_ctim = this->getCTime();
 }
 
-} //namespace
+bool FileNode::flush() {
+  if(isRemote())
+    return flushRemote();
 
+  if(isFlushed)
+    return true;
 
+  Backend *backend = BackendManager::getActiveBackend();
+  if(!backend)
+    LOG(ERROR)<<"NO backend for flushing.";
+  isFlushed = backend->put(new SyncEvent(SyncEventType::UPDATE_CONTENT,this->getFullPath()));
+  return isFlushed;
+}
+
+bool FileNode::flushRemote() {
+#ifdef BFS_ZERO
+  return BFSNetwork::flushRemoteFile(getFullPath(), remoteHostMAC);
+#else
+  return BFSTcpServer::flushRemoteFile(getFullPath(), remoteIP,remotePort) == 200;
+#endif
+}
+
+bool FileNode::flushed() {
+  return isFlushed;
+}
+
+}//namespace

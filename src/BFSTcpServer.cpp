@@ -222,7 +222,7 @@ int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
   try {
     socket.close();
   } catch(...){}
-  return resPacket.statusCode;
+  return -resPacket.statusCode;
 }
 
 int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
@@ -367,7 +367,7 @@ int64_t BFSTcpServer::attribRemoteFile(struct packed_stat_info* attBuff,
       if(total != resPacket.attribSize)
         return -4;
       else
-        return total;
+        return 200;
     }catch(Exception &e){
       LOG(ERROR)<<"Error in receiving attrib status packet"<<_remoteFile<<": "<<e.message();
       try{
@@ -423,6 +423,59 @@ int64_t BFSTcpServer::deleteRemoteFile(const std::string& remoteFile,
     socket.receiveBytes((void*)&resPacket,sizeof(DeleteResPacket));
   }catch(Exception &e){
     LOG(ERROR)<<"Error in receiving Delete status packet"<<remoteFile<<": "<<e.message();
+    try{
+      socket.close();
+    }catch(...){}
+    return -2;
+  }
+
+  try {
+    socket.close();
+  } catch(...){}
+  resPacket.statusCode = be64toh(resPacket.statusCode);
+  return resPacket.statusCode;
+}
+
+int64_t BFSTcpServer::flushRemoteFile(const std::string& remoteFile,
+    const std::string& _ip, uint _port) {
+  if(remoteFile.length() > 1024){
+      LOG(ERROR)<<"Filename too long!";
+    return false;
+  }
+
+  StreamSocket socket;
+  try {
+   SocketAddress addres(_ip,_port);
+   socket.connect(addres);
+   socket.setKeepAlive(true);
+  }catch(Exception &e){
+   LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
+   return -2;
+  }
+
+  //Create a request
+  FlushReqPacket flushReqPacket;
+  strncpy(flushReqPacket.fileName,remoteFile.c_str(),remoteFile.length());
+  flushReqPacket.fileName[remoteFile.length()]= '\0';
+  flushReqPacket.opCode = htonl((uint32_t)BFS_REMOTE_OPERATION::FLUSH);
+
+  //Send Packet
+  try {
+   socket.sendBytes((void*)&flushReqPacket,sizeof(FlushReqPacket));
+  }catch(Exception &e){
+   LOG(ERROR)<<"Error in sending flush request"<<remoteFile<<": "<<e.message();
+   try {
+     socket.close();
+   }catch(...){}
+   return -2;
+  }
+
+  //Now Flush Status
+  FlushResPacket resPacket;
+  try {
+    socket.receiveBytes((void*)&resPacket,sizeof(FlushResPacket));
+  }catch(Exception &e){
+    LOG(ERROR)<<"Error in receiving Flush status packet"<<remoteFile<<": "<<e.message();
     try{
       socket.close();
     }catch(...){}

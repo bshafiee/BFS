@@ -41,6 +41,7 @@ struct __attribute__ ((__packed__)) ReqPacket {
   char fileName[1024];//MTU-38 Bytes
 };
 typedef ReqPacket DeleteReqPacket;
+typedef ReqPacket FlushReqPacket;
 typedef ReqPacket AttribReqPacket;
 typedef ReqPacket CreateReqPacket;
 typedef ReqPacket MoveReqPacket;
@@ -63,6 +64,7 @@ struct __attribute__ ((__packed__)) AttribResPacket: public ResPacket {
 
 typedef ResPacket WriteResPacket;
 typedef ResPacket DeleteResPacket;
+typedef ResPacket FlushResPacket;
 typedef ResPacket TruncateResPacket;
 typedef ResPacket CreateResPacket;
 typedef ResPacket MoveResPacket;
@@ -75,7 +77,7 @@ struct __attribute__ ((__packed__)) ReadResPacket: public ResPacket {
 enum class BFS_REMOTE_OPERATION {
   READ = 1, WRITE = 2, ATTRIB = 3,
   DELETE = 4, TRUNCATE = 5, CREATE = 6,
-  MOVE = 7, UNKNOWN = 0
+  MOVE = 7, FLUSH = 8, UNKNOWN = 0
 };
 
 
@@ -116,6 +118,7 @@ class BFSTcpServiceHandler {
   void onWriteRequest(u_char *_packet);
   void onAttribRequest(u_char *_packet);
   void onDeleteRequest(u_char *_packet);
+  void onFlushRequest(u_char *_packet);
   void onTruncateRequest(u_char *_packet);
   void onCreateRequest(u_char *_packet);
   void onMoveRequest(u_char *_packet);

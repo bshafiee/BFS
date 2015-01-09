@@ -98,6 +98,7 @@ BFS_REMOTE_OPERATION BFSTcpServiceHandler::toBFSRemoteOperation(
   case 5: return BFS_REMOTE_OPERATION::TRUNCATE;
   case 6: return BFS_REMOTE_OPERATION::CREATE;
   case 7: return BFS_REMOTE_OPERATION::MOVE;
+  case 8: return BFS_REMOTE_OPERATION::FLUSH;
   //Invalid
   default: return BFS_REMOTE_OPERATION::UNKNOWN;
   }
@@ -156,6 +157,10 @@ void BFSTcpServiceHandler::onReadable(
       case BFS_REMOTE_OPERATION::MOVE:
         socket.receiveBytes(_packet+sizeof(reqPacket.opCode),sizeof(MoveReqPacket)-sizeof(reqPacket.opCode));
         onMoveRequest(_packet);
+        break;
+      case BFS_REMOTE_OPERATION::FLUSH:
+        socket.receiveBytes(_packet+sizeof(reqPacket.opCode),sizeof(MoveReqPacket)-sizeof(reqPacket.opCode));
+        onFlushRequest(_packet);
         break;
       default:
         LOG(ERROR)<<"UNKNOWN OPCODE:"<<opCode;
@@ -380,9 +385,10 @@ void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
   if(fNode!=nullptr && !fNode->isRemote()) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     LOG(DEBUG)<<"SIGNAL DELETE FROM DELETE TCP REQUEST:"<<fNode->getFullPath();
-    FUSESwift::FileSystem::getInstance().signalDeleteNode(fNode,false);
+    bool res = FUSESwift::FileSystem::getInstance().signalDeleteNode(fNode,false);
     fNode->close(inodeNum);
-    resPacket.statusCode = htobe64(200);
+    if(res)
+      resPacket.statusCode = htobe64(200);
   } else if(fNode!=nullptr && fNode->isRemote()) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     fNode->close(inodeNum);
@@ -585,3 +591,36 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
   return -7;
 }
 
+void BFSTcpServiceHandler::onFlushRequest(u_char* _packet) {
+  FlushReqPacket *reqPacket = (FlushReqPacket*)_packet;
+  string fileName = string(reqPacket->fileName);
+
+  FlushResPacket resPacket;
+  resPacket.statusCode = htobe64(-1);
+
+  //Find node
+  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  if(fNode!=nullptr && !fNode->isRemote()) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    LOG(DEBUG)<<"FLUSH FROM TCP REQUEST:"<<fNode->getFullPath();
+    bool res = fNode->flush();
+    fNode->close(inodeNum);
+    if(res)
+      resPacket.statusCode = htobe64(200);
+  } else if(fNode!=nullptr && fNode->isRemote()) {
+    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    fNode->close(inodeNum);
+    LOG(ERROR)<<"Error! got a flush request for a node which "
+        "I'm not responsible for:"<<fileName;
+  } else {
+    LOG(ERROR)<<"Error! got a flush request for a non existent node"
+        <<fileName;
+  }
+
+  try {
+    socket.sendBytes((void*)&resPacket,sizeof(FlushResPacket));
+  } catch(...){
+    LOG(ERROR)<<"Error in sending Flush response:"<<fileName;
+    delete this;
+  }
+}

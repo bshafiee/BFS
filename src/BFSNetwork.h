@@ -370,7 +370,8 @@ enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2,
 													ATTRIB_RESPONSE = 7, DELETE_REQUEST = 8,
 													DELETE_RESPONSE = 9, TRUNCATE_REQUEST = 10,
 													TRUNCATE_RESPONSE = 11, CREATE_REQUEST = 12,
-													CREATE_RESPONSE = 13, UNKNOWN = 0};
+													CREATE_RESPONSE = 13, FLUSH_REQUEST = 14,
+													FLUSH_RESPONSE = 15, UNKNOWN = 0};
 
 class BFSNetwork : ZeroNetwork{
 private:
@@ -394,6 +395,7 @@ private:
 	static taskMap<uint32_t,WriteDataTask> writeDataTasks;
 	static taskMap<uint32_t,WriteSndTask*> writeSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> deleteSendTasks;
+	static taskMap<uint32_t,WriteSndTask*> flushSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> truncateSendTasks;
 	static taskMap<uint32_t,WriteSndTask*> createSendTasks;
 	static taskMap<uint32_t,MoveConfirmTask*> moveConfirmSendTasks;
@@ -440,6 +442,9 @@ private:
   static void onDeleteReqPacket(const u_char *_packet);
   static void onDeleteResPacket(const u_char *_packet);
 	/** Rename Operation **/
+  /** Flush Operation **/
+  static void onFlushReqPacket(const u_char *_packet);
+  static void onFlushResPacket(const u_char *_packet);
 public:
 	virtual ~BFSNetwork();
 	/** Public interface **/
@@ -475,6 +480,8 @@ public:
 	static bool truncateRemoteFile(const std::string &_remoteFile, size_t _newSize, const unsigned char _dstMAC[6]);
 
 	static bool createRemoteFile(const std::string &_remoteFile, const unsigned char _dstMAC[6]);
+
+	static bool flushRemoteFile(const std::string &_remoteFile, const unsigned char _dstMAC[6]);
 
 	static const unsigned char* getMAC();
 
