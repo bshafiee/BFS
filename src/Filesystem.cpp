@@ -158,7 +158,7 @@ string getNameFromPath(const string &_path) {
 }
 
 FileNode* FileSystem::mkFile(const string &_path,bool _isRemote,bool _open) {
-  TIMED_FUNC(objname2);
+  //TIMED_FUNC(objname2);
   FileNode* parent = traversePathToParent(_path);
   string name = getNameFromPath(_path);
   //Now parent node is start

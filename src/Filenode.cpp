@@ -788,8 +788,10 @@ bool FileNode::flush() {
     return true;
 
   Backend *backend = BackendManager::getActiveBackend();
-  if(!backend)
-    LOG(ERROR)<<"NO backend for flushing.";
+  if(!backend){
+    LOG(ERROR)<<"No backend for flushing.";
+    return true;
+  }
   isFlushed = backend->put(new SyncEvent(SyncEventType::UPDATE_CONTENT,this->getFullPath()));
   return isFlushed;
 }

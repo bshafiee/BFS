@@ -1,12 +1,12 @@
-#Mode determines wether to operate in DISTRIBUTED, STANDALONE_SWIFT or STANDALONE mode 
-mode = DISTRIBUTED
+#Mode determines wether to operate in DISTRIBUTED, STANDALONE_SWIFT or STANDALONE mode
+mode = STANDALONE
 #Swift Authentication info
 username = admin
 password = behrooz
 auth_url = http://10.42.0.83:5000/v2.0/tokens
 tenant_name = admin
 #what percentage of system memory to use? (0,1]
-max_mem_coef = 0.00005;
+max_mem_coef = 0.7;
 #zero networking device
 network_dev=eth2
 #tcp port
@@ -16,4 +16,4 @@ zoo_server_url=192.168.249.105:2181,192.168.249.101:2181,10.42.0.97:2181,10.42.0
 zoo_election_znode=/BFSElection
 zoo_assignment_znode=/BFSTasks
 #Debug SWIFT_CPP_SDK
-debug_swift_cpp_sdk = true
+debug_swift_cpp_sdk = false

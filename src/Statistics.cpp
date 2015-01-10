@@ -31,13 +31,13 @@ Statistics::~Statistics() {}
 
 void Statistics::logStatInfo() {
 	LOG(INFO)<<"\nSuccessful Reads Statistics:"<<endl
-			<<"\tAverage:"<<readAvg.avg()<<" bytes, "<<readAvg.avg()/(1024ll*1024ll)<<" MB"<<endl
-			<<"\tMaximum:"<<readAvg.max()<<" bytes, "<<readAvg.max()/(1024ll*1024ll)<<" MB"<<endl
-			<<"\tMinimum:"<<readAvg.min()<<" bytes, "<<readAvg.min()/(1024ll*1024ll)<<" MB"<<endl
-			<<"\tTotal:"<<readAvg.total/(1024ll*1024ll)<<" MB, "<<readAvg.total/(1024ll*1024ll*1024ll)<<" GB"<<endl;
+			<<"\tAverage Block Size:"<<readAvg.avg()<<" bytes, "<<readAvg.avg()/(1024ll*1024ll)<<" MB"<<endl
+			<<"\tMaximum Block Size:"<<readAvg.max()<<" bytes, "<<readAvg.max()/(1024ll*1024ll)<<" MB"<<endl
+			<<"\tMinimum Block Size:"<<readAvg.min()<<" bytes, "<<readAvg.min()/(1024ll*1024ll)<<" MB"<<endl
+			<<"\tTotal read bytes:"<<readAvg.total/(1024ll*1024ll)<<" MB, "<<readAvg.total/(1024ll*1024ll*1024ll)<<" GB"<<endl;
 	LOG(INFO)<<"\nSuccessful Writes Statistics:"<<endl
-			<<"\tAverage:"<<writeAvg.avg()<<" bytes, "<<writeAvg.avg()/(1024ll*1024ll)<<" MB"<<endl
-			<<"\tMaximum:"<<writeAvg.max()<<" bytes, "<<writeAvg.max()/(1024ll*1024ll)<<" MB"<<endl
-			<<"\tMinimum:"<<writeAvg.min()<<" bytes, "<<writeAvg.min()/(1024ll*1024ll)<<" MB"<<endl
-			<<"\tTotal:"<<writeAvg.total/(1024ll*1024ll)<<" MB, "<<writeAvg.total/(1024ll*1024ll*1024ll)<<" GB"<<endl;
+			<<"\tAverage Block Size:"<<writeAvg.avg()<<" bytes, "<<writeAvg.avg()/(1024ll*1024ll)<<" MB"<<endl
+			<<"\tMaximum Block Size:"<<writeAvg.max()<<" bytes, "<<writeAvg.max()/(1024ll*1024ll)<<" MB"<<endl
+			<<"\tMinimum Block Size:"<<writeAvg.min()<<" bytes, "<<writeAvg.min()/(1024ll*1024ll)<<" MB"<<endl
+			<<"\tTotal written bytes:"<<writeAvg.total/(1024ll*1024ll)<<" MB, "<<writeAvg.total/(1024ll*1024ll*1024ll)<<" GB"<<endl;
 }
