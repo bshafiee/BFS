@@ -51,6 +51,7 @@ private:
 	std::string hostPort = "10.42.0.97:2181,10.42.0.62:2182,129.97.170.232:2181";
 	const long long connectionTimeout = 5000*1000;//wait up to 5 seconds for connection
 	std::string electionZNode = "/BFSElection";
+	std::string infoZNode = "/BFSInfo";
 	std::string assignmentZNode = "/BFSTasks";
 	const char nodeDelimitter = '/';
 	ElectionState electionState;
@@ -58,6 +59,9 @@ private:
 	//A hashmap too keep track of which file is at which node!<nodeaddress,list of files>
 	std::mutex lockGlobalView;
 	std::vector<ZooNode> globalView;
+	std::mutex lockGlobalFreeView;
+  std::vector<ZooNode> globalFreeView;
+  std::string infoNodePath;
 	//Publish list of files
 	std::mutex lockPublish;
   std::vector<std::pair<std::string,bool>> cacheFileList;
@@ -85,6 +89,12 @@ private:
 	static void assignmentWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 	/** This will be called to update list of remote files in our file system **/
 	void updateRemoteFilesInFS();
+	/** update nodes free space **/
+	static void infoNodeWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
+	/** keep an eye on infoFolder as well **/
+	static void infoFolderWatcher(zhandle_t* zzh, int type, int state, const char* path, void* context);
+	/** create infoNode **/
+	void createInfoNode();
 public:
 	static ZooHandler& getInstance();
 	virtual ~ZooHandler();
@@ -101,6 +111,9 @@ public:
 	ZooNode getMostFreeNode();
 	void requestUpdateGlobalView();
 	void stopZooHandler();
+	void publishFreeSpace();
+	void updateNodesInfoView();
+	void printGlobalView();
 };
 
 }//Namespace

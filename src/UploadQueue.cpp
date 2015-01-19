@@ -55,7 +55,7 @@ void UploadQueue::stopSynchronization() {
 void UploadQueue::processEvent(const SyncEvent* _event) {
   Backend *backend = BackendManager::getActiveBackend();
   if(backend == nullptr) {
-    LOG(ERROR)<<"No active backend";
+    LOG(DEBUG)<<"No active backend";
     return;
   }
   //accessing _event->node is dangerous it may be deleted from main thread!

@@ -33,6 +33,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Filesystem.h"
 #include "Timer.h"
 #include "LoggerInclude.h"
+#include "MemoryController.h"
 
 using namespace Poco;
 using namespace Poco::Net;
@@ -44,7 +45,7 @@ using namespace std;
 BFSTcpServiceHandler::BFSTcpServiceHandler(StreamSocket& _socket,
     SocketReactor& _reactor): socket(_socket),reactor(_reactor) {
   //Set Keeep Alive for socket
-  socket.setKeepAlive(true);
+  socket.setKeepAlive(false);
 
   //Register Callbacks
   reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
@@ -55,8 +56,8 @@ BFSTcpServiceHandler::BFSTcpServiceHandler(StreamSocket& _socket,
     ShutdownNotification>(*this, &BFSTcpServiceHandler::onShutdown));
   reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
     ErrorNotification>(*this, &BFSTcpServiceHandler::onError));
-  /*reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
-    TimeoutNotification>(*this, &BFSTcpServiceHandler::onTimeout));*/
+  reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
+    TimeoutNotification>(*this, &BFSTcpServiceHandler::onTimeout));
   /*reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
     IdleNotification>(*this, &BFSTcpServiceHandler::onIdle));*/
 
@@ -73,14 +74,17 @@ BFSTcpServiceHandler::~BFSTcpServiceHandler() {
     ShutdownNotification>(*this, &BFSTcpServiceHandler::onShutdown));
   reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
     ErrorNotification>(*this, &BFSTcpServiceHandler::onError));
-  /*reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
-    TimeoutNotification>(*this, &BFSTcpServiceHandler::onTimeout));*/
-  /*reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
-    IdleNotification>(*this, &BFSTcpServiceHandler::onIdle));*/
+  reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
+    TimeoutNotification>(*this, &BFSTcpServiceHandler::onTimeout));
+  reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
+    IdleNotification>(*this, &BFSTcpServiceHandler::onIdle));
   //Close socket
   try {
+    socket.shutdown();
     socket.close();
-  }catch(...){}
+  }catch(Exception &e){
+    LOG(ERROR)<<"ERROR IN CLOSING CONNECTION";
+  }
 }
 
 BFS_REMOTE_OPERATION BFSTcpServiceHandler::toBFSRemoteOperation(
@@ -106,7 +110,7 @@ BFS_REMOTE_OPERATION BFSTcpServiceHandler::toBFSRemoteOperation(
 
 void BFSTcpServiceHandler::onReadable(
     const Poco::AutoPtr<Poco::Net::ReadableNotification>& pNf) {
-  //LOG(ERROR)<<"onReadable:"<<socket.peerAddress().toString();
+  //LOG(ERROR)<<"onReadable:"<<socket.peerAddress().toString()<<" availBytes:"<<socket.available();
 
   //Read First Packet to Figure out
   int len = 2000;
@@ -126,7 +130,7 @@ void BFSTcpServiceHandler::onReadable(
     //Check opcode
     uint32_t opCode = ntohl(reqPacketPtr->opCode);
 
-
+//LOG(ERROR)<<"opcode:"<<opCode;
     switch(toBFSRemoteOperation(opCode)) {
       case BFS_REMOTE_OPERATION::READ:
         //Read the rest of request packet
@@ -192,17 +196,17 @@ void BFSTcpServiceHandler::onWriteable(
 
 void BFSTcpServiceHandler::onTimeout(
     const Poco::AutoPtr<Poco::Net::TimeoutNotification>& pNf) {
-  LOG(ERROR)<<"onTimeout:"<<socket.peerAddress().toString();
+  LOG(ERROR)<<"\nTIMEOUT! onTimeout:"<<socket.peerAddress().toString();
 }
 
 void BFSTcpServiceHandler::onError(
     const Poco::AutoPtr<Poco::Net::ErrorNotification>& pNf) {
-  LOG(ERROR)<<"onError:"<<socket.peerAddress().toString();
+  LOG(ERROR)<<"\nERROR! onError:"<<socket.peerAddress().toString();
 }
 
 void BFSTcpServiceHandler::onIdle(
     const Poco::AutoPtr<Poco::Net::IdleNotification>& pNf) {
-  LOG(ERROR)<<"onIdle:"<<socket.peerAddress().toString();
+  LOG(ERROR)<<"\nIDLE! onIdle:"<<socket.peerAddress().toString();
 }
 
 void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
@@ -300,10 +304,12 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
       } while(left > 0 && count);
       if(total == reqPacket->size){//Success
         FUSESwift::FileNode* afterMove = nullptr;//If it does not fit in out memory
-        long result = fNode->writeHandler(buff,reqPacket->offset,reqPacket->size,afterMove);
+        long result = fNode->writeHandler(buff,reqPacket->offset,reqPacket->size,afterMove,true);
         if(afterMove)
           fNode = afterMove;
         writeResPacket.statusCode = htobe64(result);
+        if(result != (int64_t)reqPacket->size)
+          LOG(ERROR)<<"RemoteWrite To this Node failed! for("<<reqPacket->fileName<<" size:"<<reqPacket->size<<" returned code:"<<result;
       }else
         LOG(ERROR)<<"reading write data failed:total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available();
     }catch(Exception &e){
@@ -344,6 +350,10 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
     fNode->fillPackedStat(data);
 
     fNode->close(inodeNum);
+  }else{
+    LOG(ERROR)<<"Cannot find the requested file for attrib:"<<fileName;
+    resPacket.statusCode = htobe64(-2);
+    resPacket.attribSize = 0;
   }
 
   try {
@@ -366,6 +376,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
           break;
         }
       }while(left);
+      LOG(INFO)<<"Attrib request for:"<<fileName<<" isRemote:"<<fNode->isRemote();
     } catch(...){
       LOG(ERROR)<<"Error in sending attrib response:"<<fileName;
       delete this;
@@ -503,7 +514,7 @@ void BFSTcpServiceHandler::onMoveRequest(u_char *_packet) {
     if(existing->isRemote()) {//I'm not responsible! I should not have seen this.
       //Close it!
       existing->close(inodeNum);
-      LOG(ERROR)<<"Going to move file:"<<fileName<<" to here!";
+      LOG(INFO)<<"Going to move file:"<<fileName<<" to here!";
 
       //Handle Move file to here!
       resPacket.statusCode = htobe64(processMoveRequest(fileName));
@@ -533,9 +544,13 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)file);
     //3)check size
     struct stat st;
+    LOG(INFO)<<"getting attrib for file:"<<file->getName()<<" isRemote:"<<file->isRemote()<<" remoteIP:"<<file->getRemoteHostIP();
     if(file->getStat(&st)) {
+      LOG(INFO)<<"got remot attrib successfuly for file:"<<file->getName()<<" isRemote:"<<file->isRemote()<<" remoteIP:"<<file->getRemoteHostIP();
       //If we have enough space (2 times of current space
-      if(st.st_size * 2 < FUSESwift::MemoryContorller::getInstance().getAvailableMemory()) {
+      if(FUSESwift::MemoryContorller::getInstance().claimMemory(st.st_size*2ll)) {
+        //inform claimed memory
+        FUSESwift::ZooHandler::getInstance().publishFreeSpace();
         //4) we have space to start to read the file
         uint64_t bufferLen = 1024ll*1024ll*100ll;//100MB
         char *buffer = new char[bufferLen];
@@ -546,12 +561,15 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
           if(read <= 0 )
             break;
           FUSESwift::FileNode* afterMove;//This won't happen(should not)
-          if(read != file->writeHandler(buffer,offset,read,afterMove))//error in writing
+          if(read != file->writeHandler(buffer,offset,read,afterMove,false))//error in writing
             break;
           left -= read;
           offset += read;
         }
         delete []buffer;//Release memory
+
+        //Release claimed memory back
+        FUSESwift::MemoryContorller::getInstance().releaseClaimedMemory(st.st_size*2ll);
 
         if(left == 0) {//Successful read
           //First make file local because the other side removes it and zookeeper will try to remove it!
@@ -561,33 +579,42 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
           if(BFSTcpServer::deleteRemoteFile(_fileName,this->socket.peerAddress().host().toString(),BFSTcpServer::getPort())) {
             //Everything went well
             FUSESwift::ZooHandler::getInstance().publishListOfFiles();//Inform rest of world
+            FUSESwift::ZooHandler::getInstance().publishFreeSpace();
+            file->close(inodeNum);
             return 200;
           } else {
             LOG(ERROR) <<"Failed to delete remote file:"<<_fileName;
             LOG(ERROR) <<"DEALLOCATE deallocate"<<_fileName;
             file->makeRemote();
             file->deallocate();//Release memory allocated to the file
+            file->close(inodeNum);
+            FUSESwift::ZooHandler::getInstance().publishFreeSpace();
             return -2;
           }
         } else {
           LOG(ERROR) <<"reading remote File/writing to local one failed:"<<_fileName;
+          file->deallocate();//Release memory allocated to the file
+          file->close(inodeNum);
           return -3;
         }
       }
       else {
         LOG(ERROR) <<"Not enough space to move: "<<_fileName<<" here";
+        FUSESwift::ZooHandler::getInstance().publishFreeSpace();
+        file->close(inodeNum);
         return -4;
       }
     } else {
       LOG(ERROR) <<"Get Remote File Stat FAILED:"<<_fileName;
+      file->close(inodeNum);
       return -5;
     }
-
-    file->close(inodeNum);
   } else {
     LOG(ERROR) <<"Cannot find fileNode:"<<_fileName;
     return -6;
   }
+
+  LOG(ERROR) <<"processed move failed with unkonw error:"<<_fileName;
   return -7;
 }
 

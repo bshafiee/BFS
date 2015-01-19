@@ -56,11 +56,22 @@ atomic<bool> BFSNetwork::isRunning(true);
 atomic<bool> BFSNetwork::rcvLoopDead(false);
 Queue<SndTask*> BFSNetwork::sendQueue;
 Queue<MoveTask*> BFSNetwork::moveQueue;
+Queue<TransferTask*> BFSNetwork::transferQueue;
 thread * BFSNetwork::rcvThread = nullptr;
 thread * BFSNetwork::sndThread = nullptr;
 thread * BFSNetwork::moveThread = nullptr;
+thread * BFSNetwork::transferThread = nullptr;
 atomic<uint32_t> BFSNetwork::fileIDCounter(0);
 unsigned int BFSNetwork::DATA_LENGTH = -1;
+
+static string macToString(const unsigned char input[6]){
+  char macCharBuff[100];
+  sprintf(macCharBuff,"MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+    input[0],input[1],
+    input[2],input[3],
+    input[4],input[5]);
+  return string(macCharBuff);
+}
 
 BFSNetwork::BFSNetwork(){}
 
@@ -93,13 +104,19 @@ bool BFSNetwork::startNetwork() {
     delete moveThread;
     moveThread = nullptr;
   }
+  if(transferThread != nullptr) {
+    delete transferThread;
+    transferThread = nullptr;
+  }
 	//Start rcv Loop
 	rcvThread = new thread(rcvLoop);
 	//Start Send Loop
   sndThread = new thread(sendLoop);
   //Start Move Loop
   moveThread = new thread(moveLoop);
-/*
+  //Start Move Loop
+  transferThread = new thread(transferLoop);
+
   //Setup filtering rules
   //1)Forward BFS packets
   filtering_rule ruleBFS;
@@ -121,7 +138,7 @@ bool BFSNetwork::startNetwork() {
     LOG(FATAL)<<"Failed to add filtering ruleDROPALL.";
   else
     LOG(INFO)<<"Filtering ruleDROPALL added successfully.";
-*/
+
 	return true;
 }
 
@@ -129,6 +146,7 @@ void BFSNetwork::stopNetwork() {
 	isRunning.store(false);
 	moveQueue.stop();
 	sendQueue.stop();
+	transferQueue.stop();
 	pfring_breakloop((pfring*)pd);
 	while(!rcvLoopDead);//Wait until rcvloop is dead
 	shutDown();
@@ -371,6 +389,97 @@ void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
 
 }
 
+void BFSNetwork::transferLoop() {
+  while(isRunning) {
+    TransferTask* front = transferQueue.front();
+
+    if(unlikely(!isRunning))
+      break;
+
+    processTransfer(front);
+
+    delete front;
+    front = nullptr;
+    transferQueue.pop();
+  }
+  LOG(ERROR)<<"Transfer LOOP DEAD!";
+}
+
+void BFSNetwork::processTransfer(TransferTask* _task) {
+  WriteDataPacket *dataPacket = (WriteDataPacket*)_task->packet;
+  //create a send packet
+  uint64_t offset = be64toh(dataPacket->offset);
+  uint64_t size = be64toh(dataPacket->size);
+  uint32_t fileID = ntohl(dataPacket->fileID);
+  //Find task
+  //Get RcvTask back using file id!
+  auto taskIt = writeDataTasks.find(fileID);
+  if(taskIt == writeDataTasks.end()) {
+    LOG(ERROR)<<"No valid Task found. fileID:"<<fileID;
+    return;
+  }
+
+  //Find file and lock it!
+  FileNode* fNode = FileSystem::getInstance().findAndOpenNode(taskIt->second.remoteFile);
+  if(fNode == nullptr) {
+    LOG(ERROR)<<"File Not found:"<<taskIt->second.remoteFile;
+    return;
+  }
+  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+  fNode->close(inodeNum);//this file has been already opened
+
+
+  //Write data to file
+  FileNode* afterMove = nullptr;
+  long result = fNode->writeHandler(dataPacket->data,offset,size,afterMove,true);
+
+  if(result == (int64_t)size) {//Success
+    taskIt->second.failed = false;
+    ZooHandler::getInstance().requestUpdateGlobalView();
+    LOG(INFO)<<"Transfer Successfull:"<<taskIt->second.remoteFile<<" from:"<<ZooHandler::getInstance().getHostName()<<" to:"<<afterMove->getRemoteHostIP();
+    //ZooHandler::getInstance().printGlobalView();
+  } else {
+    taskIt->second.failed = true;
+    LOG(ERROR)<<"Unsuccessful transfer:"<<taskIt->second.remoteFile<<
+        " MEMUTILIZATION:"<<
+        MemoryContorller::getInstance().getMemoryUtilization()<<
+        " size:"<<size<<" written:"<<result<<
+        " file:"<<taskIt->second.remoteFile;
+    fNode->setTransfering(false);
+  }
+
+
+  char buffer[MTU];
+  WriteDataPacket *writeAck = (WriteDataPacket *)buffer;
+  fillBFSHeader((char*)writeAck,taskIt->second.requestorMac);
+  writeAck->opCode = htonl((uint32_t)BFS_OPERATION::WRITE_ACK);
+  //set fileID
+  writeAck->fileID = htonl(fileID);
+  //Set size, INIDICATING not a regular write
+  writeAck->size = 0;
+  //Set offset according to result
+  /**
+   * size == 0  && offset == 0 write failed
+   * size == 0  && offset == 1 transfer failed
+   * size == 0  && offset == 2 transfer successful and must redo write!
+   */
+  if(taskIt->second.failed)
+    writeAck->offset = htobe64(1);
+  else
+    writeAck->offset = htobe64(2);
+  //Send it overNetwork
+  int retry = 3;
+  while(retry > 0) {
+    if(send(buffer,MTU) == MTU)
+      break;
+    retry--;
+  }
+  if(!retry)
+    LOG(ERROR)<<"Failed to send ACKPacket,fileID:"<<fileID;
+
+  writeDataTasks.erase(taskIt);
+}
+
 void BFSNetwork::moveLoop() {
   while(isRunning) {
     MoveTask* front = moveQueue.front();
@@ -407,7 +516,9 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
     struct stat st;
     if(file->getStat(&st)) {
       //If we have enough space (2 times of current space
-      if(st.st_size * 2 < MemoryContorller::getInstance().getAvailableMemory()) {
+      if(MemoryContorller::getInstance().claimMemory(st.st_size*2ll)) {
+        // Inform claimed memory
+        FUSESwift::ZooHandler::getInstance().publishFreeSpace();
         //4) we have space to start to read the file
         uint64_t bufferLen = 1024ll*1024ll*100ll;//100MB
         char *buffer = new char[bufferLen];
@@ -418,12 +529,14 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
           if(read <= 0 )
             break;
           FileNode* afterMove;//This won't happen(should not)
-          if(read != file->writeHandler(buffer,offset,read,afterMove))//error in writing
+          if(read != file->writeHandler(buffer,offset,read,afterMove,false))//error in writing
             break;
           left -= read;
           offset += read;
         }
         delete []buffer;//Release memory
+        //release back claimed memory
+        MemoryContorller::getInstance().releaseClaimedMemory(st.st_size*2ll);
 
         if(left == 0) {//Successful read
           //First make file local because the other side removes it and zookeeper will try to remove it!
@@ -433,19 +546,23 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
           if(deleteRemoteFile(_moveTask.fileName,_moveTask.requestorMac)) {
             //Everything went well
             ZooHandler::getInstance().publishListOfFiles();//Inform rest of world
+            FUSESwift::ZooHandler::getInstance().publishFreeSpace();
             res = true;
           } else {
             LOG(ERROR) <<"Failed to delete remote file:"<<_moveTask.fileName;
             LOG(ERROR) <<endl<<"DEALLOCATE deallocate"<<_moveTask.fileName<<endl;
             file->makeRemote();
             file->deallocate();//Release memory allocated to the file
+            FUSESwift::ZooHandler::getInstance().publishFreeSpace();
           }
         } else {
           LOG(ERROR) <<"reading remote File/writing to local one failed:"<<_moveTask.fileName;
+          file->deallocate();//Release memory allocated to the file
         }
       }
       else {
         LOG(ERROR) <<"Not enough space to move: "<<_moveTask.fileName<<" here";
+        ZooHandler::getInstance().publishFreeSpace();
       }
     } else {
       LOG(ERROR) <<"Get Remote File Stat FAILED:"<<_moveTask.fileName;
@@ -459,17 +576,54 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
 
   if(res){//Success
     moveAck->size = htobe64(1);
-    LOG(ERROR) <<"MOVE SUCCESS TO HERE:"<<_moveTask.fileName;
+    LOG(INFO) <<"MOVE SUCCESS TO HERE:"<<_moveTask.fileName;
   }
   else {
     moveAck->size = 0;
-    LOG(ERROR) <<"MOVE FAILED TO HERE:"<<_moveTask.fileName;
+    LOG(ERROR) <<"MOVE FAILED TO HERE:"<<_moveTask.fileName<<" from:"<<macToString(_moveTask.requestorMac)<<" fileID:"<<_moveTask.fileID;
   }
 
   //Send the ack on the wire
   if(!ZeroNetwork::send(buffer,MTU)) {
     LOG(ERROR) <<"Failed to send createAckpacket.";
   }
+}
+
+//BFS_OPERATION {REQUEST_FILE = 1, RESPONSE = 2};
+static inline string BFSOperationToString(uint32_t op){
+  switch (op) {
+    case 1:
+      return "READ_REQUEST";
+    case 2:
+      return "READ_RESPONSE";
+    case 3:
+      return "WRITE_REQUEST";
+    case 4:
+      return "WRITE_DATA";
+    case 5:
+      return "WRITE_ACK";
+    case 6:
+      return "ATTRIB_REQUEST";
+    case 7:
+      return "ATTRIB_RESPONSE";
+    case 8:
+      return "DELETE_REQUEST";
+    case 9:
+      return "DELETE_RESPONSE";
+    case 10:
+      return "TRUNCATE_REQUEST";
+    case 11:
+      return "TRUNCATE_RESPONSE";
+    case 12:
+      return "CREATE_REQUEST";
+    case 13:
+      return "CREATE_RESPONSE";
+    case 14:
+      return "FLUSH_REQUEST";
+    case 15:
+      return "FLUSH_RESPONSE";
+  }
+  return "UNKNOWN";
 }
 
 //BFS_OPERATION {REQUEST_FILE = 1, RESPONSE = 2};
@@ -574,13 +728,14 @@ void BFSNetwork::rcvLoop() {
 		if(stats.drop - dropped > 0) {
 		  onReadResPacket(nullptr);
 		  dropped = stats.drop;
+		  LOG(FATAL) <<dropped<<" packets were dropped";
 		}
 
 
 		/** Seems we got a relavent packet! **/
 		//Check opcode
 		//NO MATTER PACKET TYPE< OPCODE INDEX IS FIXED
-		uint32_t opCode = ((WriteReqPacket*)_packet)->opCode;;
+		uint32_t opCode = ((WriteReqPacket*)_packet)->opCode;
 
 		switch(toBFSOperation(ntohl(opCode))){
 			case BFS_OPERATION::READ_REQUEST:
@@ -761,8 +916,18 @@ long BFSNetwork::writeRemoteFile(const void* _srcBuffer, size_t _size,
 
 	if(task.acked)
 		return _size;
-	else
-		return 0;
+	else {
+	  if(task.offset == 1){//Transfer failed
+	    return -2;//No free space
+	  }else if(task.offset == 2){ //Transfer Successful
+	    ZooHandler::getInstance().requestUpdateGlobalView();
+      LOG(INFO)<<"Remote transfer happened for:"<<_remoteFile<<" Going to redo write.";
+	    return -10;//Transfer Successful
+	  } else if(task.offset == 20)//Is transferring
+	    return -20;
+	  else
+	    return -3;//EIO
+	}
 }
 
 
@@ -814,7 +979,7 @@ void FUSESwift::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
   t.begin();
   //Now wait for the ACK!
 	while(!_task.ack_ready) {
-		_task.ack_cv.wait_for(ack_lk,chrono::milliseconds(ACK_TIMEOUT));
+		_task.ack_cv.wait_for(ack_lk,chrono::milliseconds(ACK_TIMEOUT*10));//this should be long because it might be it's moving
 		t.end();
 		if(!_task.ack_ready && (t.elapsedMillis() >= ACK_TIMEOUT))
 		  break;
@@ -824,8 +989,8 @@ void FUSESwift::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
 	if(!_task.ack_ready)
 	  LOG(ERROR)<<"WriteRequest Timeout: fileID:"<<_task.fileID<<" ElapsedMILLIS:"<<t.elapsedMillis();
 
-	if(!_task.acked && _task.ack_ready)
-	  LOG(ERROR)<<"WriteRequest failed:%s"<<_task.remoteFile<<" acked?"<<_task.acked<<" ack_ready?"<<_task.ack_ready<<"FileID:"<<_task.fileID<<" Size:"<<_task.size<<" Offset:"<<_task.offset;
+	if(!_task.acked && _task.ack_ready && _task.offset != 2)//Not a transfer
+	  LOG(ERROR)<<"WriteRequest failed:"<<_task.remoteFile<<" acked?"<<_task.acked<<" ack_ready?"<<_task.ack_ready<<" FileID:"<<_task.fileID<<" Size:"<<_task.size<<" Offset:"<<_task.offset;
 	ack_lk.unlock();
 
   //GOT ACK So Signal Caller to wake up
@@ -922,9 +1087,22 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
   fNode->close(inodeNum);//this file has been already opened
 
+  if(fNode->isTransfering()){//Nothing to do for transferring nodes
+    return;
+  }
+
   //Write data to file
   FileNode* afterMove = nullptr;
-  long result = fNode->writeHandler(dataPacket->data,offset,size,afterMove);
+  long result = fNode->writeHandler(dataPacket->data,offset,size,afterMove,false);
+
+  if(result == -2) {//No space
+    LOG(INFO)<<"QUEUE FOR TRANSFERING:"<<fNode->getFullPath();
+    TransferTask *transferTask = new TransferTask(MTU);
+    memcpy(transferTask->packet,_packet,MTU);
+    fNode->setTransfering(true);
+    transferQueue.push(transferTask);
+    return;
+  }
 
   if(afterMove)
     fNode = afterMove;
@@ -1001,6 +1179,55 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
     //file is open and Will be closed when the write operation is finished.
     uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     writeTask.inodeNum = inodeNum;
+    if(fNode->isRemote()) {
+      LOG(ERROR)<<"\nGOT WRITE REQ FOR A FILE WHICH I AM NOT RESPONSIBLE\n";
+      fNode->close(inodeNum);
+      //Send Transfering error
+      char buffer[MTU];
+      WriteDataPacket *writeAck = (WriteDataPacket *)buffer;
+      fillBFSHeader((char*)writeAck,writeTask.requestorMac);
+      writeAck->opCode = htonl((uint32_t)BFS_OPERATION::WRITE_ACK);
+      //set fileID
+      writeAck->fileID = htonl(writeTask.fileID);
+      //Set size, indicating success or failure
+      writeAck->size = 0;
+
+      int retry = 3;
+      while(retry) {
+        //Now send packet on the wire
+        if(!ZeroNetwork::send(buffer,MTU))
+          LOG(ERROR)<<"Failed to send writeNACKPacket.";
+        else
+          break;
+      }
+      return;
+    }
+    //If it's being transferred to another node
+    if(fNode->isTransfering()){
+      fNode->close(inodeNum);
+      //Send Transfering error
+      char buffer[MTU];
+      WriteDataPacket *writeAck = (WriteDataPacket *)buffer;
+      fillBFSHeader((char*)writeAck,writeTask.requestorMac);
+      writeAck->opCode = htonl((uint32_t)BFS_OPERATION::WRITE_ACK);
+      //set fileID
+      writeAck->fileID = htonl(writeTask.fileID);
+      //Set size, indicating success or failure
+      writeAck->size = 0;
+      writeAck->offset = htobe64(20);//IS Transferring
+
+      int retry = 3;
+      while(retry) {
+        //Now send packet on the wire
+        if(!ZeroNetwork::send(buffer,MTU))
+          LOG(ERROR)<<"Failed to send writeNACKPacket.";
+        else
+          break;
+      }
+      LOG(INFO)<<"DROPPED A WRITE REQUEST FOR A TRANSFERING NODE:"<<fNode->getFullPath()<<"\n";
+      return;
+    }
+
     //Put it on writeDataTask!
     auto resPair = writeDataTasks.insert(writeTask.fileID,writeTask);
     if(resPair.second){
@@ -1041,6 +1268,7 @@ void FUSESwift::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
 	//Find write sendTask
 	uint32_t fileID = ntohl(reqPacket->fileID);
 	uint64_t size = be64toh(reqPacket->size);
+	uint64_t offset = be64toh(reqPacket->offset);
 
   uint64_t queueSize = sendQueue.size();
 	for(uint64_t i=0; i<queueSize;i++) {
@@ -1053,9 +1281,16 @@ void FUSESwift::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
 				if(writeTask->size == size)
 				  writeTask->acked = true;
 				else{
-				  LOG(ERROR)<<"Remote Write failed, expected:"<<writeTask->size<<" but got:"<<size<<".";
+				  if(offset == 1)
+				    LOG(ERROR)<<"Transfer Failed:"<<writeTask->remoteFile<<" expected:"<<writeTask->size<<" but got:"<<size<<" offset:"<<offset;
+				  else if(offset == 20)
+				    LOG(ERROR)<<"Is transferring! Try again:"<<writeTask->remoteFile<<" FileID:"<<fileID;
+				  else if(offset != 2)
+				    LOG(ERROR)<<"Remote Write failed:"<<writeTask->remoteFile<<" expected:"<<writeTask->size<<" but got:"<<size<<" offset:"<<offset;
+
 				  writeTask->acked = false;
 				}
+				writeTask->offset = offset;
 				writeTask->ack_ready = true;
 				writeTask->ack_cv.notify_one();
 				return;
@@ -1112,8 +1347,8 @@ bool BFSNetwork::readRemoteFileAttrib(struct packed_stat_info *attBuff,
 	while(!task.ready) {
 		task.cv.wait_for(lk,chrono::milliseconds(ACK_TIMEOUT));
 		t.end();
-		if (!task.ready && (t.elapsedMillis() > ACK_TIMEOUT))
-			break;
+		/*if (!task.ready && (t.elapsedMillis() > ACK_TIMEOUT))
+			break;*/
 	}
 
 	if(!task.ready)
@@ -1486,7 +1721,7 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
   //Size == 0 means failed! if truncate successful size will be newSize
   createAck->size = 0;//zero is zero anyway
 
-  LOG(ERROR)<<"CREATE REQ PACKET:"<<fileName;
+  LOG(INFO)<<"CREATE REQ PACKET:"<<fileName<<" from:"<<macToString(reqPacket->srcMac)<<" fileID:"<<fileID;
 
   bool res = false;
 
@@ -1500,7 +1735,7 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
     if(existing->isRemote()) {//I'm not responsible! I should not have seen this.
       //Close it!
       existing->close(inodeNum);
-      LOG(ERROR)<<"Going to move file:"<<fileName<<" to here!";
+      LOG(INFO)<<"Going to move file:"<<fileName<<" to here from:"<<macToString(reqPacket->srcMac)<<" fileID:"<<fileID;
 
       //Handle Move file to here!
       MoveTask *mvTask = new MoveTask();
@@ -1512,14 +1747,14 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
       moveQueue.push(mvTask);
       return;//The response will be sent later
     } else { //overwrite file=>truncate to 0
-      LOG(ERROR)<<"EXIST and LOCAL, Going to truncate file:"<<fileName<<" here.";
+      LOG(INFO)<<"EXIST and LOCAL, Going to truncate file:"<<fileName<<" here.";
 
       res = existing->truncate(0);
       existing->close(inodeNum);
     }
   } else {
 
-    LOG(ERROR)<<"DOES NOT EXIST, Going to create file:"<<fileName<<" here.";
+    LOG(INFO)<<"DOES NOT EXIST, Going to create file:"<<fileName<<" here.";
     res = (FileSystem::getInstance().mkFile(fileName,false,false)!=nullptr)?true:false;
   }
 
@@ -1541,7 +1776,7 @@ void BFSNetwork::onCreateResPacket(const u_char* _packet) {
   auto taskIt = createSendTasks.find(fileID);
   createSendTasks.lock();
   if(taskIt == createSendTasks.end()) {
-    LOG(ERROR)<<"No valid Task found. fileID:"<<fileID;
+    LOG(ERROR)<<"No valid Task found. from:"<<macToString(resPacket->srcMac)<<" fileID:"<<fileID;
     createSendTasks.unlock();
     return;
   }
@@ -1567,7 +1802,7 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
     LOG(ERROR)<<"Filename too long:"<<_remoteFile;
     return false;
   }
-  LOG(ERROR)<<"CreateRemote FILE:"<<_remoteFile;
+
   //Create a new task
   WriteSndTask task;
   task.srcBuffer = nullptr;
@@ -1580,6 +1815,7 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
   task.ready = false;
   task.ack_ready = false;
 
+  LOG(INFO)<<"CreateRemote FILE:"<<_remoteFile<<" at:"<<macToString(_dstMAC)<<" fileID:"<<task.fileID;
   //First Send a write request
   char buffer[MTU];
   WriteReqPacket *createReqPkt = (WriteReqPacket*) buffer;
@@ -1617,7 +1853,7 @@ bool BFSNetwork::createRemoteFile(const std::string& _remoteFile,
     if (!task.acked) {
       LOG(ERROR)<<"Move failed: "<<task.remoteFile;
     } else {//Successful move
-      LOG(ERROR)<<"Move to remote node successful: "<<task.remoteFile<< " Updating global view";
+      LOG(INFO)<<"Move to remote node successful: "<<task.remoteFile<< " Updating global view";
       ZooHandler::getInstance().requestUpdateGlobalView();
     }
 

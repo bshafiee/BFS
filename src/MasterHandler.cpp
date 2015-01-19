@@ -121,7 +121,7 @@ void MasterHandler::leadershipLoop() {
     //1)Fetch list of files from backend
     Backend* backend = BackendManager::getActiveBackend();
     if(backend == nullptr) {
-      LOG(ERROR)<<"leadershipLoop(): No active backend.";
+      LOG(DEBUG)<<"leadershipLoop(): No active backend.";
       interval *= 10;
       if(interval > maxSleep)
       	interval = maxSleep;

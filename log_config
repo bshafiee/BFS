@@ -14,10 +14,10 @@ ENABLED = false
 To_Standard_Output = false
 
 * FATAL:
-To_Standard_Output = false
+To_Standard_Output = true
 
 * ERROR:
-To_Standard_Output = false
+To_Standard_Output = true
 
 * INFO:
 To_Standard_Output = true

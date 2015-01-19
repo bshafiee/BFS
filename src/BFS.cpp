@@ -204,8 +204,8 @@ int main(int argc, char *argv[]) {
 
   SwiftBackend swiftBackend;
   if(SettingManager::runtimeMode()!=RUNTIME_MODE::STANDALONE){
-    swiftBackend.initialize(&info);
-    BackendManager::registerBackend(&swiftBackend);
+    if(swiftBackend.initialize(&info))
+      BackendManager::registerBackend(&swiftBackend);
   }
 
   //Get Physical Memory amount

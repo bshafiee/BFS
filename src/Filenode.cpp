@@ -37,7 +37,7 @@ FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):
     Node(_name,_fullPath),isDir(_isDir),size(0),refCount(0),blockIndex(0),
     needSync(false), isFlushed(true), mustDeleted(false),
     hasInformedDelete(false), isRem(_isRemote), mustInformRemoteOwner(true),
-    moving(false), remoteIP(""),remotePort(0) {
+    moving(false), remoteIP(""),remotePort(0), transfering(false) {
 	/*if(_isRemote)
 		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
@@ -66,6 +66,8 @@ FileNode::~FileNode() {
 
   //Release Memory in the memory controller!
   MemoryContorller::getInstance().releaseMemory(size);
+  //Inform memory usage
+  MemoryContorller::getInstance().informMemoryUsage();
 }
 
 FileNode* FileNode::findParent() {
@@ -416,9 +418,11 @@ void FileNode::close(uint64_t _inodeNum) {
         if(UploadQueue::getInstance().push(new SyncEvent(SyncEventType::UPDATE_CONTENT,this->getFullPath())))
           this->setNeedSync(false);
         else
-          LOG(ERROR)<<"\n\n\nHOLLY SHITTTTTTTTTTTTTTTTTTTTTT\n\n\n\n"<<key;
+          LOG(ERROR)<<"\n\n\nHOLLY SHITTTTTTTTTTTT can't sync\n\n\n\n"<<key;
       }
   	}
+  	//Inform memory usage
+  	MemoryContorller::getInstance().informMemoryUsage();
   }
   else {
     /*int refs = refCount;
@@ -469,6 +473,10 @@ int FileNode::concurrentOpen(){
 
 const unsigned char* FileNode::getRemoteHostMAC() {
 	return this->remoteHostMAC;
+}
+
+const string FileNode::getRemoteHostIP() {
+  return this->remoteIP;
 }
 
 void FileNode::setRemoteHostMAC(const unsigned char *_mac) {
@@ -523,7 +531,7 @@ bool FileNode::getStat(struct stat *stbuff) {
 
 			//Update meta info
 			stbuff->st_blksize = FileSystem::blockSize;
-	    stbuff->st_mode = this->isDirectory() ? S_IFDIR : S_IFREG;
+			stbuff->st_mode = this->isDirectory() ? S_IFDIR : S_IFREG;
 			this->setCTime(stbuff->st_ctim.tv_sec);
 			this->setMTime(stbuff->st_mtim.tv_sec);
 			this->setUID(stbuff->st_uid);
@@ -623,10 +631,8 @@ long FileNode::writeRemote(const char* _data, int64_t _offset, int64_t _size) {
 	int64_t written = BFSTcpServer::writeRemoteFile(
 	      _data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
 #endif
-	if(written!=_size)
-	  return -3;//ACK error
-	else
-	  return written;
+
+	return written;
 }
 
 bool FileNode::rmRemote() {
@@ -647,6 +653,9 @@ bool FileNode::truncateRemote(int64_t size) {
 
 void FileNode::makeLocal() {
   isRem.store(false);
+  setRemoteHostMAC(nullptr);
+  setRemoteIP("");
+  setRemotePort(0);
 }
 
 void FileNode::makeRemote() {
@@ -698,21 +707,24 @@ void FileNode::setMoving(bool _isMoving) {
  * Success:
  * >= 0 written bytes
  */
-long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, FileNode* &_afterMoveNewNode) {
+long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, FileNode* &_afterMoveNewNode, bool _shouldMove) {
   //By default no moves happen so
   _afterMoveNewNode = nullptr;
 
   if(isMoving()) {
-    usleep(1000);//sleep a little and try again;
+    usleep(100000l);//sleep a little and try again;
     LOG(ERROR) <<"SLEEPING FOR MOVE:"<<key;
     return -1;
     //return writeHandler(_data,_offset,_size,_afterMoveNewNode);
   }
 
   long written = write(_data, _offset, _size);
+  if(!_shouldMove && written == -1){
+    LOG(ERROR)<<"Not Enough Space and not moving to other nodes"<< this->getName()<<" memUtil:"<<MemoryContorller::getInstance().getMemoryUtilization();
+    ZooHandler::getInstance().publishFreeSpace();
+    return -2;//No space
+  }
   if(written == -1) {//No space
-    LOG(ERROR) <<"NOT ENOUGH SPACE, MOVING FILE."<<key<<" curSize:"<<size<<" UTIL:"<<MemoryContorller::getInstance().getMemoryUtilization();
-
     string filePath = getFullPath();
     setMoving(true);//Nobody is going to write to this file anymore
     close(0);
@@ -736,10 +748,10 @@ long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, F
         return newNode->writeRemote(_data, _offset, _size);
       }
     } else {
-      LOG(ERROR) <<"MoveToRemoteNode failed.";
+      LOG(ERROR) <<"MoveToRemoteNode failed:"<<getFullPath();
       setMoving(false);
       open();
-      return -2;
+      return -2;//No space
     }
   }
   //Successfull Write
@@ -764,7 +776,7 @@ void FileNode::fillStatWithPacket(struct stat &st,const struct packed_stat_info&
 }
 
 void FileNode::fillPackedStat(struct packed_stat_info& st) {
-  lock_guard<recursive_mutex> lk(ioMutex);
+  //lock_guard<recursive_mutex> lk(ioMutex);
   st.st_dev = 0;
   st.st_ino = 0;
   st.st_mode = this->isDirectory() ? S_IFDIR : S_IFREG;
@@ -789,7 +801,7 @@ bool FileNode::flush() {
 
   Backend *backend = BackendManager::getActiveBackend();
   if(!backend){
-    LOG(ERROR)<<"No backend for flushing.";
+    //LOG(ERROR)<<"No backend for flushing.";
     return true;
   }
   isFlushed = backend->put(new SyncEvent(SyncEventType::UPDATE_CONTENT,this->getFullPath()));
@@ -806,6 +818,14 @@ bool FileNode::flushRemote() {
 
 bool FileNode::flushed() {
   return isFlushed;
+}
+
+bool FileNode::isTransfering() {
+  return transfering;
+}
+
+void FileNode::setTransfering(bool _value) {
+  transfering.store(_value);
 }
 
 }//namespace

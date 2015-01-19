@@ -144,6 +144,10 @@ void ZooHandler::sessionWatcher(zhandle_t *zzh, int type, int state,
 		  getInstance().myid = zoo_client_id(zzh);
 			LOG(DEBUG)<<"Connected Successfully. session id: "<<
 			    (long long) getInstance().myid->client_id;
+			//publish free space
+      getInstance().createInfoNode();
+      getInstance().publishFreeSpace();
+      getInstance().updateNodesInfoView();
 		} else if (state == ZOO_AUTH_FAILED_STATE) {
 			LOG(ERROR)<<"Authentication failure. Shutting down...";
 			zookeeper_close(zzh);
@@ -167,6 +171,7 @@ bool ZooHandler::connect() {
 	if (!zh) {
 		return false;
 	}
+
 
 	//Now we can start watching other nodes!
 	updateGlobalView();
@@ -249,8 +254,9 @@ bool ZooHandler::makeOffer() {
 	//vector<string> listOfFiles = FileSystem::getInstance().listFileSystem(false);
 	vector<pair<string,bool>> listOfFiles;//Empty list of files
 	//Create a ZooNode
-	ZooNode zooNode(getHostName(),
-	      MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
+	ZooNode zooNode(getHostName(),0,
+	    listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),
+	    BFSTcpServer::getPort());
 	//Send data
 	string str = zooNode.toString();
 	int result = zoo_create(zh, (electionZNode + "/" + "n_").c_str(), str.c_str(),
@@ -426,6 +432,7 @@ void ZooHandler::publishListOfFiles() {
 	lock_guard<mutex> lk(lockPublish);
 	vector<pair<string,bool>> listOfFiles = FileSystem::getInstance().listFileSystem(false,true);
 
+
 	bool change = false;
 	if(listOfFiles.size() != cacheFileList.size())
 	  change = true;
@@ -443,6 +450,7 @@ void ZooHandler::publishListOfFiles() {
       }
     }
 	}
+
 	if(!change){
 	  LOG(DEBUG)<<"No new change, in the list of file. Returning...";
 	  return;
@@ -450,8 +458,7 @@ void ZooHandler::publishListOfFiles() {
 	cacheFileList = listOfFiles;
 
 	//Create a ZooNode
-  ZooNode zooNode(getHostName(),
-      MemoryContorller::getInstance().getAvailableMemory(), listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
+  ZooNode zooNode(getHostName(),0 , listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
 
 	//Send data
   {
@@ -567,6 +574,8 @@ void ZooHandler::updateGlobalView() {
 
 	//Now we have a fresh globalView! So update list of remote files if our FS!
 	updateRemoteFilesInFS();
+	//printGlobalView();
+
 }
 
 void ZooHandler::updateRemoteFilesInFS() {
@@ -587,6 +596,16 @@ void ZooHandler::updateRemoteFilesInFS() {
 			bool exist = false;
 			for(pair<string,bool> localFile: localFiles)
 				if(localFile.first == remoteFile.first && localFile.second == remoteFile.second){
+				  //If exist, check for ip and mac change
+				  FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(localFile.first);
+          if(fileNode!=nullptr){
+            uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fileNode);
+            fileNode->setRemoteHostMAC(node.MAC);
+            fileNode->setRemoteIP(node.ip);
+            fileNode->setRemotePort(node.port);
+
+            fileNode->close(inodeNum);
+          }
 					exist = true;
 					break;
 				}
@@ -758,20 +777,98 @@ void ZooHandler::assignmentWatcher(zhandle_t* zzh, int type, int state,
 }
 
 ZooNode ZooHandler::getMostFreeNode() {
-  updateGlobalView();
-  vector<ZooNode>globalView = getGlobalView();
-  if(globalView.size() == 0) {
+  updateNodesInfoView();
+  lock_guard<mutex> lk(lockGlobalFreeView);
+
+  if(globalFreeView.size() == 0) {
     vector<pair<string,bool>> emptyVector;
     ZooNode emptyNode(string(""),0,emptyVector,nullptr,"",0);
     return emptyNode;
   }
   //Now sort ourZoo by Free Space descendingly!
-  std::sort(globalView.begin(),globalView.end(),ZooNode::CompByFreeSpaceDes);
-  return globalView.front();
+  std::sort(globalFreeView.begin(),globalFreeView.end(),ZooNode::CompByFreeSpaceDes);
+  string output;
+  for(ZooNode z:globalFreeView){
+    output += "("+z.hostName+","+std::to_string(z.freeSpace/1024l/1024l)+"MB)";
+  }
+  LOG(DEBUG)<<output<<"front:("<<globalFreeView.front().hostName<<
+      ","<<globalFreeView.front().freeSpace/1024ll/1024ll<<"MB)";
+  return globalFreeView.front();
 }
 
 void ZooHandler::requestUpdateGlobalView() {
   updateGlobalView();
+}
+
+void ZooHandler::createInfoNode() {
+  if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
+    return;
+  if (sessionState != ZOO_CONNECTED_STATE) {
+    LOG(ERROR)<<"createInfoNode(): invalid sessionstate";
+    return;
+  }
+
+  char newNodePath[1000];
+  //ZooNode
+  vector<pair<string,bool>> listOfFiles;//Empty list of files
+  //Create a ZooNode
+  ZooNode zooNode(getHostName(),
+      MemoryContorller::getInstance().getAvailableMemory()-
+      MemoryContorller::getInstance().getClaimedMemory(),
+      listOfFiles,BFSNetwork::getMAC(),BFSTcpServer::getIP(),
+      BFSTcpServer::getPort());
+  //Send data
+  string str = zooNode.toString();
+  int result = zoo_create(zh, (infoZNode+ "/" + "n_").c_str(), str.c_str(),
+      str.length(), &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE,
+      newNodePath, sizeof(newNodePath));
+  if (result != ZOK) {
+    LOG(ERROR)<<"zoo_create failed:"<<zerror(result);
+    return;
+  }
+
+  this->infoNodePath = string(newNodePath);
+  LOG(DEBUG)<<"Created InfoNode: "<<str;
+}
+
+void ZooHandler::infoNodeWatcher(zhandle_t* zzh, int type, int state,
+    const char* path, void* context) {
+  LOG(DEBUG)<<"INFO FOLDER WATCHER EVENT";
+  getInstance().updateNodesInfoView();
+}
+
+void ZooHandler::publishFreeSpace() {
+  if (sessionState != ZOO_CONNECTED_STATE) {
+    LOG(ERROR)<<"publishFreeSpace(): invalid sessionstate or electionstate";
+    return;
+  }
+
+  //Create a ZooNode
+  vector<pair<string,bool>> empty;
+  int64_t freeSpace = MemoryContorller::getInstance().getAvailableMemory() -
+      MemoryContorller::getInstance().getClaimedMemory();
+  if(freeSpace < 0){
+    LOG(ERROR)<<"\nJEEZZZINVALID FREE SPACE! avail:"<<
+        MemoryContorller::getInstance().getAvailableMemory()
+        <<" claimed:"<<MemoryContorller::getInstance().getClaimedMemory()
+        <<endl;
+    freeSpace = 0;
+  }
+
+  ZooNode zooNode(getHostName(),freeSpace ,empty,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
+
+  //Send data
+  string str = zooNode.toString();
+  int callRes = zoo_set(zh, infoNodePath.c_str(), str.c_str(),str.length(), -1);
+
+  if (callRes != ZOK) {
+    LOG(ERROR)<<"publishFreeSpace(): zoo_set failed:"<< zerror(callRes);
+    return;
+  }
+
+  LOG(INFO)<<"publish:"<< freeSpace/1024ll/1024ll<<"MB freespace. Avail:"<<
+      MemoryContorller::getInstance().getAvailableMemory()/1024ll/1024ll<<
+      "MB claimed:"<<MemoryContorller::getInstance().getClaimedMemory()/1024ll/1024ll<<"MB";
 }
 
 void ZooHandler::stopZooHandler() {
@@ -781,5 +878,100 @@ void ZooHandler::stopZooHandler() {
   LOG(INFO)<<"ZOOHANDLER LOOP DEAD!";
 }
 
+void ZooHandler::infoFolderWatcher(zhandle_t* zzh, int type, int state,
+    const char* path, void* context) {
+  LOG(DEBUG)<<"INFO FOLDER WATCHER EVENT";
+  getInstance().updateNodesInfoView();
+}
+
+void ZooHandler::updateNodesInfoView() {
+  if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
+      return;
+  lock_guard<mutex> lk(lockGlobalFreeView);
+
+  if (sessionState != ZOO_CONNECTED_STATE) {
+    LOG(ERROR)<<"updateNodesInfoView(): invalid sessionstate or electionstate";
+    return;
+  }
+
+  globalFreeView.clear();
+  //1)get list of (infoZNode)/BFSElection children and set a watch for changes in these folder
+  String_vector children;
+  int callResult = zoo_wget_children(zh, infoZNode.c_str(), infoFolderWatcher,nullptr, &children);
+  if (callResult != ZOK) {
+    LOG(ERROR)<<"infoFolderWatcher(): zoo_wget_children failed:"<<zerror(callResult);
+    return;
+  }
+  //2)get content of each node and set watch on them
+  for (int i = 0; i < children.count; i++) {
+    string node(children.data[i]);
+    //Allocate 1MB data
+    const int length = 1024 * 1024;
+    char *buffer = new char[length];
+    int len = length;
+    int callResult = zoo_wget(zh, (infoZNode+ "/" + node).c_str(),
+        infoNodeWatcher, nullptr, buffer, &len, nullptr);
+    if (callResult != ZOK) {
+      LOG(ERROR)<<"zoo_wget failed:"<<zerror(callResult);
+      delete[] buffer;
+      buffer = nullptr;
+      continue;
+    }
+    if(len >= 0 && len <= length-1)
+      buffer[len] = '\0';
+    Poco::StringTokenizer tokenizer(buffer,"\n",
+        Poco::StringTokenizer::TOK_TRIM |
+        Poco::StringTokenizer::TOK_IGNORE_EMPTY);
+    if(tokenizer.count() < 5) {
+      LOG(ERROR)<<"Malformed data at:"<<node<<" Buffer:"<<buffer;
+      continue;
+    }
+
+    //3.1 Hostname
+    string hostName = tokenizer[0];
+
+    //3.2 MAC String
+    unsigned char mac[6];
+    sscanf(tokenizer[1].c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2],
+        &mac[3], &mac[4], &mac[5]);
+
+    //3.3 ip
+    string ip(tokenizer[2]);
+
+    //3.4 port
+    string port(tokenizer[3]);
+
+    //3.1 freespace
+    string freeSize(tokenizer[4]);
+
+    //4)update globalFreeView
+    vector<pair<string,bool>> empty;
+    ZooNode zoonode(hostName,stoll(freeSize),empty,mac,ip,stoul(port));
+    globalFreeView.push_back(zoonode);
+    delete[] buffer;
+    buffer = nullptr;
+  }
+  //Debug
+  /*string output;
+  std::sort(globalFreeView.begin(),globalFreeView.end(),ZooNode::CompByFreeSpaceDes);
+  for(ZooNode z:globalFreeView){
+    output += "("+z.hostName+","+std::to_string(z.freeSpace/1024l/1024l)+"MB)";
+  }
+  LOG(DEBUG)<<"UpdatedFreeSpaceView:"<<output;*/
+}
+
+void ZooHandler::printGlobalView() {
+  string output;
+  for(ZooNode node:globalView){
+    output += node.hostName +"(";
+    for(pair<string,bool> f:node.containedFiles){
+      output += f.first+",";
+    }
+    output += "),";
+  }
+  LOG(INFO)<<"\nGlobalView:"<<output<<"\n";
+}
+
 }	//Namespace
+
 

@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BFSTCPSERVER_H_
 #include "Global.h"
 #include <Poco/Net/SocketReactor.h>
+#include <Poco/Net/ParallelSocketReactor.h>
 #include <Poco/Net/StreamSocket.h>
 #include <thread>
 #include <mutex>

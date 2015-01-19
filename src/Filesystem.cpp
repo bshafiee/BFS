@@ -368,6 +368,10 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
   if(mostFreeNode.freeSpace == 0)//GetMostFreeNode could not find a node
     return false;
+  LOG(INFO) <<"CREATING REMOTE FILE."<<_name<<" UTIL:"<<
+    MemoryContorller::getInstance().getMemoryUtilization()<<" to:"<<
+    mostFreeNode.hostName<<" with:"<<mostFreeNode.freeSpace/1024ll/1024ll<<
+    "MB free space";
 #ifdef BFS_ZERO
   bool res = BFSNetwork::createRemoteFile(_name,mostFreeNode.MAC);
 #else
@@ -381,8 +385,14 @@ bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
   if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2) //Could not find a node with enough space :(
     return false;
+
   //First advertise the list of files you have to make sure the dst node will see this file
   ZooHandler::getInstance().publishListOfFiles();
+  LOG(INFO) <<"MOVING FILE:"<<_localFile->getName()<<" isRemote:"<<_localFile->isRemote()<<" curSize:"<<
+      _localFile->getSize()<<" UTIL:"<<
+      MemoryContorller::getInstance().getMemoryUtilization()<<" to:"<<
+      mostFreeNode.hostName<<" with:"<<mostFreeNode.freeSpace/1024ll/1024ll<<
+      "MB free space";
 #ifdef BFS_ZERO
   return BFSNetwork::createRemoteFile(_localFile->getFullPath(),mostFreeNode.MAC);
 #else
@@ -404,7 +414,7 @@ uint64_t FileSystem::assignINodeNum(const intptr_t _nodePtr) {
   uint64_t nextInodeNum = ++inodeCounter;
   if(unlikely(nextInodeNum == 0))//Not Zero
     nextInodeNum = ++inodeCounter;
-  if(inodeMap.find(nextInodeNum)!=inodeMap.end()) {
+  if(unlikely(inodeMap.find(nextInodeNum)!=inodeMap.end())) {
     LOG(FATAL)<<"\nfileSystem(): inodeCounter overflow :(\n";
     fprintf(stderr, "fileSystem(): inodeCounter overflow :(\n");
     fflush(stderr);
@@ -421,8 +431,10 @@ uint64_t FileSystem::assignINodeNum(const intptr_t _nodePtr) {
     } else {
       list<uint64_t> listOfInodes;
       listOfInodes.push_back(nextInodeNum);
-      if(!nodeInodeMap.insert(pair<intptr_t,list<uint64_t> >(_nodePtr,listOfInodes)).second)//failed to insert
+      if(!nodeInodeMap.insert(pair<intptr_t,list<uint64_t> >(_nodePtr,listOfInodes)).second){//failed to insert
+        inodeMap.erase(nextInodeNum);//rollback inodeMap Insert as well
         return 0;//Failure
+      }
     }
     return nextInodeNum;//Success
   }
@@ -433,10 +445,14 @@ uint64_t FileSystem::assignINodeNum(const intptr_t _nodePtr) {
 void FileSystem::replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr) {
   lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
 
+  if(_oldPtr == _newPtr){
+    LOG(ERROR)<<"NewPtr and OldPtr values are same!!"<<_oldPtr;
+    return;
+  }
+
   auto res = nodeInodeMap.find(_oldPtr);
-  if(res == nodeInodeMap.end())
-  {
-    LOG(ERROR)<<"Not a valid _nodePtr!";
+  if(res == nodeInodeMap.end()) {
+    LOG(ERROR)<<"Not a valid _oldPtr!"<<_oldPtr;
     return; //Not such a
   }
 
@@ -449,8 +465,12 @@ void FileSystem::replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr) {
   }
 
   //Insert all values of oldPtr in nodeInodeMap with _newPtr
-  if(!nodeInodeMap.insert(pair<intptr_t,list<uint64_t>>(_newPtr,inodeValuesOldPtr)).second)
-    LOG(ERROR)<<"Cannot insert _newPtr in the nodeInodeMap";
+  if(!nodeInodeMap.insert(pair<intptr_t,list<uint64_t>>(_newPtr,inodeValuesOldPtr)).second){
+    LOG(ERROR)<<"Cannot insert _newPtr in the nodeInodeMap, _newPtr:"<<_newPtr<<" inodeValuesOldPtrLen:"<<
+        inodeValuesOldPtr.size();
+    return;
+  }
+
   //and get rid of _oldPtr
   nodeInodeMap.erase(_oldPtr);
 }
@@ -499,7 +519,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
     for(uint64_t inode:inodeList->second) {
       auto inodeIt = inodeMap.find(inode);
       if(inodeIt == inodeMap.end()){
-        LOG(FATAL)<<"Inconcsitency between inodeMap and nodeInodeMap!";
+        LOG(FATAL)<<"Inconsistency between inodeMap and nodeInodeMap!";
         exit(-1);
       }
       else if(inodeIt->second.second){
@@ -586,16 +606,16 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
 
   //Update nodeInodemap and inodemap
   //if(!_node->isMoving()) {
-    auto res = nodeInodeMap.find((intptr_t)_node);
-    if(res != nodeInodeMap.end()) {//File is still open
-      for(uint64_t inode:res->second) {
-        auto inodeIt = inodeMap.find(inode);
-        if(inodeIt == inodeMap.end())
-          LOG(FATAL)<<"Inconcsitency between inodeMap and nodeInodeMap!";
-        else
-          inodeIt->second.second = true; //Inidicate deleted
-      }
+  auto res = nodeInodeMap.find((intptr_t)_node);
+  if(res != nodeInodeMap.end()) {//File is still open
+    for(uint64_t inode:res->second) {
+      auto inodeIt = inodeMap.find(inode);
+      if(inodeIt == inodeMap.end())
+        LOG(FATAL)<<"Inconsistency between inodeMap and nodeInodeMap!";
+      else
+        inodeIt->second.second = true; //Inidicate deleted
     }
+  }
   //}
 
   t.begin();
@@ -603,7 +623,6 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   delete _node;//this will recursively call signalDelete on all kids of this node
   t.end();
   //LOG(INFO)<<"Recursive delete took:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
-
 
   return resultRemote;
 }

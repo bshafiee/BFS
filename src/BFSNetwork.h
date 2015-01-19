@@ -192,6 +192,22 @@ struct MoveConfirmTask {
   std::condition_variable cv;
 };
 
+/**
+ * This is designed to handle file moving on write handler,
+ * So we won't be blocking rcvloop while this file is being transfered
+ * also avoids circular wait in move operation.
+ */
+struct TransferTask {
+  TransferTask (uint64_t _size) {
+    packet = new u_char[_size];
+  }
+  ~TransferTask() {
+    delete []packet;
+  }
+  u_char *packet;
+  uint64_t size;
+};
+
 enum SEND_TASK_TYPE {SEND_READ, SEND_WRITE};
 struct SndTask {
 	SndTask(SEND_TASK_TYPE _type):type(_type){}
@@ -401,9 +417,12 @@ private:
 	static taskMap<uint32_t,MoveConfirmTask*> moveConfirmSendTasks;
 	static Queue<SndTask*> sendQueue;
 	static Queue<MoveTask*> moveQueue;
+	static Queue<TransferTask*> transferQueue;
 	static std::thread *rcvThread;
 	static std::thread *sndThread;
 	static std::thread *moveThread;
+	static std::thread *transferThread;
+
 
 	static std::atomic<uint32_t> fileIDCounter;
 	static uint32_t getNextFileID();
@@ -411,6 +430,8 @@ private:
 	static void rcvLoop();
 	static void sendLoop();
 	static void moveLoop();
+	static void transferLoop();
+	static void processTransfer(TransferTask* _task);
 	static void fillBFSHeader(char *_packet,const unsigned char _dstMAC[6]);
 	/** Read Operation **/
 	static void onReadResPacket(const u_char *_packet);

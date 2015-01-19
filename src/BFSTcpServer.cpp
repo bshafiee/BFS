@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "BFSTcpServer.h"
 #include "BFSTcpServiceHandler.h"
 #include "SettingManager.h"
-#include <Poco/Net/SocketAcceptor.h>
+#include <Poco/Net/ParallelSocketAcceptor.h>
 #include "LoggerInclude.h"
 #include "ZooHandler.h"
 #include <string.h> /* for strncpy */
@@ -52,7 +52,9 @@ void BFSTcpServer::run() {
     initialize();
     ServerSocket serverSocket(port);
     reactor = new SocketReactor();
-    SocketAcceptor<BFSTcpServiceHandler> acceptor(serverSocket, *reactor);
+    //SocketAcceptor<BFSTcpServiceHandler> acceptor(serverSocket, *reactor);
+    ParallelSocketAcceptor<BFSTcpServiceHandler,SocketReactor> acceptor(serverSocket, *reactor);
+
     initSuccess.store(true);
     initialized.store(true);
     //Start Reactor
@@ -83,7 +85,6 @@ void BFSTcpServer::stop() {
   usleep(100);
   delete reactor;
   reactor = nullptr;
-
 }
 
 bool BFSTcpServer::addConnection(std::string _ip,
@@ -142,7 +143,7 @@ int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
   try {
     SocketAddress addres(_ip,_port);
     socket.connect(addres);
-    //socket.setKeepAlive(true);
+    socket.setKeepAlive(false);
   }catch(Exception &e){
     LOG(ERROR)<<"Error in createing socket to:"<<_ip<<":"<<_port<<" why?"<<e.message();
     return -2;
@@ -237,7 +238,7 @@ int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
   try {
     SocketAddress addres(_ip,_port);
     socket.connect(addres);
-    socket.setKeepAlive(true);
+    socket.setKeepAlive(false);
   }catch(Exception &e){
     LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
     return -2;
@@ -315,7 +316,8 @@ int64_t BFSTcpServer::attribRemoteFile(struct packed_stat_info* attBuff,
   try {
     SocketAddress addres(_ip,_port);
     socket.connect(addres);
-    socket.setKeepAlive(true);
+    socket.setKeepAlive(false);
+    //socket.setReceiveTimeout(Timespan(5,0));
   }catch(Exception &e){
     LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
     return -2;
@@ -372,7 +374,9 @@ int64_t BFSTcpServer::attribRemoteFile(struct packed_stat_info* attBuff,
       LOG(ERROR)<<"Error in receiving attrib status packet"<<_remoteFile<<": "<<e.message();
       try{
         socket.close();
-      }catch(...){}
+      }catch(Exception &e){
+        LOG(ERROR)<<"Error in shutting down connection of remote attrib: "<<_remoteFile<<": "<<e.message();
+      }
       return -2;
     }
   }
@@ -394,7 +398,7 @@ int64_t BFSTcpServer::deleteRemoteFile(const std::string& remoteFile,
   try {
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
-   socket.setKeepAlive(true);
+   socket.setKeepAlive(false);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -447,7 +451,7 @@ int64_t BFSTcpServer::flushRemoteFile(const std::string& remoteFile,
   try {
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
-   socket.setKeepAlive(true);
+   socket.setKeepAlive(false);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -500,7 +504,7 @@ int64_t BFSTcpServer::truncateRemoteFile(const std::string& remoteFile,
   try {
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
-   socket.setKeepAlive(true);
+   socket.setKeepAlive(false);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -554,7 +558,7 @@ int64_t BFSTcpServer::createRemoteFile(const std::string& remoteFile,
   try {
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
-   socket.setKeepAlive(true);
+   socket.setKeepAlive(false);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -608,7 +612,7 @@ int64_t BFSTcpServer::moveFileToRemoteNode(const std::string& file,
   try {
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
-   socket.setKeepAlive(true);
+   socket.setKeepAlive(false);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -644,11 +648,11 @@ int64_t BFSTcpServer::moveFileToRemoteNode(const std::string& file,
   }
   resPacket.statusCode = be64toh(resPacket.statusCode);
   if(resPacket.statusCode == 200) {//Success
-    LOG(ERROR)<<"Move to remote node successful: "<<file<< " Updating global view";
+    LOG(INFO)<<"Move to node:"<<_ip<<" successful: "<<file<< " Updating global view";
     FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
   }
   else
-    LOG(ERROR)<<"Move to remote node failed: "<<file;
+    LOG(ERROR)<<"Move to remote node failed: "<<file<<" Returned Code:"<<resPacket.statusCode;
 
   try {
     socket.close();

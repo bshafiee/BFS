@@ -372,7 +372,7 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
   if(DEBUG_READ)
-    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<
+    LOG(DEBUG)<<"path=\""<<(path==nullptr?"null":path)<<" size="<<
     size<<", offset="<<offset<<", fi="<<fi;
   //Handle path
   if(path == nullptr && fi->fh == 0) {
@@ -384,7 +384,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
 
   //Empty file
   if((!node->isRemote()&&node->getSize() == 0)||size == 0) {
-    LOG(ERROR)<<"Read from:path="<<node->getFullPath()<<", buf="<<buf<<", size="<<size<<", offset="<<offset<<", EOF";
+    LOG(ERROR)<<"Read from:path="<<node->getFullPath()<<", size="<<size<<", offset="<<offset<<", EOF";
     return 0;
   }
   long readBytes = 0;
@@ -395,29 +395,31 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
 
   if(readBytes >= 0) {
     if(DEBUG_READ)
-      LOG(DEBUG)<<"Successful read from:path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset;
+      LOG(DEBUG)<<"Successful read from:path="<<node->getFullPath()<<" size="<<size<<", offset="<<offset;
     Statistics::reportRead(size);
     return readBytes;
   }
   else {
-    LOG(ERROR)<<"Error in reading: path=\""<<(path==nullptr?"null":path)<<"\", buf="<<buf<<", size="<<size<<", offset="<<offset<<" RetValue:"<<readBytes<<" nodeSize:"<<node->getSize();
+    LOG(ERROR)<<"Error in reading: path="<<node->getFullPath()<<" size="<<size<<", offset="<<offset<<" RetValue:"<<readBytes<<" nodeSize:"<<node->getSize()<<" isRemote?"<<node->isRemote();
     return -EIO;
   }
 }
 int swift_write_error_tolerant(const char* path, const char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
   int retry = 3;
-  while(retry>0) {
+  int lastError = 0;
+  while(retry > 0) {
     int res = swift_write(path, buf, size, offset,fi);
-    if (res != -EIO){
+    if (res != -EIO && res != -ENOSPC){
       if(res > 0)
     	  Statistics::reportWrite(size);
       return res;
     }
-    LOG(ERROR)<<"write failed for:"<<(path==nullptr?"null":path)<<" retrying:"<<(3-retry+1)<<" Time.";
+    LOG(ERROR)<<"write failed for:"<<(path==nullptr?"null":path)<<" retrying:"<<(3-retry+1)<<" Time."<<" ErrorCode:"<<res;
     retry--;
+    lastError = res;
   }
-  return -EIO;
+  return lastError;
 }
 int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
@@ -431,12 +433,39 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
   }
   //Get associated FileNode*
   FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
-
+  string fullPath = node->getFullPath();
 
   long written = 0;
 
-  if (node->isRemote())
+  if (node->isRemote()){
+    /**
+     * -20 Transferring
+     * -10 Successful Transfer
+     * -2 No space left
+     * -3 EIO
+     */
     written = node->writeRemote(buf, offset, size);
+    if(written == -10){//Transfer Successful
+      //1)Open new file
+      FileNode* newNode = FileSystem::getInstance().findAndOpenNode(fullPath);
+      //2)Close the old node so it can be removed or whatever
+      node->close(0);//Don't use fi->fh because we need this inode Nubmer
+      //But don't assign a new inodeNum! we have an inode number from old one
+      if (newNode == nullptr) {
+        LOG(ERROR)<<"Failure, cannot Open New Node after Transfer: "<<fullPath;
+        return -EIO;
+      }
+      //3)Replace inode with the new pointer if not local(not moved to here)
+      if(newNode->isRemote())
+        FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)node,(intptr_t)newNode);
+      //4)Redo write
+      return swift_write(path,buf,size,offset,fi);
+    } else if(written == -20){//Is transferring
+      sleep(1);//sleep a little and try again;
+      LOG(INFO) <<"\nSLEEPING FOR Transferring:"<<node->getFullPath();
+      return swift_write(path,buf,size,offset,fi);
+    }
+  }
   else {
     /**
      * @return
@@ -448,7 +477,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
      * >= 0 written bytes
      */
     FileNode* afterMove = nullptr;
-    written = node->writeHandler(buf, offset, size, afterMove);
+    written = node->writeHandler(buf, offset, size, afterMove,true);
     if(afterMove) {//set fi->fh
       FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)node,(intptr_t)afterMove);
       node = afterMove;

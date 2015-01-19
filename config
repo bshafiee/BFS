@@ -1,12 +1,12 @@
 #Mode determines wether to operate in DISTRIBUTED, STANDALONE_SWIFT or STANDALONE mode
-mode = STANDALONE
+mode = DISTRIBUTED
 #Swift Authentication info
 username = admin
-password = behrooz
+password = behrooz2
 auth_url = http://10.42.0.83:5000/v2.0/tokens
 tenant_name = admin
 #what percentage of system memory to use? (0,1]
-max_mem_coef = 0.7;
+max_mem_coef = 0.6
 #zero networking device
 network_dev=eth2
 #tcp port

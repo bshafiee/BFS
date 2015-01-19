@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "MemoryController.h"
 #include "SettingManager.h"
 #include "LoggerInclude.h"
+#include "ZooHandler.h"
 
 namespace FUSESwift {
 
@@ -74,7 +75,7 @@ void MemoryContorller::processMemUsage(double& vm_usage,
   resident_set = rss * page_size_kb;
 }
 
-MemoryContorller::MemoryContorller():total(0),max_allowed(0) {
+MemoryContorller::MemoryContorller():total(0),max_allowed(0),claimed(0),lastAvailMemory(0) {
   double coef = SettingManager::getDouble(CONFIG_KEY_MAX_MEM_COEF);
   if(coef > 0 && coef <=1)
   	MAX_MEM_COEF = coef;
@@ -82,6 +83,7 @@ MemoryContorller::MemoryContorller():total(0),max_allowed(0) {
   	LOG(ERROR)<<"Invalid MAX_MEM_COEF:"<<coef;
 
 	max_allowed = getTotalSystemMemory() * MAX_MEM_COEF;
+	lastAvailMemory = getAvailableMemory();
   //max_allowed = 512l*1024l*1024l;
 }
 
@@ -120,10 +122,41 @@ int64_t MemoryContorller::getAvailableMemory() {
   return max_allowed - total;
 }
 
+bool MemoryContorller::claimMemory(int64_t _size) {
+  if (_size + claimed > getAvailableMemory())
+    return false;
+  claimed += _size;
+  return true;
+}
+
+void MemoryContorller::releaseClaimedMemory(int64_t _size) {
+  if(claimed - _size < 0)
+    claimed = 0;
+  else
+    claimed -= _size;
+}
+
+int64_t MemoryContorller::getClaimedMemory() {
+  return claimed;
+}
+
 double MemoryContorller::getMemoryUtilization() {
   double used = getMaxAllowed() - getAvailableMemory();
   return used/(double)getMaxAllowed();
 }
 
+void MemoryContorller::informMemoryUsage() {
+  int64_t diff = getAvailableMemory()-getClaimedMemory()-lastAvailMemory;
+  if(diff < 0)
+    diff = -diff;
+  long double percentage = (long double)diff / (long double)max_allowed;
+
+  if(percentage > .01){
+    lastAvailMemory = getAvailableMemory()-getClaimedMemory();
+    ZooHandler::getInstance().publishFreeSpace();
+  }
+}
+
 } //end of namespace FUSESWIFT
+
 

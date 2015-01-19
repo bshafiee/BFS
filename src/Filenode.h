@@ -61,7 +61,7 @@ class FileNode: public Node {
   //Private Members
   metadataDictionary metadata;
   bool isDir;
-  int64_t size;
+  std::atomic<int64_t> size;
   std::atomic<int> refCount;
   std::vector<char*> dataList;
   uint64_t blockIndex;
@@ -83,6 +83,12 @@ class FileNode: public Node {
 	std::mutex metadataMutex;
 	//Buffer
 	//ReadBuffer* readBuffer;
+
+	/**
+	 * Marked for transfer indicates if we are planning to move this file
+	 * to another on a remote write request hit
+	 */
+	std::atomic<bool> transfering;
 
   long write(const char *_data, int64_t _offset, int64_t _size);
   bool flushRemote();
@@ -114,6 +120,7 @@ public:
   bool isRemote();
   int concurrentOpen();
   const unsigned char* getRemoteHostMAC();
+  const std::string getRemoteHostIP();
   void setRemoteHostMAC(const unsigned char *_mac);
   void setRemoteIP(const std::string &_ip);
   void setRemotePort(const uint32_t _port);
@@ -139,7 +146,7 @@ public:
    * Success:
    * >= 0 written bytes
    */
-  long writeHandler(const char *_data, int64_t _offset, int64_t _size,FileNode* &_afterMoveNewNode);
+  long writeHandler(const char *_data, int64_t _offset, int64_t _size,FileNode* &_afterMoveNewNode,bool _shouldMove);
   /**
    * reads file data to input arguments.
    * returns true if successful, false if fails.
@@ -163,6 +170,8 @@ public:
   bool isOpen();
   bool flush();
   bool flushed();
+  bool isTransfering();
+  void setTransfering(bool _value);
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   void fillPackedStat(struct packed_stat_info &st);

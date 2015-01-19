@@ -104,12 +104,15 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	  }
 
 	  FileNode* afterMove = nullptr;
-    long retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove);
-    if(afterMove)
-      newFile = afterMove;
-    while(retCode == -1)//-1 means moving
-      retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove);
+    long retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove,true);
 
+    while(retCode == -1)//-1 means moving
+      retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove,true);
+
+    if(afterMove){
+      newFile = afterMove;
+      FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)newFile,(intptr_t)afterMove);
+    }
     //Check space availability
 	  if(retCode < 0) {
 	    LOG(ERROR)<<"Error in writing file:"<<newFile->getFullPath()<<", probably no diskspace, Code:"<<retCode;
