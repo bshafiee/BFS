@@ -383,8 +383,12 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
 
 bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
-  if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2) //Could not find a node with enough space :(
+  if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2){ //Could not find a node with enough space :(
+    LOG(INFO)<<"The most freeNode Does not have enough space for this file:"<<
+        _localFile->getFullPath()<<" size:"<<_localFile->getSize()<<
+        " mostFree:"<<mostFreeNode.toString();
     return false;
+  }
 
   //First advertise the list of files you have to make sure the dst node will see this file
   ZooHandler::getInstance().publishListOfFiles();
@@ -392,7 +396,7 @@ bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
       _localFile->getSize()<<" UTIL:"<<
       MemoryContorller::getInstance().getMemoryUtilization()<<" to:"<<
       mostFreeNode.hostName<<" with:"<<mostFreeNode.freeSpace/1024ll/1024ll<<
-      "MB free space";
+      "MB free space.";
 #ifdef BFS_ZERO
   return BFSNetwork::createRemoteFile(_localFile->getFullPath(),mostFreeNode.MAC);
 #else
@@ -446,7 +450,7 @@ void FileSystem::replaceAllInodesByNewNode(intptr_t _oldPtr,intptr_t _newPtr) {
   lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
 
   if(_oldPtr == _newPtr){
-    LOG(ERROR)<<"NewPtr and OldPtr values are same!!"<<_oldPtr;
+    LOG(ERROR)<<"NewPtr and OldPtr values are same!!:"<<_oldPtr;
     return;
   }
 
@@ -588,7 +592,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   _node->hasInformedDelete = true;
   //5) if is open just return and we'll come back later
   if(_node->isOpen()){
-    LOG(DEBUG)<<"SIGNAL DELETE ISOPEN Key:"<<_node->key<<" howmanyOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+    LOG(INFO)<<"SIGNAL DELETE ISOPEN Key:"<<_node->key<<" howmanyOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
     return true;//will be deleted on close
   }
 
@@ -602,7 +606,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       break;
     }
 
-  LOG(DEBUG)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+  LOG(INFO)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
 
   //Update nodeInodemap and inodemap
   //if(!_node->isMoving()) {

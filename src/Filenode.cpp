@@ -162,6 +162,9 @@ long FileNode::write(const char* _data, int64_t _offset, int64_t _size) {
   //Acquire lock
   lock_guard <recursive_mutex> lock(ioMutex);
 
+  if(_offset > size)
+    LOG(ERROR)<<"\nOFFSET IS BIGGER THAN SIZE, OFFSET:"<<_offset<<" SIZE:"<<size<<" requestSize:"<<_size<<" name:"<<getFullPath();
+
   //Check Storage space Availability
   int64_t newReqMemSize = (_offset + _size > size) ? _offset + _size - size : 0;
   if (newReqMemSize > 0)
@@ -612,12 +615,7 @@ long FileNode::readRemote(char* _data, int64_t _offset, int64_t _size) {
 #ifdef BFS_ZERO
 	return BFSNetwork::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteHostMAC);
 #else
-	Timer t;
-  t.begin();
-	long res = BFSTcpServer::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
-	t.end();
-  //cout<<"RECV DONE IN:"<<t.elapsedMicro()<<" microseconds."<<endl;
-  return res;
+	return BFSTcpServer::readRemoteFile(_data,_size,_offset,this->getFullPath(),remoteIP,remotePort);
 #endif
 }
 
@@ -720,7 +718,7 @@ long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, F
 
   long written = write(_data, _offset, _size);
   if(!_shouldMove && written == -1){
-    LOG(ERROR)<<"Not Enough Space and not moving to other nodes"<< this->getName()<<" memUtil:"<<MemoryContorller::getInstance().getMemoryUtilization();
+    LOG(ERROR)<<"Not Enough Space and not moving to other nodes:"<< this->getFullPath()<<" memUtil:"<<MemoryContorller::getInstance().getMemoryUtilization();
     ZooHandler::getInstance().publishFreeSpace();
     return -2;//No space
   }
@@ -728,7 +726,7 @@ long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, F
     string filePath = getFullPath();
     setMoving(true);//Nobody is going to write to this file anymore
     close(0);
-
+    //LOG(INFO)<<"MOVE triggered for:"<<getFullPath()<<" offset:"<<_offset<<" size:"<<_size;
     if(FileSystem::getInstance().moveToRemoteNode(this)) {
       FileNode *newNode = FileSystem::getInstance().findAndOpenNode(filePath);
       if(newNode == nullptr|| !newNode->isRemote()) {
@@ -739,7 +737,8 @@ long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, F
         }
         LOG(ERROR)<<"HollyShit! we just moved "
             "this file:"<<filePath<<" to a remote node! but "
-            "Does not exist or is not remote";
+            "Does not exist or is not remote. IsNull:"<<((newNode==nullptr)?"null":"not Null.");
+        ZooHandler::getInstance().requestUpdateGlobalView();
         return -3;
       } else {
         // all good ;)

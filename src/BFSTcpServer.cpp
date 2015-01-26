@@ -20,12 +20,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "BFSTcpServiceHandler.h"
 #include "SettingManager.h"
 #include <Poco/Net/ParallelSocketAcceptor.h>
+#include <Poco/Net/SocketAcceptor.h>
 #include "LoggerInclude.h"
 #include "ZooHandler.h"
 #include <string.h> /* for strncpy */
 #include <iostream>
 #include <string.h>
 #include "Timer.h"
+#include "MemoryController.h"
 
 using namespace Poco;
 using namespace Poco::Net;
@@ -42,6 +44,10 @@ string BFSTcpServer::ip = "";
 string BFSTcpServer::iface;
 atomic<bool> BFSTcpServer::initialized(false);
 atomic<bool> BFSTcpServer::initSuccess(false);
+//Transfer stuff
+FUSESwift::Queue<TransferTask*> BFSTcpServer::transferQueue;
+std::thread *BFSTcpServer::transferThread = nullptr;
+atomic<bool> BFSTcpServer::isRunning(true);
 
 BFSTcpServer::BFSTcpServer() {}
 
@@ -52,11 +58,15 @@ void BFSTcpServer::run() {
     initialize();
     ServerSocket serverSocket(port);
     reactor = new SocketReactor();
-    //SocketAcceptor<BFSTcpServiceHandler> acceptor(serverSocket, *reactor);
-    ParallelSocketAcceptor<BFSTcpServiceHandler,SocketReactor> acceptor(serverSocket, *reactor);
+    SocketAcceptor<BFSTcpServiceHandler> acceptor(serverSocket, *reactor);
+    //ParallelSocketAcceptor<BFSTcpServiceHandler,SocketReactor> acceptor(serverSocket, *reactor);
+
+    //Start Transfer Thread
+    transferThread = new std::thread(BFSTcpServer::transferLoop);
 
     initSuccess.store(true);
     initialized.store(true);
+
     //Start Reactor
     reactor->run();
   }catch(Exception&e){
@@ -80,8 +90,16 @@ bool BFSTcpServer::start() {
 
 void BFSTcpServer::stop() {
   LOG(INFO)<<"STOPPING REACTOR!";
+  isRunning.store(false);
+  //Stop Transfer Thread
+  transferQueue.stop();
+  transferThread->join();
+  delete transferThread;
+  transferThread = nullptr;
+  //Stop reactor
   if(reactor)
     reactor->stop();
+  thread->join();
   usleep(100);
   delete reactor;
   reactor = nullptr;
@@ -302,7 +320,7 @@ int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
   if(resPacket.statusCode == 200)
     return _size;
   else
-    return resPacket.statusCode;//Unsuccessful
+    return resPacket.statusCode;//Unsuccessful(or transfer)
 }
 
 int64_t BFSTcpServer::attribRemoteFile(struct packed_stat_info* attBuff,
@@ -702,4 +720,61 @@ bool BFSTcpServer::initialize() {
   }
 
   return true;
+}
+
+
+
+void BFSTcpServer::transferLoop() {
+  while(isRunning) {
+    TransferTask* front = transferQueue.front();
+
+    if(unlikely(!isRunning))
+      break;
+
+    processTransfer(front);
+
+    delete front;
+    front = nullptr;
+    transferQueue.pop();
+  }
+  LOG(ERROR)<<"TCP Transfer LOOP DEAD!";
+}
+
+void BFSTcpServer::processTransfer(TransferTask* _task) {
+  string fileName = string(_task->writeReq.fileName);
+  //Find file and lock it!
+  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  if(fNode == nullptr) {
+    LOG(ERROR)<<"File Not found:"<<fileName;
+    return;
+  }
+  uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+  //Write data to file
+  FUSESwift::FileNode* afterMove = nullptr;//This will happen
+  long result = fNode->writeHandler((char*)_task->data,_task->writeReq.offset,_task->writeReq.size,afterMove,true);
+
+  if(result == (int64_t)_task->writeReq.size && afterMove) {//Success
+    FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
+    LOG(INFO)<<"Transfer Successful:"<<fileName<<" from:"<<FUSESwift::ZooHandler::getInstance().getHostName()<<" to:"<<afterMove->getRemoteHostIP();
+    //We don't need to close file here because it's a newly created node;
+    //however, move will make it open! so WE NEED TO CLOSE IT
+    afterMove->close(0);
+  } else {
+    string afterMoveVal = "nullptr";
+    string fNodeVal = "nullptr";
+    if(afterMove)
+      afterMoveVal = to_string((intptr_t)afterMove);
+    if(fNode)
+      afterMoveVal = to_string((intptr_t)fNode);
+    LOG(ERROR)<<"Unsuccessful transfer:"<<fileName<<" MEMUTILIZATION:"<<
+        FUSESwift::MemoryContorller::getInstance().getMemoryUtilization()<<
+        " size:"<<_task->writeReq.size<<" written:"<<result<<
+        " afterMoveNode:"<<afterMoveVal<<" fNode:"<<fNodeVal;
+    fNode->setTransfering(false);
+    fNode->close(inodeNum);//close the file
+  }
+}
+
+void BFSTcpServer::addTransferTask(TransferTask* _task) {
+  transferQueue.push(_task);
 }

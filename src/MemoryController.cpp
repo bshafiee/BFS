@@ -88,8 +88,10 @@ MemoryContorller::MemoryContorller():total(0),max_allowed(0),claimed(0),lastAvai
 }
 
 bool MemoryContorller::requestMemory(int64_t _size) {
-  if (_size + total > max_allowed)
+  if (_size + total > max_allowed){
+    informMemoryUsage();
     return false;
+  }
   total += _size;
   return true;
 }
@@ -123,8 +125,10 @@ int64_t MemoryContorller::getAvailableMemory() {
 }
 
 bool MemoryContorller::claimMemory(int64_t _size) {
-  if (_size + claimed > getAvailableMemory())
+  if (_size + claimed > getAvailableMemory()){
+    informMemoryUsage();
     return false;
+  }
   claimed += _size;
   return true;
 }

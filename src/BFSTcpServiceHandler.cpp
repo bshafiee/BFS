@@ -291,6 +291,8 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
   FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    //check transferring
+
     char* buff = new char[reqPacket->size];
     try {
       int count = 0;
@@ -302,15 +304,26 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
         left -= count;
         //LOG(ERROR)<<"total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available();
       } while(left > 0 && count);
-      if(total == reqPacket->size){//Success
-        FUSESwift::FileNode* afterMove = nullptr;//If it does not fit in out memory
-        long result = fNode->writeHandler(buff,reqPacket->offset,reqPacket->size,afterMove,true);
-        if(afterMove)
-          fNode = afterMove;
-        writeResPacket.statusCode = htobe64(result);
-        if(result != (int64_t)reqPacket->size)
-          LOG(ERROR)<<"RemoteWrite To this Node failed! for("<<reqPacket->fileName<<" size:"<<reqPacket->size<<" returned code:"<<result;
-      }else
+      if(total == reqPacket->size) {//Success
+        if(fNode->isTransfering()){
+          writeResPacket.statusCode = htobe64(-20);//is Transferring
+          LOG(INFO)<<"Write Req for a transferring node!";
+        } else {
+          FUSESwift::FileNode* afterMove = nullptr;//Should not happen
+          long result = fNode->writeHandler(buff,reqPacket->offset,reqPacket->size,afterMove,false);
+          //Check for Transfer
+          if(result == -2){//No free space left!
+            fNode->setTransfering(true);
+            result = -20;//is transferring
+            TransferTask* tTask = new TransferTask(*reqPacket);
+            memcpy(tTask->data,buff,reqPacket->size);//copy data
+            BFSTcpServer::addTransferTask(tTask);
+          }
+          writeResPacket.statusCode = htobe64(result);
+          if(result != (int64_t)reqPacket->size && result != -20)
+            LOG(ERROR)<<"RemoteWrite To this Node failed! for("<<reqPacket->fileName<<" size:"<<reqPacket->size<<" returned code:"<<result;
+        }
+      } else
         LOG(ERROR)<<"reading write data failed:total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available();
     }catch(Exception &e){
       LOG(ERROR)<<"Error in receiving write data "<<reqPacket->fileName<<": "<<e.message();
@@ -318,6 +331,7 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
     }
     delete []buff;
     buff = nullptr;
+
     //Close file
     fNode->close(inodeNum);
   }
@@ -376,7 +390,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
           break;
         }
       }while(left);
-      LOG(INFO)<<"Attrib request for:"<<fileName<<" isRemote:"<<fNode->isRemote();
+      //LOG(INFO)<<"Attrib request for:"<<fileName<<" isRemote:"<<fNode->isRemote();
     } catch(...){
       LOG(ERROR)<<"Error in sending attrib response:"<<fileName;
       delete this;
@@ -544,9 +558,7 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)file);
     //3)check size
     struct stat st;
-    LOG(INFO)<<"getting attrib for file:"<<file->getName()<<" isRemote:"<<file->isRemote()<<" remoteIP:"<<file->getRemoteHostIP();
     if(file->getStat(&st)) {
-      LOG(INFO)<<"got remot attrib successfuly for file:"<<file->getName()<<" isRemote:"<<file->isRemote()<<" remoteIP:"<<file->getRemoteHostIP();
       //If we have enough space (2 times of current space
       if(FUSESwift::MemoryContorller::getInstance().claimMemory(st.st_size*2ll)) {
         //inform claimed memory
@@ -580,6 +592,7 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
             //Everything went well
             FUSESwift::ZooHandler::getInstance().publishListOfFiles();//Inform rest of world
             FUSESwift::ZooHandler::getInstance().publishFreeSpace();
+            LOG(INFO)<<"Moved "<<file->getFullPath()<<" to here successfully.";
             file->close(inodeNum);
             return 200;
           } else {

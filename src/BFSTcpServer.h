@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef BFSTCPSERVER_H_
 #define BFSTCPSERVER_H_
 #include "Global.h"
+#include "Queue.h"
 #include <Poco/Net/SocketReactor.h>
 #include <Poco/Net/ParallelSocketReactor.h>
 #include <Poco/Net/StreamSocket.h>
@@ -38,6 +39,18 @@ struct ConnectionEntry {
   bool mustBeDelete;
 };
 
+struct TransferTask {
+  TransferTask (WriteReqPacket _packet):data(nullptr),
+      writeReq(_packet) {
+    data = new u_char[writeReq.size];
+  }
+  ~TransferTask () {
+    delete []data;
+  }
+  u_char* data;
+  WriteReqPacket writeReq;
+};
+
 //Forward delcare
 class BFSTcpServiceHandler;
 
@@ -53,6 +66,10 @@ class BFSTcpServer {
   static std::string iface;
   static std::atomic<bool> initialized;
   static std::atomic<bool> initSuccess;
+  //Transfer Stuff
+  static FUSESwift::Queue<TransferTask*> transferQueue;
+  static std::thread *transferThread;
+  static std::atomic<bool> isRunning;
   //Socket Map Functions
   static bool addConnection(std::string _ip,ConnectionEntry _connectionEntry);
   static void delConnection(std::string _ip);
@@ -62,6 +79,8 @@ class BFSTcpServer {
   static void findIP();
   static bool initialize();
   static void run();
+  static void transferLoop();
+  static void processTransfer(TransferTask*);
   BFSTcpServer();
 public:
   virtual ~BFSTcpServer();
@@ -86,6 +105,7 @@ public:
       const std::string &_ip,uint _port);
   static int64_t moveFileToRemoteNode(const std::string &file,
       const std::string &_ip,uint _port);
+  static void addTransferTask(TransferTask*);
 };
 
 

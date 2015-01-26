@@ -30,6 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Params.h"
 #include "Statistics.h"
 #include "SettingManager.h"
+#include "Global.h"
 
 using namespace std;
 
@@ -207,7 +208,7 @@ int swift_unlink(const char* path) {
 
 
   node->close(inodeNum);
-  LOG(DEBUG)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getFullPath()<<" isOpen?"<<node->concurrentOpen()<<" isRemote():"<<node->isRemote();
+  LOG(INFO)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getFullPath()<<" isOpen?"<<node->concurrentOpen()<<" isRemote():"<<node->isRemote();
   if(!FileSystem::getInstance().signalDeleteNode(node,true)){
     LOG(ERROR)<<"DELETE FAILED FOR:"<<path;
     return -EIO;
@@ -463,7 +464,35 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     } else if(written == -20){//Is transferring
       sleep(1);//sleep a little and try again;
       LOG(INFO) <<"\nSLEEPING FOR Transferring:"<<node->getFullPath();
+      //for TCP mode
+#ifndef BFS_ZERO
+      /**
+       * Try to see if the file has been transferred or not!
+       * if transferred the pointer should have change unless
+       * it's being transferred to ourself(this node)
+       */
+      //1)Open new file
+      FileNode* newNode = FileSystem::getInstance().findAndOpenNode(fullPath);
+      //2)close old file
+      node->close(0);//Don't use fi->fh because we need this inode Nubmer
+      //But don't assign a new inodeNum! we have an inode number from old one
+      if (newNode == nullptr) {
+        LOG(ERROR)<<"Failure, cannot Open New Node after Transfer: "<<fullPath;
+        return -EIO;
+      }
+      /**
+       * 3)Replace inode with the new pointer if not local(not moved to here)
+       * Otherwise newNode and node are same and a transfer is
+       * complete(newNode!=node)
+       */
+      if(newNode->isRemote() && newNode!=node)
+        FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)node,(intptr_t)newNode);
+      //4)Finally redo write(shared with ZERO_MODE)
+#endif
       return swift_write(path,buf,size,offset,fi);
+    } else if(written == -40){//Inconsistency in global View! the remote node is not responsible
+      ZooHandler::getInstance().requestUpdateGlobalView();
+      return -EIO;
     }
   }
   else {

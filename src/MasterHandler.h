@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define MASTERHANDLER_H_
 #include "Global.h"
 #include <atomic>
+#include <thread>
 #include <vector>
 #include "BackendManager.h"
 #include "ZooNode.h"
@@ -32,6 +33,7 @@ class MasterHandler {
 private:
   static std::vector<ZooNode> existingNodes;
   static std::atomic<bool> isRunning;
+  static std::thread *mThread;
   MasterHandler();
   static std::vector<BackendItem> getExistingAssignments();
   static void leadershipLoop();

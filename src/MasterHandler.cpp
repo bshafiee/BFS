@@ -29,6 +29,7 @@ namespace FUSESwift {
 
 atomic<bool> MasterHandler::isRunning;
 vector<ZooNode> MasterHandler::existingNodes;
+std::thread *MasterHandler::mThread;
 
 MasterHandler::MasterHandler() {
 }
@@ -186,6 +187,7 @@ void MasterHandler::leadershipLoop() {
     usleep(interval);
   }
   LOG(ERROR)<<"MASTERHANDLER LOOP DEAD!";
+  isRunning.store(false);
 }
 
 MasterHandler::~MasterHandler() {
@@ -195,11 +197,16 @@ void MasterHandler::startLeadership() {
 	if(isRunning)
 		return;
   isRunning = true;
-  new thread(leadershipLoop);
+  mThread = new thread(leadershipLoop);
 }
 
 void MasterHandler::stopLeadership() {
-  isRunning = false;
+  if(isRunning){//If we were the leader
+    isRunning = false;
+    mThread->join();
+    delete mThread;
+    mThread = nullptr;
+  }
 }
 
 /**

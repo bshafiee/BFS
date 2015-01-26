@@ -20,14 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BFSNETWORK_H_
 
 #include "Global.h"
-#include <condition_variable>
-#include <mutex>
+#include "Queue.h"
 #include <thread>
 #include <atomic>
 #include <unordered_map>
-#include <atomic>
-#include <vector>
-#include <queue>
 #include <sys/stat.h>
 
 #include "Filenode.h"
@@ -198,7 +194,8 @@ struct MoveConfirmTask {
  * also avoids circular wait in move operation.
  */
 struct TransferTask {
-  TransferTask (uint64_t _size) {
+  TransferTask (uint64_t _size,uint64_t _iNodeNum):
+    size(_size),inodeNum(_iNodeNum) {
     packet = new u_char[_size];
   }
   ~TransferTask() {
@@ -206,6 +203,7 @@ struct TransferTask {
   }
   u_char *packet;
   uint64_t size;
+  uint64_t inodeNum;
 };
 
 enum SEND_TASK_TYPE {SEND_READ, SEND_WRITE};
@@ -303,83 +301,6 @@ public:
 };
 
 
-template <typename T>
-class Queue {
-private:
-  std::vector<T> queue;
-  std::mutex mutex;
-  std::condition_variable cond;
-  std::atomic<bool>isRunning;
- public:
-  Queue ():isRunning(true) {}
-  T pop() {
-    std::unique_lock<std::mutex> mlock(mutex);
-    while (queue.empty()) {
-      cond.wait(mlock);
-      if(unlikely(!isRunning))
-        return nullptr;
-    }
-    auto item = queue.front();
-    queue.erase(queue.begin());
-    return item;
-  }
-
-  T front() {
-		std::unique_lock<std::mutex> mlock(mutex);
-		while (queue.empty()) {
-			cond.wait(mlock);
-			if(unlikely(!isRunning))
-        return nullptr;
-		}
-		auto item = queue.front();
-		return item;
-	}
-
-  template <class... Args>
-  void emplace(Args&&... args) {
-  	std::unique_lock<std::mutex> mlock(mutex);
-		queue.empalce_back(std::forward<Args>(args)...);
-		mlock.unlock();
-		cond.notify_one();
-  }
-
-  void push(const T& item) {
-    std::unique_lock<std::mutex> mlock(mutex);
-    queue.push_back(item);
-    mlock.unlock();
-    cond.notify_one();
-  }
-
-  void push(T&& item) {
-    std::unique_lock<std::mutex> mlock(mutex);
-    queue.push_back(std::move(item));
-    mlock.unlock();
-    cond.notify_one();
-  }
-
-  inline auto at(uint64_t index) {
-    return queue[index];
-  }
-
-  auto begin() const{
-		return queue.begin();
-	}
-
-  auto end() const{
-		return queue.end();
-	}
-
-  const auto size() {
-    std::lock_guard<std::mutex> lock(mutex);
-  	return queue.size();
-  }
-
-  void stop() {
-    isRunning = false;
-    cond.notify_all();
-  }
-};
-
 enum class BFS_OPERATION {READ_REQUEST = 1, READ_RESPONSE = 2,
                           WRITE_REQUEST = 3,WRITE_DATA = 4,
                           WRITE_ACK = 5, ATTRIB_REQUEST = 6,
@@ -456,6 +377,8 @@ private:
   static void onCreateReqPacket(const u_char *_packet);
   static void onCreateResPacket(const u_char *_packet);
   static void processMoveTask(const MoveTask &_moveTask);
+  static void processMoveTask2(const MoveTask &_moveTask);
+  static void sendMoveResponse(const MoveTask &_moveTask, int res);
 	/** Truncate Operation **/
 	static void onTruncateReqPacket(const u_char *_packet);
   static void onTruncateResPacket(const u_char *_packet);
