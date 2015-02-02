@@ -107,6 +107,7 @@ public:
 	ElectionState getElectionState();
 	void publishListOfFiles();
 	std::vector<ZooNode> getGlobalView();
+	std::vector<ZooNode> getGlobalFreeView();
 	void startElection();
 	ZooNode getMostFreeNode();
 	void requestUpdateGlobalView();

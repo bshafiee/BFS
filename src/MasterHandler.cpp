@@ -142,6 +142,23 @@ void MasterHandler::leadershipLoop() {
 
     //3)Fetch list of avail nodes, their free space
     vector<ZooNode> globalView = ZooHandler::getInstance().getGlobalView();
+    vector<ZooNode> globalFreeView = ZooHandler::getInstance().getGlobalFreeView();
+    //Fill GlobaView with globalfreeview
+    for(ZooNode& node:globalView) {
+      bool found = false;
+      for(ZooNode& fnode:globalFreeView){
+        if(fnode.hostName == node.hostName){
+          found = true;
+          node.freeSpace = fnode.freeSpace;
+          break;
+        }
+      }
+      if(!found){
+        LOG(ERROR)<<"\nCann't find free space for node:"<<node.hostName<<"\n";
+        continue;
+      }
+    }
+
     //Check if there is any change in nodes(only checks freespace name and mac)
     bool nodesChanged = false;
     if(globalView.size()!=existingNodes.size()) {
@@ -316,7 +333,7 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vec
 //			continue;
 //		}
 
-		//printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
+			printf("Published tasks for %s:{%s}\n",item.first.c_str(),value.c_str());
 	}
 	return couldAssign;
 }

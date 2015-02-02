@@ -481,6 +481,11 @@ std::vector<ZooNode> ZooHandler::getGlobalView() {
 	return globalView;
 }
 
+std::vector<ZooNode> ZooHandler::getGlobalFreeView() {
+  lock_guard<mutex> lk(lockGlobalFreeView);
+  return globalFreeView;
+}
+
 /**
  * 1)get list of electionznode(/BFSElection) children
  * 	 and set a watch for changes in these folder
