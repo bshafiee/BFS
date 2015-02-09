@@ -383,7 +383,7 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
 
 bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
-  if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2){ //Could not find a node with enough space :(
+  if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2ll){ //Could not find a node with enough space :(
     LOG(INFO)<<"The most freeNode Does not have enough space for this file:"<<
         _localFile->getFullPath()<<" size:"<<_localFile->getSize()<<
         " mostFree:"<<mostFreeNode.toString();
@@ -592,7 +592,7 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   _node->hasInformedDelete = true;
   //5) if is open just return and we'll come back later
   if(_node->isOpen()){
-    LOG(INFO)<<"SIGNAL DELETE ISOPEN Key:"<<_node->key<<" howmanyOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+    LOG(DEBUG)<<"SIGNAL DELETE ISOPEN Key:"<<_node->key<<" howmanyOpen?"<<_node->refCount<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
     return true;//will be deleted on close
   }
 
@@ -606,7 +606,9 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
       break;
     }
 
-  LOG(INFO)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+  LOG(DEBUG)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
+  /*if(!_node->isDirectory() && !_node->isRemote())
+      LOG(INFO)<<"\nGOING TO DELETE BUT FRIST MD5!!:"<<_node->getFullPath()<<" MD5SUM:"<<_node->getMD5()<<" size:"<<_node->getSize();*/
 
   //Update nodeInodemap and inodemap
   //if(!_node->isMoving()) {

@@ -154,6 +154,7 @@ struct ReadRcvTask {
 	uint32_t fileID;
 	uint64_t offset;
 	uint64_t size;
+	int64_t expected_offset;
 	void* dstBuffer;
 	/**
 	 * Indicates how much in total it was read from destination
@@ -194,8 +195,8 @@ struct MoveConfirmTask {
  * also avoids circular wait in move operation.
  */
 struct TransferTask {
-  TransferTask (uint64_t _size,uint64_t _iNodeNum):
-    size(_size),inodeNum(_iNodeNum) {
+  TransferTask (uint64_t _size,uint64_t _iNodeNum,std::string _remoteFile):
+    size(_size),inodeNum(_iNodeNum),remoteFile(_remoteFile) {
     packet = new u_char[_size];
   }
   ~TransferTask() {
@@ -204,6 +205,8 @@ struct TransferTask {
   u_char *packet;
   uint64_t size;
   uint64_t inodeNum;
+  std::string remoteFile;
+  unsigned char reqMAC[6];
 };
 
 enum SEND_TASK_TYPE {SEND_READ, SEND_WRITE};
@@ -344,7 +347,6 @@ private:
 	static std::thread *moveThread;
 	static std::thread *transferThread;
 
-
 	static std::atomic<uint32_t> fileIDCounter;
 	static uint32_t getNextFileID();
 	/** packet processing callback **/
@@ -370,6 +372,8 @@ private:
 	static void onWriteDataPacket(const u_char *_packet);
 	static void onWriteReqPacket(const u_char *_packet);
 	static void onWriteAckPacket(const u_char *_packet);
+	static void sendWriteACK(uint64_t _size,uint64_t _offset,uint32_t _fileID,
+	    unsigned char _requestorMac[]);
 	/** Get Attributes **/
 	static void onAttribReqPacket(const u_char *_packet);
 	static void onAttribResPacket(const u_char *_packet);

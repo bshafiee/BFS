@@ -208,7 +208,7 @@ int swift_unlink(const char* path) {
 
 
   node->close(inodeNum);
-  LOG(INFO)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getFullPath()<<" isOpen?"<<node->concurrentOpen()<<" isRemote():"<<node->isRemote();
+  LOG(DEBUG)<<"SIGNAL DELETE FROM UNLINK Key:"<<node->getFullPath()<<" isOpen?"<<node->concurrentOpen()<<" isRemote():"<<node->isRemote();
   if(!FileSystem::getInstance().signalDeleteNode(node,true)){
     LOG(ERROR)<<"DELETE FAILED FOR:"<<path;
     return -EIO;
@@ -370,6 +370,22 @@ int swift_open(const char* path, struct fuse_file_info* fi) {
   }
 }
 
+int swift_read_error_tolerant(const char* path, char* buf, size_t size, off_t offset,
+    struct fuse_file_info* fi){
+  int retry = 1;
+  int lastError = 0;
+  while(retry > 0) {
+    int res = swift_read(path, buf, size, offset,fi);
+    if (res != -EIO){
+      return res;
+    }
+    LOG(ERROR)<<"Read failed for:"<<(path==nullptr?"null":path)<<" retrying:"<<(3-retry+1)<<" Time."<<" ErrorCode:"<<res;
+    retry--;
+    lastError = res;
+  }
+  return lastError;
+}
+
 int swift_read(const char* path, char* buf, size_t size, off_t offset,
     struct fuse_file_info* fi) {
   if(DEBUG_READ)
@@ -493,6 +509,9 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     } else if(written == -40){//Inconsistency in global View! the remote node is not responsible
       ZooHandler::getInstance().requestUpdateGlobalView();
       return -EIO;
+    } else if(written == -50){//Invalid offset
+      LOG(ERROR)<<"Write failed for: "<<node->getFullPath()<<" offset:"<<offset;
+      return -EIO;
     }
   }
   else {
@@ -523,7 +542,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
       return -ENOSPC;
     }
     else {//Internal IO Error
-      LOG(ERROR)<<"Internal IO Error, error in writing to:"<<node->getName()<< " IsRemote?"<<node->isRemote()<<" Code:"<<written;
+      LOG(ERROR)<<"Internal IO Error, error in writing to:"<<node->getName()<< " IsRemote?"<<node->isRemote()<<" Code:"<<written<<" offset:"<<offset;
       return -EIO;
     }
   }
@@ -568,6 +587,7 @@ int swift_release(const char* path, struct fuse_file_info* fi) {
   string pathStr = node->getFullPath();
   //LOG(ERROR)<<"CLOSE: ptr:"<<node;
   //LOG(ERROR)<<node->getFullPath();
+
   //Now we can safetly close it!
   node->close(fi->fh);
   //we can earse ionode num from map as well

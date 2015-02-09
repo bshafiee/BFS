@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "Statistics.h"
 #include "LoggerInclude.h"
+#include "MemoryController.h"
 
 using namespace std;
 using namespace FUSESwift;
@@ -30,6 +31,9 @@ Statistics::Statistics() {}
 Statistics::~Statistics() {}
 
 void Statistics::logStatInfo() {
+  LOG(INFO)<<"\nMemory Statistics:"<<endl
+        <<"\tUsed Memory:"<<MemoryContorller::getInstance().getTotal()/(1024ll*1024ll)<<" MB"<<endl
+        <<"\tOf Total Memory Available:"<<MemoryContorller::getInstance().getMaxAllowed()/(1024ll*1024ll)<<" MB"<<endl;
 	LOG(INFO)<<"\nSuccessful Reads Statistics:"<<endl
 			<<"\tAverage Block Size:"<<readAvg.avg()<<" bytes, "<<readAvg.avg()/(1024ll*1024ll)<<" MB"<<endl
 			<<"\tMaximum Block Size:"<<readAvg.max()<<" bytes, "<<readAvg.max()/(1024ll*1024ll)<<" MB"<<endl

@@ -138,6 +138,11 @@ namespace FUSESwift {
 	 */
 	int swift_read (const char *path, char *buf, size_t size, off_t offset,
 		     struct fuse_file_info *fi);
+	/**
+   * An error tolerant version of read which retries on errors 3 times
+   */
+	int swift_read_error_tolerant(const char* path, char* buf, size_t size, off_t offset,
+	    struct fuse_file_info* fi);
 
 	/** Write data to an open file
 	 *
@@ -151,7 +156,7 @@ namespace FUSESwift {
 		      struct fuse_file_info * fi);
 
 	/**
-	 * An error tolerant version of write which retries on errors
+	 * An error tolerant version of write which retries on errors 3 times
 	 */
 	int swift_write_error_tolerant(const char* path, const char* buf, size_t size,
 	    off_t offset, struct fuse_file_info* fi);

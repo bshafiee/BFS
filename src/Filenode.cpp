@@ -162,8 +162,10 @@ long FileNode::write(const char* _data, int64_t _offset, int64_t _size) {
   //Acquire lock
   lock_guard <recursive_mutex> lock(ioMutex);
 
-  if(_offset > size)
+  if(_offset > size){
     LOG(ERROR)<<"\nOFFSET IS BIGGER THAN SIZE, OFFSET:"<<_offset<<" SIZE:"<<size<<" requestSize:"<<_size<<" name:"<<getFullPath();
+    return -50;
+  }
 
   //Check Storage space Availability
   int64_t newReqMemSize = (_offset + _size > size) ? _offset + _size - size : 0;
@@ -203,7 +205,7 @@ long FileNode::write(const char* _data, int64_t _offset, int64_t _size) {
         //We should allocate a new block
         char* block = new char[FileSystem::blockSize];
         dataList.push_back(block);
-        //block index shouuld have alreadey be reset to 0
+        //block index shouuld have already be reset to 0
         return retValue
             + this->write(_data + retValue, getSize(), backupSize - retValue);
       }
@@ -453,6 +455,28 @@ bool FileNode::isOpen() {
 }
 
 std::string FileNode::getMD5() {
+  if(isRemote()){
+    Poco::MD5Engine md5;
+    md5.reset();
+
+    uint64_t offset = 0;
+    int64_t read = 0;
+    uint64_t bufferSize = 1024ll*1024ll*100ll;
+    char * buffer = new char[bufferSize];//100MB buffer
+
+    do{
+      read = readRemote(buffer,offset,bufferSize);
+      if(read > 0)
+        md5.update(buffer,read);
+      offset += read;
+    }
+    while(read > 0);
+
+    delete []buffer;
+    return Poco::DigestEngine::digestToHex(md5.digest());
+  }
+
+  //Not remote
   if(size <= 0)
     return "";
   lock_guard<recursive_mutex> lk(ioMutex);
@@ -717,6 +741,8 @@ long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, F
   }
 
   long written = write(_data, _offset, _size);
+  if(written == -50)
+    return -50;
   if(!_shouldMove && written == -1){
     LOG(ERROR)<<"Not Enough Space and not moving to other nodes:"<< this->getFullPath()<<" memUtil:"<<MemoryContorller::getInstance().getMemoryUtilization();
     ZooHandler::getInstance().publishFreeSpace();
