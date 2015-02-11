@@ -37,8 +37,6 @@ using namespace BFSTCPNetworkTypes;
 
 SocketReactor *BFSTcpServer::reactor = nullptr;
 thread *BFSTcpServer::thread = nullptr;
-unordered_map<std::string,ConnectionEntry> BFSTcpServer::socketMap;
-mutex BFSTcpServer::mapMutex;
 uint32_t BFSTcpServer::port = 0;
 string BFSTcpServer::ip = "";
 string BFSTcpServer::iface;
@@ -103,49 +101,6 @@ void BFSTcpServer::stop() {
   usleep(100);
   delete reactor;
   reactor = nullptr;
-}
-
-bool BFSTcpServer::addConnection(std::string _ip,
-    ConnectionEntry _connectionEntry) {
-  lock_guard<mutex> lock(mapMutex);
-  auto it = socketMap.find(_ip);
-  if(it != socketMap.end())//Duplicate
-    return false;
-  return socketMap.insert(pair<string,ConnectionEntry>(_ip,_connectionEntry)).second;
-}
-
-void BFSTcpServer::delConnection(std::string _ip) {
-  lock_guard<mutex> lock(mapMutex);
-  auto it = socketMap.find(_ip);
-  if(it == socketMap.end())
-    return;
-  if(it->second.status == CONNECTION_STATUS::BUSY) {
-    it->second.mustBeDelete = true;
-    return;
-  }
-  socketMap.erase(it);
-}
-
-ConnectionEntry* BFSTcpServer::findAndBusyConnection(std::string _ip) {
-  lock_guard<mutex> lock(mapMutex);
-  auto it = socketMap.find(_ip);
-  if(it == socketMap.end())
-    return nullptr;
-  if(it->second.mustBeDelete)//Don't return deleted connections
-    return nullptr;
-  it->second.status = CONNECTION_STATUS::BUSY;
-  return &(it->second);
-}
-
-bool BFSTcpServer::makeConnectionReady(std::string _ip) {
-  lock_guard<mutex> lock(mapMutex);
-  auto it = socketMap.find(_ip);
-  if(it == socketMap.end())
-    return false;
-  it->second.status = CONNECTION_STATUS::READY;
-  if(it->second.mustBeDelete)
-    socketMap.erase(it);
-  return true;
 }
 
 int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
@@ -753,7 +708,13 @@ void BFSTcpServer::processTransfer(TransferTask* _task) {
   FUSESwift::FileNode* afterMove = nullptr;//This will happen
   long result = fNode->writeHandler((char*)_task->data,_task->writeReq.offset,_task->writeReq.size,afterMove,true);
 
-  if(result == (int64_t)_task->writeReq.size && afterMove) {//Success
+  //Write happened LOCALLY! SOME free space come from somewher :D
+  if(result == (int64_t)_task->writeReq.size && !afterMove){
+    //Set istransfering to false and close it
+    LOG(INFO)<<"No Transfer is necessary for:"<<fileName<<" write happened locally!";
+    fNode->setTransfering(false);
+    fNode->close(inodeNum);
+  }else if (result == (int64_t)_task->writeReq.size && afterMove) {//Success
     FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
     LOG(INFO)<<"Transfer Successful:"<<fileName<<" from:"<<FUSESwift::ZooHandler::getInstance().getHostName()<<" to:"<<afterMove->getRemoteHostIP();
     //We don't need to close file here because it's a newly created node;
@@ -765,7 +726,7 @@ void BFSTcpServer::processTransfer(TransferTask* _task) {
     if(afterMove)
       afterMoveVal = to_string((intptr_t)afterMove);
     if(fNode)
-      afterMoveVal = to_string((intptr_t)fNode);
+      fNodeVal = to_string((intptr_t)fNode);
     LOG(ERROR)<<"Unsuccessful transfer:"<<fileName<<" MEMUTILIZATION:"<<
         FUSESwift::MemoryContorller::getInstance().getMemoryUtilization()<<
         " size:"<<_task->writeReq.size<<" written:"<<result<<

@@ -107,7 +107,7 @@ vector<BackendItem> MasterHandler::getExistingAssignments() {
 }
 
 void MasterHandler::leadershipLoop() {
-  long maxSleep = 5000*UPDATE_INTERVAL;
+  long maxSleep = 1000l*UPDATE_INTERVAL;
   long interval = UPDATE_INTERVAL;
   /**
    * Algorithm:

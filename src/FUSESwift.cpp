@@ -478,6 +478,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
       //4)Redo write
       return swift_write(path,buf,size,offset,fi);
     } else if(written == -20){//Is transferring
+retryTransferingNode:
       sleep(1);//sleep a little and try again;
       LOG(INFO) <<"\nSLEEPING FOR Transferring:"<<node->getFullPath();
       //for TCP mode
@@ -490,11 +491,13 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
       //1)Open new file
       FileNode* newNode = FileSystem::getInstance().findAndOpenNode(fullPath);
       //2)close old file
-      node->close(0);//Don't use fi->fh because we need this inode Nubmer
+      if(newNode!=nullptr)
+        node->close(0);//Don't use fi->fh because we need this inode Nubmer
       //But don't assign a new inodeNum! we have an inode number from old one
       if (newNode == nullptr) {
         LOG(ERROR)<<"Failure, cannot Open New Node after Transfer: "<<fullPath;
-        return -EIO;
+        sleep(1);
+        goto retryTransferingNode;
       }
       /**
        * 3)Replace inode with the new pointer if not local(not moved to here)

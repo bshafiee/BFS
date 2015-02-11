@@ -28,6 +28,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "MasterHandler.h"
 #include "ZooNode.h"
 #include "BFSNetwork.h"
+#include <algorithm>
+#include <random>
+
 extern "C" {
   #include <zookeeper/zookeeper.h>
   #include <zookeeper/proto.h>
@@ -109,6 +112,7 @@ public:
 	std::vector<ZooNode> getGlobalView();
 	std::vector<ZooNode> getGlobalFreeView();
 	void startElection();
+	ZooNode getFreeNodeFor(uint64_t _reqSize);
 	ZooNode getMostFreeNode();
 	void requestUpdateGlobalView();
 	void stopZooHandler();

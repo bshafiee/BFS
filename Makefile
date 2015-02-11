@@ -7,14 +7,15 @@ OBJS =	$(CXXSOURCES:%.cpp=%.o)
 DEFINES=-DBFS_ZERO=1
 
 #Includes
-LFLAGS=-Ilib/logger
+LFLAGS=-Ilib/logger -Ilib/lockfree
 CXXFLAGS+= $(LFLAGS)
 
 #Libraries
 LD = -L/usr/local/lib
 CXXFLAGS+=$(LD)
 
-LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma
+#LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma -ltcmalloc -lprofiler
+LIBS = -lpthread -lfuse -lSwift -lPocoFoundation -lPocoNet -lzookeeper_mt -lpfring -lnuma
 
 TARGET =	BFS
 #CXX=clang++

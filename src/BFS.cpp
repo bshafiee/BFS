@@ -38,7 +38,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <Swift/Object.h>
 #include <iostream>
 #include <istream>
-#include <Poco/StreamCopier.h>
 #include "FUSESwift.h"
 #include "Filesystem.h"
 #include "Filenode.h"
@@ -46,17 +45,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "SwiftBackend.h"
 #include "BackendManager.h"
 #include <string.h>
-#include "DownloadQueue.h"
-#include "UploadQueue.h"
 #include "MemoryController.h"
 #include "SettingManager.h"
 #include "BFSNetwork.h"
 #include "BFSTcpServer.h"
 #include "MasterHandler.h"
 #include "ZooHandler.h"
-#include "Timer.h"
 #include <thread>
 #include "Statistics.h"
+//#include <gperftools/profiler.h>
 
 
 //Initialize logger
@@ -68,7 +65,6 @@ using namespace Swift;
 using namespace FUSESwift;
 using namespace std;
 using namespace Poco;
-
 
 void shutdown(void* userdata);
 
@@ -133,11 +129,14 @@ void shutdown(void* context) {
 #else
     BFSTcpServer::stop();
 #endif
-    ZooHandler::getInstance().stopZooHandler();
     MasterHandler::stopLeadership();
+    ZooHandler::getInstance().stopZooHandler();
   }
   FileSystem::getInstance().destroy();
-  exit(0);
+
+  //ProfilerFlush();
+  //ProfilerStop();
+  std::exit(0);
 }
 
 void bfs_usage(){
@@ -175,6 +174,7 @@ void initLogger(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+  //ProfilerStart("/tmp/cpu/bfsprofile.cpu");
   initLogger(argc,argv);
   //Load configs first
   SettingManager::load("config");
@@ -235,7 +235,6 @@ int main(int argc, char *argv[]) {
   fuse_stat = fuse_main(argc, argv, &fuse_oper, nullptr);
   LOG(INFO) <<"fuse returned: "<<fuse_stat;
   //while(1) {sleep(1);}
-
   shutdown(nullptr);
   return fuse_stat;
 }

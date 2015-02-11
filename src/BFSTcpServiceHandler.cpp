@@ -313,11 +313,17 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
           long result = fNode->writeHandler(buff,reqPacket->offset,reqPacket->size,afterMove,false);
           //Check for Transfer
           if(result == -2){//No free space left!
-            fNode->setTransfering(true);
-            result = -20;//is transferring
-            TransferTask* tTask = new TransferTask(*reqPacket);
-            memcpy(tTask->data,buff,reqPacket->size);//copy data
-            BFSTcpServer::addTransferTask(tTask);
+            //First check if there is any empty node to transfer to:
+            FUSESwift::ZooNode node = FUSESwift::ZooHandler::getInstance().getFreeNodeFor(fNode->getSize() * 2);
+            if((int64_t)node.freeSpace >= fNode->getSize() * 2){
+              fNode->setTransfering(true);
+              result = -20;//is transferring
+              TransferTask* tTask = new TransferTask(*reqPacket);
+              memcpy(tTask->data,buff,reqPacket->size);//copy data
+              BFSTcpServer::addTransferTask(tTask);
+            }else{
+              LOG(ERROR)<<"Cann't transfer:"<<fNode->getFullPath()<<" because mostfreenode is not enough:"<<node.hostName<<" fspace:"<<node.freeSpace/1024ll/1024ll<<"MB";
+            }
           }
           writeResPacket.statusCode = htobe64(result);
           if(result != (int64_t)reqPacket->size && result != -20)

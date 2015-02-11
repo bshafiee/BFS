@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <endian.h>
 #include <arpa/inet.h>
 
+
 #include "Filenode.h"
 #include "Filesystem.h"
 extern "C" {
@@ -53,7 +54,6 @@ taskMap<uint32_t,WriteSndTask*> BFSNetwork::truncateSendTasks(2000);
 taskMap<uint32_t,WriteSndTask*> BFSNetwork::createSendTasks(2000);
 taskMap<uint32_t,MoveConfirmTask*> BFSNetwork::moveConfirmSendTasks(1000);
 atomic<bool> BFSNetwork::isRunning(true);
-atomic<bool> BFSNetwork::rcvLoopDead(false);
 Queue<SndTask*> BFSNetwork::sendQueue;
 Queue<MoveTask*> BFSNetwork::moveQueue;
 Queue<TransferTask*> BFSNetwork::transferQueue;
@@ -148,7 +148,10 @@ void BFSNetwork::stopNetwork() {
 	sendQueue.stop();
 	transferQueue.stop();
 	pfring_breakloop((pfring*)pd);
-	while(!rcvLoopDead);//Wait until rcvloop is dead
+	rcvThread->join();
+	sndThread->join();
+	moveThread->join();
+	transferThread->join();
 	shutDown();
 }
 
@@ -852,33 +855,19 @@ static inline BFS_OPERATION toBFSOperation(uint32_t op){
 }
 
 void BFSNetwork::rcvLoop() {
-  //Increase Priority of rcvLoop to max
-  /*int policy;
-  struct sched_param param;
-  pthread_getschedparam(pthread_self(), &policy, &param);
-  param.sched_priority = sched_get_priority_max(policy);
-  pthread_setschedparam(pthread_self(), policy, &param);*/
+  while(isRunning) {
+    //Get a packet
+    struct pfring_pkthdr _header;
+    u_char *_packet = nullptr;
+    int res = pfring_recv((pfring*)pd,&_packet,0,&_header,1);
 
-
-  //unsigned char _buffer[MTU];
-
-	while(isRunning){
-		//Get a packet
-		struct pfring_pkthdr _header;
-		u_char *_packet = nullptr;
-		int res = pfring_recv((pfring*)pd,&_packet,0,&_header,1);
-		/*static uint64_t rcv = 0;
-		static uint64_t notmine = 0;*/
-
-		if(res <= 0){
-		  if(isRunning)
-		    LOG(ERROR)<<"Error in pfring_recv:"<<res;
-		  else
-		    break;
-			continue;
-		}
-
-		//rcv++;
+    if(res <= 0){
+      if(isRunning)
+        LOG(ERROR)<<"Error in pfring_recv:"<<res;
+      else
+        break;
+      continue;
+    }
 
     //Return not a valid packet of our protocol!
     if(_packet[PROTO_BYTE_INDEX1] != BFS_PROTO_BYTE1 ||
@@ -890,65 +879,63 @@ void BFSNetwork::rcvLoop() {
     }
 
 
-		//return if it's not of our size
-		if(_header.len != (unsigned int)MTU) {
-		  LOG(ERROR)<<"Fragmentation! dropping. CapLen:"<<_header.caplen <<"Len:"<<_header.len;
-			continue;
-		}
+    //return if it's not of our size
+    if(_header.len != (unsigned int)MTU) {
+      LOG(ERROR)<<"Fragmentation! dropping. CapLen:"<<_header.caplen <<"Len:"<<_header.len;
+      continue;
+    }
 
-		//Check if it is for us! MAC
-		bool validMac = true;
-		for(unsigned int i=DST_MAC_INDEX;i<DST_MAC_INDEX+6;i++)
-			if(_packet[i] != MAC[i-DST_MAC_INDEX]){
-//				fprintf(stderr,"NOT for me: myMac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\trcv"
-//												"MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-//												MAC[0],MAC[1],MAC[2],MAC[3],MAC[4],MAC[5],
-//												_packet[DST_MAC_INDEX],_packet[DST_MAC_INDEX+1],
-//												_packet[DST_MAC_INDEX+2],_packet[DST_MAC_INDEX+3],
-//												_packet[DST_MAC_INDEX+4],_packet[DST_MAC_INDEX+5]);
-				validMac = false;
-				break;
-			}
-		if(!validMac)
-			continue;
+    //Check if it is for us! MAC
+    bool validMac = true;
+    for(unsigned int i=DST_MAC_INDEX;i<DST_MAC_INDEX+6;i++)
+      if(_packet[i] != MAC[i-DST_MAC_INDEX]){
+//        fprintf(stderr,"NOT for me: myMac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\trcv"
+//                        "MAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+//                        MAC[0],MAC[1],MAC[2],MAC[3],MAC[4],MAC[5],
+//                        _packet[DST_MAC_INDEX],_packet[DST_MAC_INDEX+1],
+//                        _packet[DST_MAC_INDEX+2],_packet[DST_MAC_INDEX+3],
+//                        _packet[DST_MAC_INDEX+4],_packet[DST_MAC_INDEX+5]);
+        validMac = false;
+        break;
+      }
+    if(!validMac)
+      continue;
 
-		pfring_stat stats;
-		pfring_stats((pfring*)pd,&stats );
-		static uint64_t dropped = 0;
-		if(stats.drop - dropped > 0) {
-		  onReadResPacket(nullptr);
-		  dropped = stats.drop;
-		  LOG(FATAL) <<dropped<<" packets were dropped";
-		}
+    pfring_stat stats;
+    pfring_stats((pfring*)pd,&stats );
+    static uint64_t dropped = 0;
+    if(stats.drop - dropped > 0) {
+      onReadResPacket(nullptr);
+      dropped = stats.drop;
+      LOG(FATAL) <<dropped<<" packets were dropped";
+    }
 
+    //Check opcode
+    //NO MATTER PACKET TYPE< OPCODE INDEX IS FIXED
+    uint32_t opCode = ((WriteReqPacket*)_packet)->opCode;
 
-		/** Seems we got a relavent packet! **/
-		//Check opcode
-		//NO MATTER PACKET TYPE< OPCODE INDEX IS FIXED
-		uint32_t opCode = ((WriteReqPacket*)_packet)->opCode;
-
-		switch(toBFSOperation(ntohl(opCode))){
-			case BFS_OPERATION::READ_REQUEST:
-				onReadReqPacket(_packet);
-				break;
-			case BFS_OPERATION::READ_RESPONSE:
-				onReadResPacket(_packet);
-				break;
-			case BFS_OPERATION::WRITE_REQUEST:
-				onWriteReqPacket(_packet);
-				break;
-			case BFS_OPERATION::WRITE_DATA:
-				onWriteDataPacket(_packet);
-				break;
-			case BFS_OPERATION::WRITE_ACK:
-				onWriteAckPacket(_packet);
-				break;
-			case BFS_OPERATION::ATTRIB_REQUEST:
-				onAttribReqPacket(_packet);
-				break;
-			case BFS_OPERATION::ATTRIB_RESPONSE:
-				onAttribResPacket(_packet);
-				break;
+    switch(toBFSOperation(ntohl(opCode))){
+      case BFS_OPERATION::READ_REQUEST:
+        onReadReqPacket(_packet);
+        break;
+      case BFS_OPERATION::READ_RESPONSE:
+        onReadResPacket(_packet);
+        break;
+      case BFS_OPERATION::WRITE_REQUEST:
+        onWriteReqPacket(_packet);
+        break;
+      case BFS_OPERATION::WRITE_DATA:
+        onWriteDataPacket(_packet);
+        break;
+      case BFS_OPERATION::WRITE_ACK:
+        onWriteAckPacket(_packet);
+        break;
+      case BFS_OPERATION::ATTRIB_REQUEST:
+        onAttribReqPacket(_packet);
+        break;
+      case BFS_OPERATION::ATTRIB_RESPONSE:
+        onAttribResPacket(_packet);
+        break;
       case BFS_OPERATION::DELETE_REQUEST:
         onDeleteReqPacket(_packet);
         break;
@@ -973,12 +960,12 @@ void BFSNetwork::rcvLoop() {
       case BFS_OPERATION::FLUSH_RESPONSE:
         onFlushResPacket(_packet);
         break;
-			default:
-			  LOG(FATAL)<<"UNKNOWN OPCODE:"<<opCode;
-		}
-	}
-	LOG(ERROR)<<"RCV LOOP DEAD!";
-	rcvLoopDead.store(true);
+      default:
+        LOG(FATAL)<<"UNKNOWN OPCODE:"<<opCode;
+    }
+  }
+
+  LOG(INFO)<<"RCV LOOP DEAD!";
 }
 
 /**
@@ -1285,13 +1272,14 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 	}
 
   //Find file and lock it!
-  FileNode* fNode = FileSystem::getInstance().findAndOpenNode(taskIt->second.remoteFile);
+  //FileNode* fNode = FileSystem::getInstance().findAndOpenNode(taskIt->second.remoteFile);
+	FileNode* fNode = taskIt->second.filePointer;
   if(fNode == nullptr) {
-    LOG(ERROR)<<"File Not found:"<<taskIt->second.remoteFile;
+    LOG(ERROR)<<"File pointer is null for :"<<taskIt->second.remoteFile;
     return;
   }
-  uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
-  fNode->close(inodeNum);//this file has been already opened
+  //uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+  //fNode->close(inodeNum);//this file has been already opened
 
   if(fNode->isTransfering()){//Nothing to do for transferring nodes
     LOG(INFO)<<"Data Packet dropped due to being transferred.";
@@ -1306,23 +1294,18 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 
   if(result == -2) {//No space
     //First check if there is any empty node to transfer to:
-    ZooNode node = ZooHandler::getInstance().getMostFreeNode();
-    if((int64_t)node.freeSpace < fNode->getSize() * 2){
-      LOG(ERROR)<<"Cann't transfer:"<<fNode->getFullPath()<<" because mostfreenode is not enough:"<<node.hostName<<" fspace:"<<node.freeSpace/1024ll/1024ll<<"MB";
-      //Send ACK
-      sendWriteACK(0,1,fileID,taskIt->second.requestorMac);
+    ZooNode node = ZooHandler::getInstance().getFreeNodeFor(fNode->getSize() * 2);
+    if((int64_t)node.freeSpace > fNode->getSize() * 2){
+      LOG(INFO)<<"QUEUE FOR TRANSFERING:"<<fNode->getFullPath()<<" TRIGGERED BY: OFFSET:"<<offset<<" size:"<<size;
+      fNode->setTransfering(true);
+      TransferTask *transferTask = new TransferTask(MTU, taskIt->second.inodeNum,taskIt->second.remoteFile);
+      memcpy(transferTask->reqMAC,taskIt->second.requestorMac,6*sizeof(char));
+      memcpy(transferTask->packet,_packet,MTU);
       writeDataTasks.erase(taskIt);
+      transferQueue.push(transferTask);
       return;
-    }
-
-    LOG(INFO)<<"QUEUE FOR TRANSFERING:"<<fNode->getFullPath()<<" TRIGGERED BY: OFFSET:"<<offset<<" size:"<<size;
-    fNode->setTransfering(true);
-    TransferTask *transferTask = new TransferTask(MTU, taskIt->second.inodeNum,taskIt->second.remoteFile);
-    memcpy(transferTask->reqMAC,taskIt->second.requestorMac,6*sizeof(char));
-    memcpy(transferTask->packet,_packet,MTU);
-    writeDataTasks.erase(taskIt);
-    transferQueue.push(transferTask);
-    return;
+    } else
+      LOG(ERROR)<<"Cann't transfer:"<<fNode->getFullPath()<<" because mostfreenode is not enough:"<<node.hostName<<" fspace:"<<node.freeSpace/1024ll/1024ll<<"MB";
   }
 
   if(result == -50){//write failed: bad offset
@@ -1400,6 +1383,7 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
 	writeTask.fileID = ntohl(reqPacket->fileID);
 	writeTask.offset = be64toh(reqPacket->offset);
 	writeTask.size = be64toh(reqPacket->size);
+	writeTask.filePointer = nullptr;
 	writeTask.failed = false;
 	memcpy(writeTask.requestorMac,reqPacket->srcMac,6);
 	writeTask.remoteFile = string(reqPacket->fileName);
@@ -1408,6 +1392,7 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
 
   //Find file and lock it!
   FileNode* fNode = FileSystem::getInstance().findAndOpenNode(writeTask.remoteFile);
+  writeTask.filePointer = fNode;
   if(fNode == nullptr)
     LOG(ERROR)<<"File Not found:"<<writeTask.remoteFile;
   else {
@@ -1432,7 +1417,7 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
 
     //Put it on writeDataTask!
     auto resPair = writeDataTasks.insert(writeTask.fileID,writeTask);
-    if(resPair.second){
+    if(resPair.second) {
       return;
     }
     else{

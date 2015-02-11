@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Filenode.h"
 #include "ZeroNetwork.h"
 
+
 namespace FUSESwift {
 
 /**
@@ -253,6 +254,7 @@ struct WriteDataTask {
 	uint64_t inodeNum;
 	bool failed;
 	unsigned char requestorMac[6];
+	FileNode* filePointer;
 };
 
 
@@ -329,7 +331,6 @@ private:
 	static std::atomic<bool> macInitialized;
 	//Variables
 	static std::atomic<bool> isRunning;
-	static std::atomic<bool> rcvLoopDead;
 	static taskMap<uint32_t,ReadRcvTask*> readRcvTasks;
 	static taskMap<uint32_t,ReadRcvTask*> attribRcvTasks;
 	static taskMap<uint32_t,WriteDataTask> writeDataTasks;

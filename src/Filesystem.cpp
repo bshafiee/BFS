@@ -382,8 +382,8 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
 }
 
 bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
-  ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
-  if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2ll){ //Could not find a node with enough space :(
+  ZooNode mostFreeNode = ZooHandler::getInstance().getFreeNodeFor(_localFile->getSize()*2);
+  if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2){ //Could not find a node with enough space :(
     LOG(INFO)<<"The most freeNode Does not have enough space for this file:"<<
         _localFile->getFullPath()<<" size:"<<_localFile->getSize()<<
         " mostFree:"<<mostFreeNode.toString();

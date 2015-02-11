@@ -31,14 +31,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 enum class CONNECTION_STATUS {READY,BUSY};
 
-struct ConnectionEntry {
-  ConnectionEntry(Poco::Net::StreamSocket* _socket,CONNECTION_STATUS _status):
-    socket(_socket),status(_status),mustBeDelete(false) {}
-  Poco::Net::StreamSocket* socket;
-  CONNECTION_STATUS status;
-  bool mustBeDelete;
-};
-
 struct TransferTask {
   TransferTask (WriteReqPacket _packet):data(nullptr),
       writeReq(_packet) {
@@ -59,8 +51,6 @@ class BFSTcpServer {
   friend BFSTcpServiceHandler;
   static Poco::Net::SocketReactor *reactor;
   static std::thread *thread;
-  static std::unordered_map<std::string,ConnectionEntry> socketMap;
-  static std::mutex mapMutex;
   static std::uint32_t port;
   static std::string ip;
   static std::string iface;
@@ -70,11 +60,6 @@ class BFSTcpServer {
   static FUSESwift::Queue<TransferTask*> transferQueue;
   static std::thread *transferThread;
   static std::atomic<bool> isRunning;
-  //Socket Map Functions
-  static bool addConnection(std::string _ip,ConnectionEntry _connectionEntry);
-  static void delConnection(std::string _ip);
-  static ConnectionEntry* findAndBusyConnection(std::string _ip);
-  static bool makeConnectionReady(std::string _ip);
   //Utility
   static void findIP();
   static bool initialize();

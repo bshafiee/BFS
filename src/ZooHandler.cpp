@@ -32,6 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "BFSTcpServer.h"
 #include "LoggerInclude.h"
 #include <Poco/StringTokenizer.h>
+#include <algorithm>
 
 #include "Filesystem.h"
 #include "Timer.h"
@@ -55,6 +56,7 @@ static vector<string> split(const string &s, char delim) {
 ZooHandler::ZooHandler() :
 		zh(nullptr), sessionState(ZOO_EXPIRED_SESSION_STATE), electionState(
 		    ElectionState::FAILED) {
+  srand(unsigned(time(NULL)));
 	string str = SettingManager::get(CONFIG_KEY_ZOO_ELECTION_ZNODE);
 	if(str.length()>0)
 		electionZNode = str;
@@ -781,24 +783,66 @@ void ZooHandler::assignmentWatcher(zhandle_t* zzh, int type, int state,
 	}
 }
 
-ZooNode ZooHandler::getMostFreeNode() {
+ZooNode ZooHandler::getFreeNodeFor(uint64_t _reqSize) {
   updateNodesInfoView();
   lock_guard<mutex> lk(lockGlobalFreeView);
 
+  vector<pair<string,bool>> emptyVector;
+  ZooNode emptyNode(string(""),0,emptyVector,nullptr,"",0);
+
   if(globalFreeView.size() == 0) {
-    vector<pair<string,bool>> emptyVector;
-    ZooNode emptyNode(string(""),0,emptyVector,nullptr,"",0);
     return emptyNode;
   }
+
+  vector<ZooNode> possibleNodes;
+
+  for(ZooNode n:globalFreeView)
+    if(n.freeSpace > _reqSize)
+      possibleNodes.push_back(n);
+  if(possibleNodes.size() == 0)
+    return emptyNode;
+  int randomIndex = std::rand()%possibleNodes.size();
+  return possibleNodes[randomIndex];
   //Now sort ourZoo by Free Space descendingly!
-  std::sort(globalFreeView.begin(),globalFreeView.end(),ZooNode::CompByFreeSpaceDes);
+  /*std::sort(globalFreeView.begin(),globalFreeView.end(),ZooNode::CompByFreeSpaceDes);
   string output;
   for(ZooNode z:globalFreeView){
     output += "("+z.hostName+","+std::to_string(z.freeSpace/1024l/1024l)+"MB)";
   }
   LOG(DEBUG)<<output<<"front:("<<globalFreeView.front().hostName<<
       ","<<globalFreeView.front().freeSpace/1024ll/1024ll<<"MB)";
-  return globalFreeView.front();
+  return globalFreeView.front();*/
+}
+
+ZooNode ZooHandler::getMostFreeNode() {
+  updateNodesInfoView();
+  lock_guard<mutex> lk(lockGlobalFreeView);
+
+  vector<pair<string,bool>> emptyVector;
+  ZooNode emptyNode(string(""),0,emptyVector,nullptr,"",0);
+
+  if(globalFreeView.size() == 0) {
+    return emptyNode;
+  }
+
+  //Now sort ourZoo by Free Space descendingly!
+  std::sort(globalFreeView.begin(),globalFreeView.end(),ZooNode::CompByFreeSpaceDes);
+
+  //Shuffle equal nods
+  int startSame = 0;
+  int endSame = 0;
+  for(unsigned int i=0;i<globalFreeView.size();i++) {
+    uint64_t diffFreeView = globalFreeView[0].freeSpace - globalFreeView[i].freeSpace;
+    /**
+     * if Freespace diff is less than or equal to 1% of most free
+     * node storage we consider that node also as most free node as well.
+     */
+    if(diffFreeView <= globalFreeView[0].freeSpace/100)
+      endSame = i;
+  }
+
+  int randomIndex = std::rand()%(endSame-startSame+1);
+  return globalFreeView[randomIndex];
 }
 
 void ZooHandler::requestUpdateGlobalView() {
