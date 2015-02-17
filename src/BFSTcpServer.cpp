@@ -91,15 +91,19 @@ void BFSTcpServer::stop() {
   isRunning.store(false);
   //Stop Transfer Thread
   transferQueue.stop();
-  transferThread->join();
-  delete transferThread;
+  if(transferThread){
+    transferThread->join();
+    delete transferThread;
+  }
   transferThread = nullptr;
   //Stop reactor
   if(reactor)
     reactor->stop();
-  thread->join();
+  if(thread)
+    thread->join();
   usleep(100);
-  delete reactor;
+  if(reactor)
+    delete reactor;
   reactor = nullptr;
 }
 
