@@ -29,6 +29,7 @@ namespace FUSESwift {
 //const std::string SettingManager::KEY_MODE = "MODE";
 SettingManager::Dictionary SettingManager::config;
 RUNTIME_MODE SettingManager::runtimeMod = RUNTIME_MODE::DISTRIBUTED;
+int SettingManager::port = -1;
 
 SettingManager::SettingManager() {}
 
@@ -112,10 +113,15 @@ void SettingManager::load(std::string path) {
 		LOG(FATAL)<<"Can't determine runtime mode, using default mode: Distributed";
 	}
 	LOG(INFO)<<"Runtime Mode:"<<runtimeModeStr;
+	port = SettingManager::getInt(CONFIG_KEY_TCP_PORT);
 }
 
 RUNTIME_MODE SettingManager::runtimeMode() {
   return runtimeMod;
+}
+
+int SettingManager::getPort() {
+  return port;
 }
 
 } /* namespace FUSESwift */

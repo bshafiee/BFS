@@ -53,8 +53,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "ZooHandler.h"
 #include <thread>
 #include "Statistics.h"
-//#include <gperftools/profiler.h>
-
+#include "Timer.h"
+#if PROFILE
+  #include <gperftools/profiler.h>
+#endif
 
 //Initialize logger
 #include "LoggerInclude.h"
@@ -122,20 +124,24 @@ static struct fuse_operations fuse_oper = {
 
 void shutdown(void* context) {
   LOG(INFO) <<"Leaving...";
+#if PROFILE
+  ProfilerFlush();
+#endif
   Statistics::logStatInfo();
   if(SettingManager::runtimeMode() == RUNTIME_MODE::DISTRIBUTED) {
+    ZooHandler::getInstance().stopZooHandler();
 #ifdef BFS_ZERO
     BFSNetwork::stopNetwork();
 #else
     BFSTcpServer::stop();
 #endif
     MasterHandler::stopLeadership();
-    ZooHandler::getInstance().stopZooHandler();
   }
   FileSystem::getInstance().destroy();
 
-  //ProfilerFlush();
-  //ProfilerStop();
+#if PROFILE
+  ProfilerStop();
+#endif
   std::exit(0);
 }
 
@@ -174,7 +180,9 @@ void initLogger(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  //ProfilerStart("/tmp/cpu/bfsprofile.cpu");
+#if PROFILE
+  ProfilerStart("/tmp/bfsprofile.cpu");
+#endif
   initLogger(argc,argv);
   //Load configs first
   SettingManager::load("config");
@@ -227,6 +235,10 @@ int main(int argc, char *argv[]) {
 	}
 #endif
   }
+
+/*  for(int i=0;i<6;i++)
+    new thread(readRemoteFile);*/
+
 
   // turn over control to fuse
   LOG(INFO) <<"calling fuse_main";

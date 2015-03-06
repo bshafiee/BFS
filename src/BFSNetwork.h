@@ -25,7 +25,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <atomic>
 #include <unordered_map>
 #include <sys/stat.h>
-
 #include "Filenode.h"
 #include "ZeroNetwork.h"
 
@@ -112,6 +111,8 @@ namespace FUSESwift {
 
 #define ACK_TIMEOUT 5000l//miliseconds
 #define HEADER_LEN 38
+#define MAX_SENDER_THREADS 10
+#define MAX_RECEIVER_THREADS 1
 
 #ifndef likely
 #define likely(x)       __builtin_expect((x),1)
@@ -228,7 +229,9 @@ struct ReadSndTask : SndTask{
 };
 
 struct WriteSndTask : SndTask{
-	WriteSndTask():SndTask(SEND_TASK_TYPE::SEND_WRITE){}
+	WriteSndTask():SndTask(SEND_TASK_TYPE::SEND_WRITE),
+	    fileID(0),offset(0),size(0),srcBuffer(nullptr),
+	    acked(false),ack_ready(false){}
 	std::string remoteFile;
 	uint32_t fileID;
 	uint64_t offset;
@@ -341,10 +344,13 @@ private:
 	static taskMap<uint32_t,WriteSndTask*> createSendTasks;
 	static taskMap<uint32_t,MoveConfirmTask*> moveConfirmSendTasks;
 	static Queue<SndTask*> sendQueue;
+	static taskMap<uint32_t,WriteSndTask*> sendAckTasks;//Holds acks for writeSendTask
 	static Queue<MoveTask*> moveQueue;
 	static Queue<TransferTask*> transferQueue;
-	static std::thread *rcvThread;
-	static std::thread *sndThread;
+	static std::thread** rcvThread;
+	static std::thread** sndThread;
+	static uint numSendThreads;
+	static uint numRcvThreads;
 	static std::thread *moveThread;
 	static std::thread *transferThread;
 
@@ -382,7 +388,6 @@ private:
   static void onCreateReqPacket(const u_char *_packet);
   static void onCreateResPacket(const u_char *_packet);
   static void processMoveTask(const MoveTask &_moveTask);
-  static void processMoveTask2(const MoveTask &_moveTask);
   static void sendMoveResponse(const MoveTask &_moveTask, int res);
 	/** Truncate Operation **/
 	static void onTruncateReqPacket(const u_char *_packet);

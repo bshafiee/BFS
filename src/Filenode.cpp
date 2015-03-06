@@ -38,7 +38,7 @@ FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):
     Node(_name,_fullPath),isDir(_isDir),size(0),refCount(0),blockIndex(0),
     needSync(false), isFlushed(true), mustDeleted(false),
     hasInformedDelete(false), isRem(_isRemote), mustInformRemoteOwner(true),
-    moving(false), remoteIP(""),remotePort(0), transfering(false) {
+    moving(false),shouldNotRemoveZooHandler(false) ,remoteIP(""),remotePort(0), transfering(false) {
 	/*if(_isRemote)
 		readBuffer = new ReadBuffer(READ_BUFFER_SIZE);*/
 }
@@ -503,7 +503,7 @@ const unsigned char* FileNode::getRemoteHostMAC() {
 	return this->remoteHostMAC;
 }
 
-const string FileNode::getRemoteHostIP() {
+const string & FileNode::getRemoteHostIP() {
   return this->remoteIP;
 }
 
@@ -854,4 +854,14 @@ void FileNode::setTransfering(bool _value) {
   transfering.store(_value);
 }
 
-}//namespace
+bool FileNode::shouldNotZooRemove(){
+  return shouldNotRemoveZooHandler;
+}
+
+void FileNode::setShouldNotZooRemove(bool _value){
+  shouldNotRemoveZooHandler.store(_value);
+}
+
+}  //namespace
+
+

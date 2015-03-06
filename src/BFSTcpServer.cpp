@@ -56,8 +56,8 @@ void BFSTcpServer::run() {
     initialize();
     ServerSocket serverSocket(port);
     reactor = new SocketReactor();
-    SocketAcceptor<BFSTcpServiceHandler> acceptor(serverSocket, *reactor);
-    //ParallelSocketAcceptor<BFSTcpServiceHandler,SocketReactor> acceptor(serverSocket, *reactor);
+    //SocketAcceptor<BFSTcpServiceHandler> acceptor(serverSocket, *reactor);
+    ParallelSocketAcceptor<BFSTcpServiceHandler,SocketReactor> acceptor(serverSocket, *reactor);
 
     //Start Transfer Thread
     transferThread = new std::thread(BFSTcpServer::transferLoop);
@@ -294,6 +294,7 @@ int64_t BFSTcpServer::attribRemoteFile(struct packed_stat_info* attBuff,
     SocketAddress addres(_ip,_port);
     socket.connect(addres);
     socket.setKeepAlive(false);
+    socket.setNoDelay(true);
     //socket.setReceiveTimeout(Timespan(5,0));
   }catch(Exception &e){
     LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
@@ -376,6 +377,7 @@ int64_t BFSTcpServer::deleteRemoteFile(const std::string& remoteFile,
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
    socket.setKeepAlive(false);
+   socket.setNoDelay(true);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -429,6 +431,7 @@ int64_t BFSTcpServer::flushRemoteFile(const std::string& remoteFile,
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
    socket.setKeepAlive(false);
+   socket.setNoDelay(true);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -482,6 +485,7 @@ int64_t BFSTcpServer::truncateRemoteFile(const std::string& remoteFile,
    SocketAddress addres(_ip,_port);
    socket.connect(addres);
    socket.setKeepAlive(false);
+   socket.setNoDelay(true);
   }catch(Exception &e){
    LOG(ERROR)<<"Error in creating socket to:"<<_ip<<":"<<_port;
    return -2;
@@ -712,7 +716,7 @@ void BFSTcpServer::processTransfer(TransferTask* _task) {
   FUSESwift::FileNode* afterMove = nullptr;//This will happen
   long result = fNode->writeHandler((char*)_task->data,_task->writeReq.offset,_task->writeReq.size,afterMove,true);
 
-  //Write happened LOCALLY! SOME free space come from somewher :D
+  //Write happened LOCALLY! SOME free space come from somewhere :D
   if(result == (int64_t)_task->writeReq.size && !afterMove){
     //Set istransfering to false and close it
     LOG(INFO)<<"No Transfer is necessary for:"<<fileName<<" write happened locally!";

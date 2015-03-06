@@ -92,66 +92,29 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   if(_putEvent == nullptr || account == nullptr
       || defaultContainer == nullptr || _putEvent->fullPathBuffer == "")
     return false;
+
   FileNode* node = FileSystem::getInstance().findAndOpenNode(_putEvent->fullPathBuffer);
-  if(node == nullptr)
+  if(node == nullptr){
+    LOG(ERROR)<<_putEvent->fullPathBuffer<<" Does not exist! So can't upload it.";
     return false;
+  }
   uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)node);
-  LOG(DEBUG)<<"GOT: "<<node<<" to upload!How many Open?"<<node->concurrentOpen()<<" name:"<<_putEvent->fullPathBuffer;
+  //LOG(DEBUG)<<"GOT: "<<node<<" to upload!How many Open?"<<node->concurrentOpen()<<" name:"<<_putEvent->fullPathBuffer;
   //Double check if not already uploaded
   if(node->flushed()){
     node->close(inodeNum);
     return true;
   }
 
-  SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
-  Object *obj = nullptr;
-  if(res->getPayload() != nullptr)
-    for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++)
-      if((*it).getName() == convertToSwiftName(node->getFullPath())) {
-        obj = &(*it);
-      }
-
   //CheckEvent validity
   if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)) {
-    delete res;
+    //delete res;
     //release file delete lock, so they can delete it
     node->close(inodeNum);
     return true;//going to be deletes so anyway say it's synced!
   }
-  //If file is open just return! because if it's a write this is a waste if
-  //it's a read this will slow it down!
-  /*if(node->concurrentOpen() > 2){//in flush case it's once open by the app and once here
-    //release file delete lock, so they can delete it
-    node->setNeedSync(true);//Reschedule again
-    delete res;
-    node->close(inodeNum);
-    return false;
-  }*/
 
-
-  bool shouldDeleteOBJ = false;
-  //Check if Obj already exist
-  if(obj != nullptr) {
-    //check MD5
-    /**
-     * when we are here we defenitely need update so it's vain to calculate MD5
-     * which is both time consuming and need write lock and kills
-     * write performance;threfore I just got rid of it.
-     */
-    /*if(obj->getHash() == node->getMD5()) {//No change
-      LOG(ERROR)<<"Sync: File:"<<node->getFullPath()<<
-          " did not change with compare to remote version."<<obj->getHash();
-
-      delete res;
-      node->isUPLOADING  = false;
-      node->close(inodeNum);
-      return true;
-    }*/
-  }
-  else {
-    shouldDeleteOBJ = true;
-    obj = new Object(defaultContainer,convertToSwiftName(node->getFullPath()));
-  }
+  Object* obj = new Object(defaultContainer,convertToSwiftName(node->getFullPath()));
 
   //upload chunk by chunk
   //Make a back up of file name in case it gets deleted while uploading
@@ -159,8 +122,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   ostream *outStream = nullptr;
 
   if(node->mustBeDeleted()){
-    delete res;
-    if(shouldDeleteOBJ)delete obj;
+    delete obj;
     node->close(inodeNum);
     return true;
   }
@@ -169,13 +131,17 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
   SwiftResult<Poco::Net::HTTPClientSession*> *chunkedResult =
       obj->swiftCreateReplaceObject(outStream);
   if(chunkedResult->getError().code != SwiftError::SWIFT_OK) {
+    LOG(ERROR)<<"Error in creating/replacing object:"<<chunkedResult->getError().toString();
     delete chunkedResult;
-    if(shouldDeleteOBJ) delete obj;
-    delete res;
+    delete obj;
     //release file delete lock, so they can delete it
     node->close(inodeNum);
     return false;
   }
+
+  chunkedResult->getPayload()->setTimeout(Poco::Timespan(1000,0));
+  chunkedResult->getPayload()->setKeepAlive(true);
+
 
   //Ready to write (write each time a blocksize)
   uint64_t buffSize = 1024ll*1024ll*10ll;
@@ -187,8 +153,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     //CheckEvent validity
     if(!UploadQueue::getInstance().checkEventValidity(*_putEvent)){
       delete chunkedResult;
-      if(shouldDeleteOBJ) delete obj;
-      delete res;
+      delete obj;
       delete []buff;
       buff = nullptr;
       node->close(inodeNum);
@@ -197,8 +162,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
 
     if(node->mustBeDeleted()){//Check Delete
       delete chunkedResult;
-      delete res;
-      if(shouldDeleteOBJ) delete obj;
+      delete obj;
       delete []buff;
       buff = nullptr;
       node->close(inodeNum);
@@ -219,27 +183,37 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
 
   if(node->mustBeDeleted()){//Check Delete
     delete chunkedResult;
-    delete res;
-    if(shouldDeleteOBJ) delete obj;
+    delete obj;
     node->close(inodeNum);
     return true;
   }
 
   //Now send object
   Poco::Net::HTTPResponse response;
-  chunkedResult->getPayload()->receiveResponse(response);
+  response.setKeepAlive(true);
+
+  try {
+    chunkedResult->getPayload()->receiveResponse(response);
+  }catch(Poco::TimeoutException &e){
+    LOG(ERROR)<<"Poco connection timeout:"<<e.message()<<" timeout(getSeesion):"<<
+        chunkedResult->getSession()->getTimeout().totalSeconds()<<
+        " payload timeout"<<chunkedResult->getPayload()->getTimeout().totalSeconds();
+    delete chunkedResult;
+    delete obj;
+    node->close(inodeNum);
+    return false;
+  }
+
   if(response.getStatus() == response.HTTP_CREATED) {
     delete chunkedResult;
-    delete res;
-    if(shouldDeleteOBJ) delete obj;
+    delete obj;
     node->close(inodeNum);
     return true;
   }
   else {
     LOG(ERROR)<<"Error in swift: "<<response.getReason();
     delete chunkedResult;
-    delete res;
-    if(shouldDeleteOBJ) delete obj;
+    delete obj;
     node->close(inodeNum);
     return false;
   }
@@ -342,7 +316,7 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
           "failed:Responese:"<< delResult->getResponse()->getReason()<<
           " Error:"<<delResult->getError().toString();
   else
-    LOG(INFO)<<"SUCCESSFUL DELETE:"<<_removeEvent->fullPathBuffer;
+    LOG(DEBUG)<<"SUCCESSFUL DELETE:"<<_removeEvent->fullPathBuffer;
 
   delete delResult;
   delResult = nullptr;

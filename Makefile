@@ -1,21 +1,29 @@
-#CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
-CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
+#-O3 produces not debug info! Should be used for performance measurments
+CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
+#-ggdb produces lots of debug info; useful ful backtraces and debugging
+#CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
+
 CXXSOURCES = $(wildcard src/*.cpp)
 OBJS =	$(CXXSOURCES:%.cpp=%.o)
 
 #defines
-DEFINES=-DBFS_ZERO=1
+DEFINES=
 
 #Includes
-LFLAGS=-Ilib/logger -Ilib/lockfree
+LFLAGS=-Ilib/logger 
 CXXFLAGS+= $(LFLAGS)
 
 #Libraries
-LD = -L/usr/local/lib
+#for 32bit machines point to 32 bit lockless_allocator 
+#LD = -L/usr/local/lib -Llib/lockless_allocator/32bit
+#for 64bit machines point to 64 bit lockless_allocator 
+LD = -L/usr/local/lib -Llib/lockless_allocator/64bit
 CXXFLAGS+=$(LD)
 
-#LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma -ltcmalloc -lprofiler
-LIBS = -lpthread -lfuse -lSwift -lPocoFoundation -lPocoNet -lzookeeper_mt -lpfring -lnuma
+#if PROFILE is enabled them -lprofiler should be include and gperftools should be installed
+#LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma -lllalloc -lprofiler
+#No profiler
+LIBS = -lpthread -lfuse -lSwift -lPocoFoundation -lPocoNet -lzookeeper_mt -lpfring -lnuma -lllalloc
 
 TARGET =	BFS
 #CXX=clang++

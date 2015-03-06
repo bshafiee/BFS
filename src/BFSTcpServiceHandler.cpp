@@ -45,23 +45,21 @@ using namespace std;
 BFSTcpServiceHandler::BFSTcpServiceHandler(StreamSocket& _socket,
     SocketReactor& _reactor): socket(_socket),reactor(_reactor) {
   //Set Keeep Alive for socket
-  socket.setKeepAlive(false);
+  //socket.setKeepAlive(false);
 
   //Register Callbacks
   reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
     ReadableNotification>(*this, &BFSTcpServiceHandler::onReadable));
   /*reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
-    WritableNotification>(*this, &BFSTcpServiceHandler::onWriteable));*/
+    WritableNotification>(*this, &BFSTcpServiceHandler::onWriteable));
   reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
     ShutdownNotification>(*this, &BFSTcpServiceHandler::onShutdown));
   reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
     ErrorNotification>(*this, &BFSTcpServiceHandler::onError));
   reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
     TimeoutNotification>(*this, &BFSTcpServiceHandler::onTimeout));
-  /*reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
+  reactor.addEventHandler(socket, NObserver<BFSTcpServiceHandler,
     IdleNotification>(*this, &BFSTcpServiceHandler::onIdle));*/
-
-
 }
 
 BFSTcpServiceHandler::~BFSTcpServiceHandler() {
@@ -69,7 +67,7 @@ BFSTcpServiceHandler::~BFSTcpServiceHandler() {
   reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
     ReadableNotification>(*this, &BFSTcpServiceHandler::onReadable));
   /*reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
-    WritableNotification>(*this, &BFSTcpServiceHandler::onWriteable));*/
+    WritableNotification>(*this, &BFSTcpServiceHandler::onWriteable));
   reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
     ShutdownNotification>(*this, &BFSTcpServiceHandler::onShutdown));
   reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
@@ -77,7 +75,7 @@ BFSTcpServiceHandler::~BFSTcpServiceHandler() {
   reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
     TimeoutNotification>(*this, &BFSTcpServiceHandler::onTimeout));
   reactor.removeEventHandler(socket, NObserver<BFSTcpServiceHandler,
-    IdleNotification>(*this, &BFSTcpServiceHandler::onIdle));
+    IdleNotification>(*this, &BFSTcpServiceHandler::onIdle));*/
   //Close socket
   try {
     socket.shutdown();
@@ -289,10 +287,9 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
 
   //Find node
   FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
-  if(fNode!=nullptr) {
+  if(fNode!=nullptr && !fNode->isRemote()) {
     uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     //check transferring
-
     char* buff = new char[reqPacket->size];
     try {
       int count = 0;
@@ -342,6 +339,11 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
     fNode->close(inodeNum);
   }
 
+  if(fNode!=nullptr&&fNode->isRemote()){
+    LOG(ERROR)<<"Write Req for a node I am not responsible:"<<fNode->getFullPath()<<" which is at:"<<fNode->getRemoteHostIP();
+    writeResPacket.statusCode = htobe64(-40);
+  }
+
   //Send response packet
   try {
     socket.sendBytes((void*)&writeResPacket,sizeof(WriteResPacket));
@@ -352,6 +354,7 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
 }
 
 void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
+  socket.setNoDelay(true);
   AttribReqPacket *reqPacket = (AttribReqPacket*)_packet;
   string fileName = string(reqPacket->fileName);
 
@@ -405,6 +408,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
 }
 
 void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
+  socket.setNoDelay(true);
   DeleteReqPacket *reqPacket = (DeleteReqPacket*)_packet;
   string fileName = string(reqPacket->fileName);
 
@@ -428,6 +432,7 @@ void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
   } else {
     LOG(ERROR)<<"Error! got a delete request for a non existent node"
         <<fileName;
+    resPacket.statusCode = htobe64(-1);
   }
 
   try {
@@ -439,6 +444,7 @@ void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
 }
 
 void BFSTcpServiceHandler::onTruncateRequest(u_char *_packet) {
+  socket.setNoDelay(true);
   TruncReqPacket *reqPacket = (TruncReqPacket*)_packet;
   string fileName = string(reqPacket->fileName);
   uint64_t newSize = be64toh(reqPacket->size);
@@ -590,11 +596,13 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
         FUSESwift::MemoryContorller::getInstance().releaseClaimedMemory(st.st_size*2ll);
 
         if(left == 0) {//Successful read
-          //First make file local because the other side removes it and zookeeper will try to remove it!
-          //if failed we will return it to remote
-          file->makeLocal();
+          //set Shuldnotzooremove to true so zookeeper won't delete this node
+          //even though it's remtoe
+          file->setShouldNotZooRemove(true);
           //We remotely delete that file
           if(BFSTcpServer::deleteRemoteFile(_fileName,this->socket.peerAddress().host().toString(),BFSTcpServer::getPort())) {
+            file->makeLocal();
+            file->setShouldNotZooRemove(false);
             //Everything went well
             FUSESwift::ZooHandler::getInstance().publishListOfFiles();//Inform rest of world
             FUSESwift::ZooHandler::getInstance().publishFreeSpace();
@@ -604,7 +612,8 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
           } else {
             LOG(ERROR) <<"Failed to delete remote file:"<<_fileName;
             LOG(ERROR) <<"DEALLOCATE deallocate"<<_fileName;
-            file->makeRemote();
+            file->setShouldNotZooRemove(false);
+            //file->makeRemote();
             file->deallocate();//Release memory allocated to the file
             file->close(inodeNum);
             FUSESwift::ZooHandler::getInstance().publishFreeSpace();
@@ -638,6 +647,7 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
 }
 
 void BFSTcpServiceHandler::onFlushRequest(u_char* _packet) {
+  socket.setNoDelay(true);
   FlushReqPacket *reqPacket = (FlushReqPacket*)_packet;
   string fileName = string(reqPacket->fileName);
 

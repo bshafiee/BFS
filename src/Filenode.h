@@ -74,6 +74,12 @@ class FileNode: public Node {
   std::atomic<bool> isRem;//indicates whether this node exist on the local RAM or on a remote machine
   std::atomic<bool> mustInformRemoteOwner;//To indicate if we should tell remote owner to remove or not(e.g zookeeper deletes don't need to do so).
   std::atomic<bool> moving;//to indicate if it's being moved to another node
+  /**
+   * Don't remove by zoo handler because we are reading a remote file into this
+   * file. so eventhough it's remote it contains data and zoo handler should not
+   * remove a filenode which has this flag true;
+   */
+  std::atomic<bool> shouldNotRemoveZooHandler;//to indicate if it's being moved to another node
   unsigned char remoteHostMAC[6];
   std::string remoteIP;
   uint32_t remotePort;
@@ -89,7 +95,6 @@ class FileNode: public Node {
 	 * to another on a remote write request hit
 	 */
 	std::atomic<bool> transfering;
-
   long write(const char *_data, int64_t _offset, int64_t _size);
   bool flushRemote();
 public:
@@ -120,7 +125,7 @@ public:
   bool isRemote();
   int concurrentOpen();
   const unsigned char* getRemoteHostMAC();
-  const std::string getRemoteHostIP();
+  const std::string & getRemoteHostIP();
   void setRemoteHostMAC(const unsigned char *_mac);
   void setRemoteIP(const std::string &_ip);
   void setRemotePort(const uint32_t _port);
@@ -172,6 +177,8 @@ public:
   bool flushed();
   bool isTransfering();
   void setTransfering(bool _value);
+  bool shouldNotZooRemove();
+  void setShouldNotZooRemove(bool _value);
   //Remote File Operation
   bool getStat(struct stat *stbuff);
   void fillPackedStat(struct packed_stat_info &st);
@@ -183,6 +190,7 @@ public:
   void makeLocal();
   void makeRemote();
   void deallocate();
+  bool isVisitedByZooUpdate() const;
 };
 
 } /* namespace FUSESwift */

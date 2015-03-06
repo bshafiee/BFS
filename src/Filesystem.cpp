@@ -104,7 +104,7 @@ FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bo
 
 FileNode* FileSystem::traversePathToParent(const string &_path) {
   //Root
-  if (_path == FileSystem::delimiter)
+  if (_path.compare(FileSystem::delimiter)==0)
     return nullptr;
   //Traverse FileSystem Hierarchies
   StringTokenizer tokenizer(_path, FileSystem::delimiter);
@@ -178,13 +178,14 @@ FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
 
 FileNode* FileSystem::findAndOpenNode(const std::string &_path) {
   lock_guard<recursive_mutex> lk(deleteQueueMutex);
+  int len = _path.length();
 
-  if(unlikely(_path == "")){
+  if(unlikely(len == 0)){
     LOG(ERROR)<<"Invalid find File Request:"<<_path;
     return nullptr;
   }
   //Root
-  if (_path == FileSystem::delimiter){
+  if (len == 1 && _path[0] == FileSystem::delimiter[0]){
     if(root->open())
       return root;
     else
@@ -312,10 +313,10 @@ std::string FileSystem::printFileSystem() {
   return output;
 }
 
-std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _includeRemotes,bool _includeFolders) {
+void FileSystem::listFileSystem(std::unordered_map<std::string,FileEntryNode> &output,bool _includeRemotes,bool _includeFolders) {
   //Get delete lock so or result will be valid
   lock_guard<recursive_mutex> lk(deleteQueueMutex);
-  vector<pair<string,bool>> output;
+//  /vector<pair<string,bool>> output;
   //Recursive is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
   FileNode* start = root;
@@ -331,18 +332,19 @@ std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _inclu
     }
     //start->childrenUnlock();
     //Now we can release start node
-    if(start->getName()!="/" && !start->mustBeDeleted()){
+    //if(start->getName()!="/" && !start->mustBeDeleted()){
+    if(start->getName()[0] != '/' && !start->mustBeDeleted()){
       if(_includeFolders){
         if(!start->isRemote())
-          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+          output.emplace(start->getFullPath(),FileEntryNode(start->isDirectory(),false));
         else if(_includeRemotes)
-          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+          output.emplace(start->getFullPath(),FileEntryNode(start->isDirectory(),false));
       }
       else if(!start->isDirectory()){
         if(!start->isRemote())
-          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+          output.emplace(start->getFullPath(),FileEntryNode(start->isDirectory(),false));
         else if(_includeRemotes)
-          output.push_back(make_pair(start->getFullPath(),start->isDirectory()));
+          output.emplace(start->getFullPath(),FileEntryNode(start->isDirectory(),false));
       }
     }
 
@@ -355,8 +357,6 @@ std::vector<std::pair<std::string,bool> > FileSystem::listFileSystem(bool _inclu
       childrenQueue.erase(frontIt);
     }
   }
-
-  return output;
 }
 
 bool FileSystem::nameValidator(const std::string& _name) {
@@ -510,9 +510,6 @@ void FileSystem::removeINodeEntry(uint64_t _inodeNum) {
 }
 
 bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
-  //TIMED_FUNC(objname);
-  Timer t;
-  t.begin();
   //Grab locks
   lock_guard<recursive_mutex> lk(deleteQueueMutex);
   lock_guard<recursive_mutex> lock_gurad(inodeMapMutex);
@@ -563,6 +560,13 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
     //Nobody can open this file anymore!
   }
 
+  //Remove from list of remoteFiles if it's a remote file
+  /*if(_node->isRemote())
+    if(!_node->hasInformedDelete){//Only once
+      for
+    }*/
+
+
   //3)) Tell Backend that this is gone!
   if(!_node->isRemote())
     if(!_node->hasInformedDelete)//Only once
@@ -570,23 +574,16 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
         UploadQueue::getInstance().push(
             new SyncEvent(SyncEventType::DELETE,_node->getFullPath()));
 
-  t.end();
-  //LOG(INFO)<<"Before publish:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
-  t.begin();
   //4)) Inform rest of World that I'm gone
   if(!_node->isRemote())
     if(!_node->hasInformedDelete)//Only once
       ZooHandler::getInstance().publishListOfFiles();
-  t.end();
-  //LOG(INFO)<<"Publish took:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
-  t.begin();
+
   bool resultRemote = true;
   if(_node->isRemote() && _informRemoteOwner)
     if(!_node->hasInformedDelete){
       resultRemote = _node->rmRemote();
     }
-  t.end();
-  //LOG(INFO)<<"REMOVE REMOTE TOOK:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
 
 
   _node->hasInformedDelete = true;
@@ -607,8 +604,6 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
     }
 
   LOG(DEBUG)<<"SIGNAL DELETE DONE: MemUtil:"<<MemoryContorller::getInstance().getMemoryUtilization()<<" UsedMem:"<<MemoryContorller::getInstance().getTotal()/1024l/1024l<<" MB. Key:"<<_node->key<<" Size:"<<_node->getSize()<<" isOpen?"<<_node->concurrentOpen()<<" isRemote():"<<_node->isRemote()<<" Ptr:"<<(FileNode*)_node;
-  /*if(!_node->isDirectory() && !_node->isRemote())
-      LOG(INFO)<<"\nGOING TO DELETE BUT FRIST MD5!!:"<<_node->getFullPath()<<" MD5SUM:"<<_node->getMD5()<<" size:"<<_node->getSize();*/
 
   //Update nodeInodemap and inodemap
   //if(!_node->isMoving()) {
@@ -624,13 +619,52 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   }
   //}
 
-  t.begin();
   //Actual release of memory!
   delete _node;//this will recursively call signalDelete on all kids of this node
-  t.end();
-  //LOG(INFO)<<"Recursive delete took:"<<t.elapsedMicro()<<" micro, "<<t.elapsedMillis()<<" milli seconds.";
 
   return resultRemote;
 }
 
+/**
+ * remove all the ***REMOTE*** files which do not have  'visitedByZooHandler'
+ * flag true! and set it to false for nodes which have
+ * it true so prepared for the next time this function is called!
+ **/
+void FileSystem::removeFilesNotVisitedByZooUpdate() {
+  //Get delete lock so or result will be valid
+  /*lock_guard<recursive_mutex> lk(deleteQueueMutex);
+
+  //Recursive is dangerous, because we might run out of memory.
+  vector<FileNode*> childrenQueue;
+  FileNode* start = root;
+  while (start != nullptr) {
+    //add children to queue
+    auto childIterator = start->childrendBegin2();
+    for (; childIterator != start->childrenEnd2(); childIterator++){
+      childrenQueue.emplace_back((FileNode*) childIterator->second);
+    }
+
+    //Process node
+    if(start->isRemote() && start != root){
+      if(start->isVisitedByZooUpdate())//Visited by ZooUpdate so no delete
+        start->setVisitedByZooUpdate(false);
+      else { //We should remove it!
+        LOG(DEBUG)<<"SIGNAL DELETE ZOOOOHANDLER GOING TO REMOVE:"<<start->getFullPath();
+        signalDeleteNode(start,false);
+      }
+    }
+
+    if (childrenQueue.size() == 0)
+      start = nullptr;
+    else {
+      //Now assign start to a new node in queue
+      auto frontIt = childrenQueue.begin();
+      start = *frontIt;
+      childrenQueue.erase(frontIt);
+    }
+  }*/
+}
+
 } // namespace
+
+

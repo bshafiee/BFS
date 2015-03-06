@@ -31,6 +31,7 @@ namespace FUSESwift {
 
 
 class FileNode;
+struct FileEntryNode;
 
 class FileSystem: public Tree {
   FileNode *root;
@@ -46,6 +47,12 @@ class FileSystem: public Tree {
   //Delete queue
   std::recursive_mutex deleteQueueMutex;
   std::list<FileNode*> deleteQueue;
+  /*
+   * To keep track of remote files, this list is used in ZooHandler
+   * updateRemoteFilesInFS for checking what remote files in our fs should
+   * be removed because they don't exist anymore on their servers
+   */
+  //std::vector<FileNode*> remoteFiles;
 
   FileNode* mkFile(FileNode* _parent, const std::string &_name,bool _isRemote,bool _open);
   FileNode* mkDirectory(FileNode* _parent, const std::string &_name,bool _isRemote);
@@ -81,7 +88,7 @@ public:
   /**
    * list of pairs <filenam,isDir?>
    */
-  std::vector<std::pair<std::string,bool> > listFileSystem(bool _includeRemotes,bool _includeFolders);
+  void listFileSystem(std::unordered_map<std::string,FileEntryNode> &output,bool _includeRemotes,bool _includeFolders);
   /**
    * checks if the input name is valid
    */
@@ -101,6 +108,7 @@ public:
 
   //Signal Delete Node
   bool signalDeleteNode(FileNode* _node,bool _informRemoteOwner);
+  void removeFilesNotVisitedByZooUpdate();
 };
 
 } /* namespace FUSESwift */

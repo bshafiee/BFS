@@ -43,6 +43,7 @@ class SettingManager {
 typedef std::unordered_map<std::string,std::string> Dictionary;
 	static Dictionary config;
 	static RUNTIME_MODE runtimeMod;
+	static int port;
 	SettingManager();
 public:
 	virtual ~SettingManager();
@@ -55,6 +56,7 @@ public:
 	static void set(std::string key,std::string value);
 	static void load(std::string path);
 	static RUNTIME_MODE runtimeMode();
+	static int getPort();
 };
 
 } /* namespace FUSESwift */

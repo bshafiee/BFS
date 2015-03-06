@@ -23,25 +23,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <string>
 #include <vector>
 #include <sstream>
+#include <unordered_map>
 #include "Backend.h"
 //#include "LoggerInclude.h"
 
 namespace FUSESwift {
 
+struct FileEntryNode{
+  FileEntryNode(){}
+  FileEntryNode(bool _isDir,bool _isVisited):
+    isDirectory(_isDir),isVisitedByZooUpdate(_isVisited){}
+  bool isDirectory = false;
+  bool isVisitedByZooUpdate = false;
+};
+
 struct ZooNode {
   std::string hostName;
   uint64_t freeSpace;
-  std::vector<std::pair<std::string,bool>> containedFiles;
+  //a pair of file name and a bool indicating if is directory or file
+  //std::vector<std::pair<std::string,bool>> *containedFiles;
+  std::unordered_map<std::string,FileEntryNode> *containedFiles;
   unsigned char MAC[6];
   std::string ip;
   uint32_t port;
 
   ZooNode(std::string _hostName,unsigned long _freeSpace,
-  				std::vector<std::pair<std::string,bool>> _containedFiles,const unsigned char *_mac,std::string _ip,uint32_t _port):hostName(_hostName),
-					freeSpace(_freeSpace),containedFiles(_containedFiles),ip(_ip),port(_port) {
+      std::unordered_map<std::string,FileEntryNode> *_containedFiles,
+      const unsigned char *_mac,std::string _ip,
+      uint32_t _port):hostName(_hostName),freeSpace(_freeSpace),
+      containedFiles(_containedFiles),ip(_ip),port(_port) {
   	if(_mac != nullptr)
   		memcpy(MAC,_mac,sizeof(char)*6);
   }
+
+  ~ZooNode() {}
 
   std::string toString() {
   	std::stringstream output;
@@ -52,17 +67,21 @@ struct ZooNode {
   	output << ip << "\n";
   	output << port << "\n";
   	output << freeSpace;
-  	if(containedFiles.size() > 0)
-  		output << "\n";
 
-  	uint counter = 0;
-		for(auto it =containedFiles.begin();it!=containedFiles.end();it++) {
-			if(counter == containedFiles.size()-1)
-				output << (it->second?"D":"F")<< it->first;
-			else
-				output << (it->second?"D":"F")<< it->first << "\n";
-			counter++;
-		}
+  	if(containedFiles){
+      uint len = containedFiles->size();
+      if(len > 0)
+        output << "\n";
+
+      uint counter = 0;
+      for(std::unordered_map<std::string,FileEntryNode>::iterator it =containedFiles->begin();it!=containedFiles->end();it++) {
+        if(counter == len-1)
+          output << (it->second.isDirectory?"D":"F")<< it->first;
+        else
+          output << (it->second.isDirectory?"D":"F")<< it->first<< "\n";
+        counter++;
+      }
+  	}
 		//std::string s = output.str();
 		//std::cout<<s<<std::endl;
   	return output.str();
@@ -84,7 +103,10 @@ struct ZooNode {
   inline bool operator == (const ZooNode& obj) {
     if(this->freeSpace != obj.freeSpace)
       return false;
-    if(this->hostName != obj.hostName)
+    //if(this->hostName != obj.hostName)
+    if(this->hostName.compare(obj.hostName)!=0)
+      return false;
+    if(this->port != obj.port)
       return false;
     for(int i=0;i<6;i++)
       if(this->MAC[i] != obj.MAC[i])

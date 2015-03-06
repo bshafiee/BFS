@@ -61,13 +61,20 @@ private:
 	LeaderOffer leaderOffer;
 	//A hashmap too keep track of which file is at which node!<nodeaddress,list of files>
 	std::mutex lockGlobalView;
-	std::vector<ZooNode> globalView;
+	/**
+	 * A hashmap of hash(hostname)->zoonode
+	 * for every node in the cluster
+	 */
+	std::unordered_map<std::size_t,ZooNode> globalView;
+	//Hash function used to hash nodes hostname
+	std::hash<std::string> hash_fn_gv;
+
 	std::mutex lockGlobalFreeView;
   std::vector<ZooNode> globalFreeView;
   std::string infoNodePath;
 	//Publish list of files
 	std::mutex lockPublish;
-  std::vector<std::pair<std::string,bool>> cacheFileList;
+	std::unordered_map<std::string,FileEntryNode> cacheFileList;
 	//Private Constructor
 	ZooHandler();
 	/** Election private helpers **/
@@ -82,6 +89,9 @@ private:
   static void neighbourWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
   /** Updates Global View of files at each node **/
   void updateGlobalView();
+  /** unlike updateGlobaView, this function only updates view for a specif node **/
+  void updateViewPerNode(const char* path);
+  void processNodeView(const char* buffer,const char* path);
   /** Keeps an eye on the nodes, to see if there is a change in their file list **/
   static void nodeWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
   /** Keeps an eye on the BFSElection znode to see if a new client joins. **/
@@ -98,6 +108,15 @@ private:
 	static void infoFolderWatcher(zhandle_t* zzh, int type, int state, const char* path, void* context);
 	/** create infoNode **/
 	void createInfoNode();
+	/**
+	 * used in update GlobalView to create files which exist at other node
+	 * but not in our FS.
+	 */
+	bool createRemoteNodeInLocalFS(const ZooNode &zNode,std::string& _fullpath,bool _isDir);
+	/*
+	 * Returns true if this zNode is This host
+	 */
+	bool isME(const ZooNode &zNode);
 public:
 	static ZooHandler& getInstance();
 	virtual ~ZooHandler();
@@ -109,7 +128,7 @@ public:
 	int getSessionState();
 	ElectionState getElectionState();
 	void publishListOfFiles();
-	std::vector<ZooNode> getGlobalView();
+	void getGlobalView(std::vector<ZooNode>&);
 	std::vector<ZooNode> getGlobalFreeView();
 	void startElection();
 	ZooNode getFreeNodeFor(uint64_t _reqSize);

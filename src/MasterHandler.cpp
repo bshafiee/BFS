@@ -141,7 +141,8 @@ void MasterHandler::leadershipLoop() {
 
 
     //3)Fetch list of avail nodes, their free space
-    vector<ZooNode> globalView = ZooHandler::getInstance().getGlobalView();
+    vector<ZooNode> globalView;
+    ZooHandler::getInstance().getGlobalView(globalView);
     vector<ZooNode> globalFreeView = ZooHandler::getInstance().getGlobalFreeView();
     //Fill GlobaView with globalfreeview
     for(ZooNode& node:globalView) {
@@ -167,7 +168,7 @@ void MasterHandler::leadershipLoop() {
       nodesChanged = true;
     }
     else {
-      for(ZooNode node:globalView)
+      for(ZooNode &node:globalView)
         if(!contains<ZooNode>(existingNodes,node)) {
           nodesChanged = true;
           break;
@@ -195,6 +196,11 @@ void MasterHandler::leadershipLoop() {
 		//Release Memory
 		backendList->clear();
 		delete backendList;
+
+		//Release memory for GlobalView
+		for(ZooNode &node:globalView)
+		  if(node.containedFiles)
+		    delete node.containedFiles;
 
     //Adaptive sleep
 		if(!change)
@@ -238,12 +244,16 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vec
 	//1)First check which files already exist in nodes
 	for(auto iter = listFiles->begin(); iter != listFiles->end();) {
 		bool found = false;
-		for(ZooNode node : globalView) {
-			for(pair<string,bool> file:node.containedFiles)
-				if(file.first == iter->name) {
-					found = true;
-					break;
-				}
+		for(ZooNode &node:globalView) {
+		  if(node.containedFiles){
+        for(std::unordered_map<std::string,FileEntryNode>::iterator
+            it= node.containedFiles->begin();
+            it!=node.containedFiles->end();it++)
+          if(it->first == iter->name) {
+            found = true;
+            break;
+          }
+		  }
 			if(found)
 				break;
 		}
@@ -264,7 +274,8 @@ bool MasterHandler::divideTaskAmongNodes(std::vector<BackendItem> *listFiles,vec
 	//Now get rid of filelist overhead in global view
 	//to figureout what to assign to which node
 	for(ZooNode node:globalView)
-		node.containedFiles.clear();
+	  if(node.containedFiles)
+	    node.containedFiles->clear();
 	//Now sort ourZoo by Free Space descendingly!
 	std::sort(globalView.begin(),globalView.end(),ZooNode::CompByFreeSpaceDes);
 	//Now sort fileList by their size descendingly!

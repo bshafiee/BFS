@@ -480,7 +480,7 @@ int swift_write(const char* path, const char* buf, size_t size, off_t offset,
     } else if(written == -20){//Is transferring
 retryTransferingNode:
       sleep(1);//sleep a little and try again;
-      LOG(INFO) <<"\nSLEEPING FOR Transferring:"<<node->getFullPath();
+      LOG(INFO) <<"SLEEPING FOR Transferring:"<<fullPath;
       //for TCP mode
 #ifndef BFS_ZERO
       /**
@@ -510,10 +510,15 @@ retryTransferingNode:
 #endif
       return swift_write(path,buf,size,offset,fi);
     } else if(written == -40){//Inconsistency in global View! the remote node is not responsible
+      LOG(ERROR)<<"Inconsistency in my globalView for:"<<node->getFullPath()<<" I think it is at:"<<node->getRemoteHostIP()<<" updating globalView...";
       ZooHandler::getInstance().requestUpdateGlobalView();
+      FileNode* newNode = FileSystem::getInstance().findAndOpenNode(fullPath);
+      if(newNode != node)
+        FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)node,(intptr_t)newNode);
+
       return -EIO;
     } else if(written == -50){//Invalid offset
-      LOG(ERROR)<<"Write failed for: "<<node->getFullPath()<<" offset:"<<offset;
+      LOG(ERROR)<<"Write failed for remoteFile: "<<node->getFullPath()<<" offset:"<<offset<<" remoteIP:"<<node->getRemoteHostIP();
       return -EIO;
     }
   }
