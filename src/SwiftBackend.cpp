@@ -139,7 +139,7 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     return false;
   }
 
-  chunkedResult->getPayload()->setTimeout(Poco::Timespan(1000,0));
+  chunkedResult->getPayload()->setTimeout(Poco::Timespan(5000,0));
   chunkedResult->getPayload()->setKeepAlive(true);
 
 
@@ -310,11 +310,18 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
       delResult->getResponse()->getReason();*/
   bool result = delResult->getError().code == SwiftError::SWIFT_OK;
 
-  if(!result)
-    LOG(ERROR)<<"Deleting:"<< _removeEvent->fullPathBuffer<<
+  if(!result){
+    if(delResult->getError().code == 404)//Not found
+      LOG(DEBUG)<<"Deleting:"<< _removeEvent->fullPathBuffer<<
           " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
           "failed:Responese:"<< delResult->getResponse()->getReason()<<
           " Error:"<<delResult->getError().toString();
+    else
+      LOG(ERROR)<<"Deleting:"<< _removeEvent->fullPathBuffer<<
+          " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
+          "failed:Responese:"<< delResult->getResponse()->getReason()<<
+          " Error:"<<delResult->getError().toString();
+  }
   else
     LOG(DEBUG)<<"SUCCESSFUL DELETE:"<<_removeEvent->fullPathBuffer;
 

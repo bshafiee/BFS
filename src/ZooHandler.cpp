@@ -786,7 +786,7 @@ void ZooHandler::processNodeView(const char* buffer,const char* path){
            * However, no matter it is remote or local now we will remove it from
            * the list of files for that mother fucker node.
            */
-          LOG(INFO)<<"DEBUG:"<<itRemove->first<<" from hashmap host:"<<got->second.hostName;
+          LOG(DEBUG)<<"removed:"<<itRemove->first<<" from hashmap host:"<<got->second.hostName;
           itRemove = got->second.containedFiles->erase(itRemove);
         }
       }
@@ -989,7 +989,7 @@ void ZooHandler::publishFreeSpace() {
     return;
   }
 
-  LOG(INFO)<<"publish:"<< freeSpace/1024ll/1024ll<<"MB freespace. Avail:"<<
+  LOG(DEBUG)<<"publish:"<< freeSpace/1024ll/1024ll<<"MB freespace. Avail:"<<
       MemoryContorller::getInstance().getAvailableMemory()/1024ll/1024ll<<
       "MB claimed:"<<MemoryContorller::getInstance().getClaimedMemory()/1024ll/1024ll<<"MB";
 }
