@@ -89,13 +89,12 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
 	LOG(INFO)<<"DOWNLOADING: ptr:"<<newFile<<" fpath:"<<newFile->getFullPath();
 
-	//Make a fake event to check if the file has been deleted
-	//SyncEvent fakeDeleteEvent(SyncEventType::DELETE,nullptr,_event->fullPathBuffer);
 	//and write the content
-	char buff[FileSystem::blockSize];//TODO increase this
+	uint64_t bufSize = 64ll*1024ll*1024ll;
+	char *buff = new char[bufSize];//64MB buffer
 	size_t offset = 0;
 	while(getStream.first->eof() == false) {
-	  getStream.first->read(buff,FileSystem::blockSize);
+	  getStream.first->read(buff,bufSize);
 
 	  if(newFile->mustBeDeleted()){
 	    newFile->close(inodeNum);
@@ -118,14 +117,17 @@ void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	    LOG(ERROR)<<"Error in writing file:"<<newFile->getFullPath()<<", probably no diskspace, Code:"<<retCode;
 	    newFile->close(inodeNum);
 	    backend->releaseGetData(getStream.second);
+	    delete []buff;
 	    return;
 	  }
 
 	  offset += getStream.first->gcount();
 	}
+
 	newFile->setNeedSync(false);//We have just created this file so it's upload flag false
 	newFile->close(inodeNum);
 	backend->releaseGetData(getStream.second);
+	delete []buff;
 }
 
 void DownloadQueue::processDownloadMetadata(const SyncEvent* _event) {
