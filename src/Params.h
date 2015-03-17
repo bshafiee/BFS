@@ -36,6 +36,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEBUG_RENAME     1
 #define DEBUG_OPEN       0
 #define DEBUG_TRUNCATE   0
+#define DEBUG_FALLOCATE  0
 #define DEBUG_READ       0
 #define DEBUG_WRITE      0
 #define DEBUG_FLUSH      0

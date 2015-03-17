@@ -863,9 +863,36 @@ int swift_read_buf(const char* arg1, struct fuse_bufvec** bufp, size_t size,
 
 int swift_flock(const char* arg1, struct fuse_file_info* arg2, int op) {
 }
-
+*/
 int swift_fallocate(const char* path, int mode, off_t offset, off_t length,
     struct fuse_file_info* fi) {
-}*/
+  return 0;
+  /*if(DEBUG_FALLOCATE)
+    LOG(DEBUG)<<"path="<<(path==nullptr?"null":path)<<", fi:"<<fi<<" offset:"<<offset<<" Length:"<<length;
+  //Get associated FileNode*
+  if(path == nullptr && fi->fh == 0) {
+    LOG(ERROR)<<"fi->fh is null";
+    return -ENOENT;
+  }
+  //Get associated FileNode*
+  FileNode* node = (FileNode*) FileSystem::getInstance().getNodeByINodeNum(fi->fh);
+  if (node == nullptr) {
+    LOG(ERROR)<<"Error swift_fallocate: Node not found: "<<path;
+    return -ENOENT;
+  }
+  else if(DEBUG_FALLOCATE)
+    LOG(DEBUG)<<"Fallocating:"<<"path="<<(path==nullptr?"null":path)<<", fi:"<<fi<<" offset:"<<offset<<" Length:"<<length;
+
+  int result = 0;
+  if(node->isRemote())
+    result = -EAGAIN;
+  else
+    result = node->allocate(offset,length);
+
+  if(result!=length)
+    LOG(ERROR)<<"Ftruncate failed: "<<(path==nullptr?"null":path)<<" Size:"<<node->getSize();
+
+  return result;*/
+}
 
 } //FUSESwift namespace

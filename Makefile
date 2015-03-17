@@ -14,16 +14,13 @@ LFLAGS=-Ilib/logger
 CXXFLAGS+= $(LFLAGS)
 
 #Libraries
-#for 32bit machines point to 32 bit lockless_allocator 
-#LD = -L/usr/local/lib -Llib/lockless_allocator/32bit
-#for 64bit machines point to 64 bit lockless_allocator 
-LD = -L/usr/local/lib -Llib/lockless_allocator/64bit
+LD = -L/usr/local/lib
 CXXFLAGS+=$(LD)
 
 #if PROFILE is enabled them -lprofiler should be include and gperftools should be installed
-#LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma -lllalloc -lprofiler
+#LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma -ltcmalloc -lprofiler
 #No profiler
-LIBS = -lpthread -lfuse -lSwift -lPocoFoundation -lPocoNet -lzookeeper_mt -lpfring -lnuma -lllalloc
+LIBS = -lpthread -lfuse -lSwift -lPocoFoundation -lPocoNet -lzookeeper_mt -lpfring -lnuma -ltcmalloc
 
 TARGET =	BFS
 #CXX=clang++

@@ -165,6 +165,11 @@ public:
   long read(char* &_data, int64_t _offset, int64_t _size);
 
   /**
+   * Same as Write except no data copy
+   */
+  long allocate(int64_t _offset, int64_t _size);
+
+  /**
    * Truncates the file to the specified size if possible
    */
   bool truncate(int64_t _size);

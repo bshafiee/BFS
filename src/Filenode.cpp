@@ -52,7 +52,7 @@ FileNode::~FileNode() {
   }
   dataList.clear();
   //Clean up children
-  //(auto it = children.begin();it != children.end();it++) {//We cann't use a for loop because the iteratoros might get deleted
+  //(auto it = children.begin();it != children.end();it++) {//We cann't use a for loop because the iterators might get deleted
   long childrenSize = children.size();
   while(childrenSize > 0){
     FileNode* child = (FileNode*)children.begin()->second;
@@ -228,6 +228,87 @@ long FileNode::write(const char* _data, int64_t _offset, int64_t _size) {
       memcpy(lastBlock + blockIndex, _data + (backupSize - _size), howMuch);
       _size -= howMuch;
       size += howMuch;	  //increase file size
+      retValue += howMuch;
+      blockIndex += howMuch;
+      if (blockIndex >= FileSystem::blockSize) {
+        char* block = new char[FileSystem::blockSize];
+        dataList.push_back(block);
+        blockIndex = 0;
+      }
+    }
+  }
+  return retValue;
+}
+
+long FUSESwift::FileNode::allocate(int64_t _offset, int64_t _size){
+  //Acquire lock
+  lock_guard <recursive_mutex> lock(ioMutex);
+
+  if(_offset > size){
+    LOG(ERROR)<<"\nOFFSET IS BIGGER THAN SIZE, OFFSET:"<<_offset<<" SIZE:"<<size<<" requestSize:"<<_size<<" name:"<<getFullPath();
+    return -50;
+  }
+
+  //Check Storage space Availability
+  int64_t newReqMemSize = (_offset + _size > size) ? _offset + _size - size : 0;
+  if (newReqMemSize > 0)
+    if (!MemoryContorller::getInstance().requestMemory(newReqMemSize))
+      return -1;
+
+  int64_t retValue = 0;
+  int64_t backupSize = _size;
+  if (_offset < size) { //update existing (unlikely)
+    //Find correspondent block
+    int64_t blockNo = _offset / FileSystem::blockSize;
+    uint64_t index = _offset - blockNo * FileSystem::blockSize;
+
+    //char* block = dataList[blockNo];
+
+    //Start filling
+    while (_size > 0) {
+      int64_t left = FileSystem::blockSize - index;//Left bytes in the last block
+      int64_t howMuch = (_size <= left) ? _size : left;
+      //memcpy(block + index, _data + (backupSize - _size), howMuch);
+      _size -= howMuch;
+      index += howMuch;
+      retValue += howMuch;
+      blockNo++;
+      //Increase size and blockIndex if in the last block
+      if (index > blockIndex && blockNo == (int64_t)dataList.size()) {
+        size += index - blockIndex;
+        blockIndex = index;
+        if (blockIndex >= FileSystem::blockSize)
+          blockIndex = 0;
+      }
+      if (index >= FileSystem::blockSize && blockNo < (int64_t)dataList.size()) {
+        //block = dataList[blockNo];
+        index = 0;
+      } else if (index >= FileSystem::blockSize && blockNo >= (int64_t)dataList.size()) {
+        //We should allocate a new block
+        char* block = new char[FileSystem::blockSize];
+        dataList.push_back(block);
+        //block index shouuld have already be reset to 0
+        return retValue
+            + this->allocate(getSize(), backupSize - retValue);
+      }
+    }
+  } else { //append to the end
+    //first time (unlikely)
+    if (dataList.size() == 0) {
+      char* block = new char[FileSystem::blockSize];
+      dataList.push_back(block);
+      blockIndex = 0;
+    }
+
+    //Start filling
+    while (_size > 0) {
+      //Get pointer to the last buffer
+      //char* lastBlock = dataList.at(dataList.size() - 1);
+      int64_t left = FileSystem::blockSize - blockIndex;  //Left bytes in the last block
+      int64_t howMuch = (_size <= left) ? _size : left;
+      //memcpy(lastBlock + blockIndex, _data + (backupSize - _size), howMuch);
+      _size -= howMuch;
+      size += howMuch;    //increase file size
       retValue += howMuch;
       blockIndex += howMuch;
       if (blockIndex >= FileSystem::blockSize) {

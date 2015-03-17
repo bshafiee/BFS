@@ -119,7 +119,7 @@ static struct fuse_operations fuse_oper = {
   .write_buf = NULL ,
   .read_buf = NULL ,
   .flock = NULL ,
-  .fallocate = NULL
+  .fallocate = FUSESwift::swift_fallocate
 };
 
 void shutdown(void* context) {

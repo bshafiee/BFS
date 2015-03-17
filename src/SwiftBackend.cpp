@@ -309,9 +309,9 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
       " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
       delResult->getResponse()->getReason();*/
   bool result = delResult->getError().code == SwiftError::SWIFT_OK;
-
+//Deleting:/blue15 SwiftName:blue15 httpresponseMsg:failed:Responese:Not Found Error:Error -3: Code:404 Reason:Not Found
   if(!result){
-    if(delResult->getError().code == 404)//Not found
+    if(delResult->getResponse()->getReason() == Poco::Net::HTTPResponse::HTTP_REASON_NOT_FOUND)//Not found
       LOG(DEBUG)<<"Deleting:"<< _removeEvent->fullPathBuffer<<
           " SwiftName:"<< obj.getName()<<" httpresponseMsg:"<<
           "failed:Responese:"<< delResult->getResponse()->getReason()<<

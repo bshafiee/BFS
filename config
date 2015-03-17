@@ -1,5 +1,5 @@
 #Mode determines wether to operate in DISTRIBUTED, STANDALONE_SWIFT or STANDALONE mode
-mode = DISTRIBUTED 
+mode = DISTRIBUTED
 #Swift Authentication info
 username = demo
 password = behrooz
