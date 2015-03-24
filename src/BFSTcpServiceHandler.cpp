@@ -169,7 +169,6 @@ void BFSTcpServiceHandler::onReadable(
     }
   } catch(Exception &e){
     LOG(ERROR)<<"Error in reading data loop:"<<e.message();
-    delete this;
   }
   //So after a connection is served just close it!
   delete this;
@@ -264,7 +263,7 @@ void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
     }
   } catch(...){
     LOG(ERROR)<<"Error in sending read response:"<<fileName;
-    delete this;
+    return;
   }
 
 
@@ -330,7 +329,7 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
         LOG(ERROR)<<"reading write data failed:total:"<<total<<" count:"<<count<<" left:"<<left<<" Avail:"<<socket.available();
     }catch(Exception &e){
       LOG(ERROR)<<"Error in receiving write data "<<reqPacket->fileName<<": "<<e.message();
-      delete this;
+      return;
     }
     delete []buff;
     buff = nullptr;
@@ -349,7 +348,7 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
     socket.sendBytes((void*)&writeResPacket,sizeof(WriteResPacket));
   }catch(Exception &e){
     LOG(ERROR)<<"Error in sending write response packet "<<reqPacket->fileName<<": "<<e.message();
-    delete this;
+    return;
   }
 }
 
@@ -383,7 +382,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
     socket.sendBytes((void*)&resPacket,sizeof(AttribResPacket));
   } catch(...){
     LOG(ERROR)<<"Error in sending attrib response:"<<fileName;
-    delete this;
+    return;
   }
 
   if(fNode!=nullptr) {//Success
@@ -402,7 +401,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
       //LOG(INFO)<<"Attrib request for:"<<fileName<<" isRemote:"<<fNode->isRemote();
     } catch(...){
       LOG(ERROR)<<"Error in sending attrib response:"<<fileName;
-      delete this;
+      return;
     }
   }
 }
@@ -439,7 +438,7 @@ void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
     socket.sendBytes((void*)&resPacket,sizeof(DeleteResPacket));
   } catch(...){
     LOG(ERROR)<<"Error in sending Delete response:"<<fileName;
-    delete this;
+    return;
   }
 }
 
@@ -476,7 +475,7 @@ void BFSTcpServiceHandler::onTruncateRequest(u_char *_packet) {
     socket.sendBytes((void*)&resPacket,sizeof(TruncateResPacket));
   } catch(...){
     LOG(ERROR)<<"Error in sending Truncate response:"<<fileName;
-    delete this;
+    return;
   }
 }
 
@@ -519,7 +518,7 @@ void BFSTcpServiceHandler::onCreateRequest(u_char *_packet) {
     socket.sendBytes((void*)&resPacket,sizeof(TruncateResPacket));
   } catch(...){
     LOG(ERROR)<<"Error in sending Create response:"<<fileName;
-    delete this;
+    return;
   }
 }
 
@@ -559,7 +558,7 @@ void BFSTcpServiceHandler::onMoveRequest(u_char *_packet) {
     socket.sendBytes((void*)&resPacket,sizeof(MoveResPacket));
   } catch(...){
     LOG(ERROR)<<"Error in sending Move response:"<<fileName;
-    delete this;
+    return;
   }
 }
 
@@ -677,6 +676,6 @@ void BFSTcpServiceHandler::onFlushRequest(u_char* _packet) {
     socket.sendBytes((void*)&resPacket,sizeof(FlushResPacket));
   } catch(...){
     LOG(ERROR)<<"Error in sending Flush response:"<<fileName;
-    delete this;
+    return;
   }
 }

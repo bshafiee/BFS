@@ -211,7 +211,8 @@ bool SwiftBackend::put(const SyncEvent* _putEvent) {
     return true;
   }
   else {
-    LOG(ERROR)<<"Error in swift: "<<response.getReason();
+    LOG(ERROR)<<"Error in swift: "<<response.getReason()<<" Status:"<<response.getStatus();
+    response.write(cerr);
     delete chunkedResult;
     delete obj;
     node->close(inodeNum);
