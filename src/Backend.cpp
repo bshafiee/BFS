@@ -42,6 +42,10 @@ std::string Backend::backendTypeToStr(BackendType _type) {
       return "SSH";
     case BackendType::SWIFT:
       return "SWIFT";
+    case BackendType::GLUSTER:
+      return "GLUSTER";
+    case BackendType::NONE:
+      return "NONE";
     default:
       return "";
   }

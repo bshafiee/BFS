@@ -29,7 +29,7 @@ class DownloadQueue: public SyncQueue{
   void processEvent(const SyncEvent* _event);
   static void syncLoopWrapper();
   void syncLoop();
-  void processDownloadContent(const SyncEvent* _event);
+  bool processDownloadContent(const SyncEvent* _event);
   void processDownloadMetadata(const SyncEvent* _event);
   //Private constructor
   DownloadQueue();
@@ -41,7 +41,9 @@ public:
   //Stop Downlaod Thread
   void stopSynchronization();
   //Add Download assignment from zoo
-  void addZooTask(vector<string>assignments);
+  void addZooTask(const vector<string> &assignments);
+  //Process Backend for Standalone mode!
+  void checkBackendInStandalonMode();
 };
 
 } /* namespace FUSESwift */

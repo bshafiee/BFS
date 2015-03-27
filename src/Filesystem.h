@@ -65,6 +65,12 @@ public:
   static FileSystem& getInstance();
   virtual ~FileSystem();
   FileNode* mkFile(const std::string &_path,bool _isRemote,bool _open);
+  /**
+   * Adds an FileNode to fileSystem! Note that it's caller responsibility to
+   * set all info for this file(fullpath,name,remote...)
+   */
+  bool addFile(FileNode* _fNode);
+
   FileNode* mkDirectory(const std::string &_path,bool _isRemote);
   FileNode* findAndOpenNode(const std::string &_path);
   FileNode* findParent(const std::string &_path);

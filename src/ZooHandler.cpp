@@ -962,6 +962,8 @@ void ZooHandler::infoNodeWatcher(zhandle_t* zzh, int type, int state,
 }
 
 void ZooHandler::publishFreeSpace() {
+  if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
+    return;
   if (sessionState != ZOO_CONNECTED_STATE) {
     LOG(ERROR)<<"publishFreeSpace(): invalid sessionstate or electionstate";
     return;

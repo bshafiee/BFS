@@ -1,5 +1,7 @@
-#Mode determines wether to operate in DISTRIBUTED, STANDALONE_SWIFT or STANDALONE mode
-mode = DISTRIBUTED
+#Mode determines whether to operate in DISTRIBUTED or STANDALONE mode
+mode =STANDALONE
+#Backend: what backend to use: GLUSTER, SWIFT, or NONE for no backend
+backend=GLUSTER
 #Swift Authentication info
 username = demo
 password = behrooz
@@ -19,3 +21,8 @@ zoo_election_znode=/BFSElection
 zoo_assignment_znode=/BFSTasks
 #Debug SWIFT_CPP_SDK
 debug_swift_cpp_sdk = false
+#GlusterFS Connection Info
+gluster_volume=bfsvolume
+#a comma seperated list of gluster volume servers. eg: server1:port:transport(tcp,rdma),server2:port:transport,...
+gluster_servers=129.97.170.232:24007:tcp
+#gluster_servers=10.30.0.100:24007:tcp,10.30.0.1:24007:tcp,10.30.0.2:24007:tcp,10.30.0.15:24007:tcp

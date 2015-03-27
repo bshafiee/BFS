@@ -129,9 +129,9 @@ void MasterHandler::leadershipLoop() {
       usleep(interval);
       continue;
     }
-    vector<BackendItem> *backendList = backend->list();
-    if(backendList == nullptr) {
-      LOG(ERROR)<<"leadershipLoop(): backendList is null!";
+    vector<BackendItem> backendList;
+    if(!backend->list(backendList)) {
+      LOG(ERROR)<<"leadershipLoop(): failed to retrive list of files from backend!";
 			interval *= 10;
 			if(interval > maxSleep)
 				interval = maxSleep;
@@ -179,7 +179,7 @@ void MasterHandler::leadershipLoop() {
     vector<BackendItem> oldAssignments = getExistingAssignments();
     //cerr<<"oldAssignments:";printVector(oldAssignments);
     if(oldAssignments.size() > 0)
-      removeDuplicates(*backendList,oldAssignments);
+      removeDuplicates(backendList,oldAssignments);
 
     if(nodesChanged) { //Get a copy in existing nodes
       existingNodes.clear();
@@ -190,12 +190,12 @@ void MasterHandler::leadershipLoop() {
 		//5)Clean all previous assignments
 		//6)Publish assignments
 		bool change = false;
-		if(backendList->size() || nodesChanged)
-			change = divideTaskAmongNodes(backendList,globalView);
+		if(backendList.size() || nodesChanged)
+			change = divideTaskAmongNodes(&backendList,globalView);
 
 		//Release Memory
-		backendList->clear();
-		delete backendList;
+		backendList.clear();
+		//delete backendList;
 
 		//Release memory for GlobalView
 		for(ZooNode &node:globalView)

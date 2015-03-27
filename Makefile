@@ -1,7 +1,7 @@
 #-O3 produces not debug info! Should be used for performance measurments
-CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
+#CXXFLAGS =	-O3 -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
 #-ggdb produces lots of debug info; useful ful backtraces and debugging
-#CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
+CXXFLAGS =	-ggdb -g -Wall -fmessage-length=0 -D_FILE_OFFSET_BITS=64 -std=c++1y
 
 CXXSOURCES = $(wildcard src/*.cpp)
 OBJS =	$(CXXSOURCES:%.cpp=%.o)
@@ -18,9 +18,9 @@ LD = -L/usr/local/lib
 CXXFLAGS+=$(LD)
 
 #if PROFILE is enabled them -lprofiler should be include and gperftools should be installed
-#LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma -ltcmalloc -lprofiler
+#LIBS = -lpthread -lfuse -lSwift -lPocoNet -lPocoFoundation -lzookeeper_mt -lpfring -lnuma -lgfapi -ltcmalloc -lprofiler
 #No profiler
-LIBS = -lpthread -lfuse -lSwift -lPocoFoundation -lPocoNet -lzookeeper_mt -lpfring -lnuma -ltcmalloc
+LIBS = -lpthread -lfuse -lSwift -lPocoFoundation -lPocoNet -lzookeeper_mt -lpfring -lnuma -lgfapi -ltcmalloc
 
 TARGET =	BFS
 #CXX=clang++

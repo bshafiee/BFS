@@ -33,7 +33,7 @@ SyncQueue::~SyncQueue() {
 }
 
 bool SyncQueue::push(SyncEvent* _event) {
-  if(SettingManager::runtimeMode() == RUNTIME_MODE::STANDALONE)
+  if(SettingManager::getBackendType() == BackendType::NONE)
     return true;
 
   lock_guard<std::mutex> lock(queueMutex);
@@ -53,18 +53,18 @@ bool SyncQueue::push(SyncEvent* _event) {
 }
 
 SyncEvent* SyncQueue::pop() {
+  lock_guard<std::mutex> lock(queueMutex);
   if(list.size() == 0)
     return nullptr;
-  queueMutex.lock();
   //First element
   SyncEvent* firstElem = list.front();
   //Now we can remove front element
   list.erase(list.begin());
-  queueMutex.unlock();
   return firstElem;
 }
 
 bool SyncQueue::containsEvent(const SyncEvent* _event) {
+  lock_guard<mutex> lk(queueMutex);
   if(_event == nullptr || list.size() == 0)
     return false;
   for(auto it = list.begin(); it != list.end();++it)

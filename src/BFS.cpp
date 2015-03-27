@@ -32,7 +32,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
 #endif
-
+#include "Backend.h"
+#include "GlusterBackend.h"
 #include <Swift/Account.h>
 #include <Swift/Container.h>
 #include <Swift/Object.h>
@@ -54,6 +55,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <thread>
 #include "Statistics.h"
 #include "Timer.h"
+
 #if PROFILE
   #include <gperftools/profiler.h>
 #endif
@@ -193,13 +195,6 @@ int main(int argc, char *argv[]) {
   //std::set_new_handler(outOfMemHandler);
   //std::set_terminate(systemErrorHandler);
 
-  AuthenticationInfo info;
-  info.username = SettingManager::get(CONFIG_KEY_SWIFT_USERNAME);
-  info.password = SettingManager::get(CONFIG_KEY_SWIFT_PASSWORD);
-  info.authUrl = SettingManager::get(CONFIG_KEY_SWIFT_URL);
-  info.tenantName = SettingManager::get(CONFIG_KEY_SWIFT_TENANT);
-  info.method = AuthenticationMethod::KEYSTONE;
-
   //Run as root
   if ((getuid() == 0) || (geteuid() == 0)) {
     LOG(ERROR) << "Running BBFS as root opens unnacceptable security holes";
@@ -210,10 +205,27 @@ int main(int argc, char *argv[]) {
   if (argc < 1)
     bfs_usage();
 
+  GlusterBackend glusterBackend;
   SwiftBackend swiftBackend;
-  if(SettingManager::runtimeMode()!=RUNTIME_MODE::STANDALONE){
-    if(swiftBackend.initialize(&info))
-      BackendManager::registerBackend(&swiftBackend);
+  AuthenticationInfo info;
+  switch(SettingManager::getBackendType()){
+    case BackendType::GLUSTER:
+      if(glusterBackend.initialize(
+          SettingManager::get(CONFIG_KEY_GLUSTER_VOLUME),
+          SettingManager::get(CONFIG_KEY_GLUSTER_SERVERS)))
+        BackendManager::registerBackend(&glusterBackend);
+      break;
+    case BackendType::SWIFT:
+      info.username = SettingManager::get(CONFIG_KEY_SWIFT_USERNAME);
+      info.password = SettingManager::get(CONFIG_KEY_SWIFT_PASSWORD);
+      info.authUrl = SettingManager::get(CONFIG_KEY_SWIFT_URL);
+      info.tenantName = SettingManager::get(CONFIG_KEY_SWIFT_TENANT);
+      info.method = AuthenticationMethod::KEYSTONE;
+      if(swiftBackend.initialize(&info))
+        BackendManager::registerBackend(&swiftBackend);
+      break;
+    default:
+      break;
   }
 
   //Get Physical Memory amount

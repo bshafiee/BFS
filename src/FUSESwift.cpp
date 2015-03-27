@@ -401,7 +401,7 @@ int swift_read(const char* path, char* buf, size_t size, off_t offset,
 
   //Empty file
   if((!node->isRemote()&&node->getSize() == 0)||size == 0) {
-    LOG(ERROR)<<"Read from:path="<<node->getFullPath()<<", size="<<size<<", offset="<<offset<<", EOF";
+    LOG(DEBUG)<<"Read from:path="<<node->getFullPath()<<", readSize="<<size<<", offset="<<offset<<", fileSize:"<<node->getSize();
     return 0;
   }
   long readBytes = 0;
@@ -741,7 +741,7 @@ void* swift_init(struct fuse_conn_info* conn) {
   if(DEBUG_INIT)
     LOG(INFO)<<"Fuse Initialization";
 
-  if(SettingManager::runtimeMode()!=RUNTIME_MODE::STANDALONE){
+  if(SettingManager::getBackendType()!=BackendType::NONE){
     LOG(INFO)<<"Starting SyncThreads";
     //Start SyncQueue threads
     UploadQueue::getInstance().startSynchronization();

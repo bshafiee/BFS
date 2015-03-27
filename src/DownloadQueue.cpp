@@ -22,9 +22,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "BackendManager.h"
 #include <iostream>
 #include <mutex>
-
+#include "SettingManager.h"
 #include "Filesystem.h"
 #include "MemoryController.h"
+#include "Timer.h"
 #include "LoggerInclude.h"
 
 using namespace std;
@@ -39,7 +40,7 @@ DownloadQueue::DownloadQueue():SyncQueue() {
 DownloadQueue::~DownloadQueue() {
 }
 
-void DownloadQueue::addZooTask(vector<string>assignments) {
+void DownloadQueue::addZooTask(const vector<string> &assignments) {
 	//Try to query backend for list of files
 	Backend* backend = BackendManager::getActiveBackend();
 	if (backend == nullptr) {
@@ -58,76 +59,17 @@ void DownloadQueue::addZooTask(vector<string>assignments) {
 	}
 }
 
-void DownloadQueue::processDownloadContent(const SyncEvent* _event) {
+bool DownloadQueue::processDownloadContent(const SyncEvent* _event) {
 	if(_event == nullptr || _event->fullPathBuffer.length()==0)
-		return;
-	FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(_event->fullPathBuffer);
-	//If File exist then we won't download it!
-	if(fileNode!=nullptr){
-	  //Close it! so it can be removed if needed
-    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fileNode);
-    fileNode->close(inodeNum);
-	  return;
-	}
+		return false;
+
 	//Ask backend to download the file for us
 	Backend *backend = BackendManager::getActiveBackend();
-	pair<istream*,intptr_t> getStream = backend->get(_event);
-	if(getStream.first == nullptr) {
-	  LOG(ERROR)<<"Error in Downloading file:"<<_event->fullPathBuffer;
-	  backend->releaseGetData(getStream.second);
-	  return;
+	if(!backend){
+	  LOG(ERROR)<<"No active backend to download"<<_event->fullPathBuffer;
+	  return false;
 	}
-	//Now create a file in FS
-	//handle directories
-  FileSystem::getInstance().createHierarchy(_event->fullPathBuffer,false);
-	FileNode *newFile = FileSystem::getInstance().mkFile(_event->fullPathBuffer,false,true);//open
-	if(newFile == nullptr){
-	  LOG(ERROR)<<"Failed to create a newNode:"<<_event->fullPathBuffer;
-	  backend->releaseGetData(getStream.second);
-	  return;
-	}
-	uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
-	LOG(INFO)<<"DOWNLOADING: ptr:"<<newFile<<" fpath:"<<newFile->getFullPath();
-
-	//and write the content
-	uint64_t bufSize = 64ll*1024ll*1024ll;
-	char *buff = new char[bufSize];//64MB buffer
-	size_t offset = 0;
-	while(getStream.first->eof() == false) {
-	  getStream.first->read(buff,bufSize);
-
-	  if(newFile->mustBeDeleted()){
-	    newFile->close(inodeNum);
-	    backend->releaseGetData(getStream.second);
-	    return;
-	  }
-
-	  FileNode* afterMove = nullptr;
-    long retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove,true);
-
-    while(retCode == -1)//-1 means moving
-      retCode = newFile->writeHandler(buff,offset,getStream.first->gcount(),afterMove,true);
-
-    if(afterMove){
-      newFile = afterMove;
-      FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)newFile,(intptr_t)afterMove);
-    }
-    //Check space availability
-	  if(retCode < 0) {
-	    LOG(ERROR)<<"Error in writing file:"<<newFile->getFullPath()<<", probably no diskspace, Code:"<<retCode;
-	    newFile->close(inodeNum);
-	    backend->releaseGetData(getStream.second);
-	    delete []buff;
-	    return;
-	  }
-
-	  offset += getStream.first->gcount();
-	}
-
-	newFile->setNeedSync(false);//We have just created this file so it's upload flag false
-	newFile->close(inodeNum);
-	backend->releaseGetData(getStream.second);
-	delete []buff;
+  return backend->get(_event);
 }
 
 void DownloadQueue::processDownloadMetadata(const SyncEvent* _event) {
@@ -177,8 +119,15 @@ void DownloadQueue::syncLoop() {
 	const long maxDelay = 10000; //Milliseconds
 	const long minDelay = 10; //Milliseconds
 	long delay = 10; //Milliseconds
+	Timer backendCheckTimer;
+	backendCheckTimer.begin();
 
 	while (running) {
+	  backendCheckTimer.end();
+	  if(backendCheckTimer.elapsedSec()>1){
+	    checkBackendInStandalonMode();
+	    backendCheckTimer.begin();
+	  }
 		//Empty list
 		if (!list.size()) {
 			//log_msg("DOWNLOADQUEUE: I will sleep for %zu milliseconds\n", delay);
@@ -200,6 +149,34 @@ void DownloadQueue::syncLoop() {
 		//reset delay
 		delay = minDelay;
 	}
+}
+
+void DownloadQueue::checkBackendInStandalonMode() {
+  if(SettingManager::runtimeMode() != RUNTIME_MODE::STANDALONE  ||
+      SettingManager::getBackendType() == BackendType::NONE)
+    return;
+  //LOG(INFO)<<"INJA";
+  //Ask backend to download the file for us
+  Backend *backend = BackendManager::getActiveBackend();
+  if(!backend)
+    return;
+
+  vector<BackendItem> items;
+  backend->list(items);
+  vector<string> task;
+  for(BackendItem &item:items){
+    FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(item.name);
+    //If File exist then we won't download it!
+    if(fileNode!=nullptr){
+      fileNode->close(0);
+      continue;
+    }
+    SyncEvent dummy(SyncEventType::DOWNLOAD_CONTENT,item.name);
+    if(!containsEvent(&dummy))
+      task.emplace_back(item.name);
+  }
+  if(!task.empty())
+    addZooTask(task);
 }
 
 } /* namespace FUSESwift */

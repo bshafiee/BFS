@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace FUSESwift {
 
-enum class BackendType {SWIFT, AMAZON_S3, HARDDISK, NULLDISK, SSH};
+enum class BackendType {SWIFT, AMAZON_S3, HARDDISK, NULLDISK, SSH, GLUSTER,NONE};
 
 struct BackendItem {
   BackendItem (std::string _name, long _length,
@@ -73,20 +73,19 @@ public:
    * Virtual list of methods that each
    * Backend implementation should provide
    * **/
-  virtual std::vector<BackendItem>* list() = 0;
+  virtual bool list(std::vector<BackendItem>& _list) = 0;
   /**
    * @return
    * 1) A pointer to an stream which you can read data in chunk from
    * 2) A pointer to a container which holds the input stream connection
    *    and should be freed once the read is done, through releaseGetData()
    */
-  virtual std::pair<std::istream*,intptr_t> get(const SyncEvent *_getEvent) = 0;
+  virtual bool get(const SyncEvent *_getEvent) = 0;
   virtual std::vector<std::pair<std::string,std::string> >* get_metadata(const SyncEvent *_getMetaEvent) = 0;
   virtual bool put(const SyncEvent *_putEvent) = 0;
   virtual bool put_metadata(const SyncEvent *_putMetaEvent) = 0;
   virtual bool move(const SyncEvent *_moveEvent) = 0;
   virtual bool remove(const SyncEvent *_removeEvent) = 0;
-  virtual void releaseGetData(intptr_t &_ptr) = 0;
   BackendType getType();
   static std::string backendTypeToStr(BackendType _type);
 };

@@ -51,7 +51,7 @@ public:
   long size();
   virtual void startSynchronization() = 0;
   virtual void stopSynchronization() = 0;
-  inline bool containsEvent(const SyncEvent* _event);
+  virtual bool containsEvent(const SyncEvent* _event);
 };
 
 } /* namespace FUSESwift */

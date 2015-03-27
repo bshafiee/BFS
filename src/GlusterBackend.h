@@ -16,28 +16,39 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **********************************************************************/
 
-#ifndef SWIFTBACKEND_H_
-#define SWIFTBACKEND_H_
+#ifndef GLUSTERBACKEND_H_
+#define GLUSTERBACKEND_H_
 #include "Global.h"
 #include "Backend.h"
-#include <Swift/Authentication.h>
-#include <Swift/Account.h>
 #include <tuple>
+#include <string>
 
 namespace FUSESwift {
 
-class SwiftBackend: public Backend {
-  const std::string DEFAULT_CONTAINER_NAME = "KOS";
-  Swift::Account* account;
-  Swift::Container* defaultContainer;
-  bool initDefaultContainer();
-  std::string convertToSwiftName(const std::string &fullPath);
-  std::string convertFromSwiftName(const std::string &swiftPath);
-public:
-  SwiftBackend();
-  virtual ~SwiftBackend();
+struct VolumeServer {
+  VolumeServer(std::string _serverIP,int _port,std::string _transport):
+    transport(_transport),serverIP(_serverIP),port(_port){}
+  std::string transport;//tcp,rdma
+  std::string serverIP;
+  int port;
+};
 
-  bool initialize(Swift::AuthenticationInfo* _authInfo);
+struct GlusterFSConnection {
+  std::string volumeName;
+  std::vector<VolumeServer> volumeServers;
+};
+
+class GlusterBackend: public Backend {
+  GlusterFSConnection connectionInfo;
+  void* fs = NULL;
+  bool recursiveListDir(const char* path,std::vector<BackendItem>& _list);
+  bool createDirectory(const char* path);
+public:
+  GlusterBackend();
+  virtual ~GlusterBackend();
+
+  bool initialize(std::string _volume,std::string _volumeServer);
+  bool initialize(GlusterFSConnection _connectionInfo);
   //Implement backend interface
   bool list(std::vector<BackendItem>& _list);
   bool get(const SyncEvent *_getEvent);

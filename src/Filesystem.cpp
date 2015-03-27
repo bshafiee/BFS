@@ -124,8 +124,6 @@ FileNode* FileSystem::traversePathToParent(const string &_path) {
 std::string FileSystem::getFileNameFromPath(const std::string &_path) {
   if(_path.length() == 0)
     return "";
-  if(_path.find(delimiter) == string::npos)
-    return _path;
   //Traverse FileSystem Hierarchies
   StringTokenizer tokenizer(_path, FileSystem::delimiter);
   return tokenizer[tokenizer.count() - 1];
@@ -151,16 +149,36 @@ FileNode* FileSystem::createHierarchy(const std::string &_path,bool _isRemote) {
   return start;
 }
 
-string getNameFromPath(const string &_path) {
-  //Traverse FileSystem Hierarchies
-  StringTokenizer tokenizer(_path, FileSystem::delimiter);
-  return tokenizer[tokenizer.count() - 1];
+bool FileSystem::addFile(FileNode* _fNode) {
+  if(_fNode == nullptr){
+    LOG(ERROR)<<"fNode is NULL!";
+    return false;
+  }
+
+  FileNode* parent = traversePathToParent(_fNode->getFullPath());
+  if(parent == nullptr){
+    LOG(ERROR)<<"Error in finding parent for:"<<_fNode->getFullPath();
+    return false;
+  }
+
+  //Now we have it's parent
+  auto res = parent->childAdd(_fNode);
+  if (res.second) {
+    //Inform ZooHandler about new file if not remote
+    if(!_fNode->isRemote())
+      ZooHandler::getInstance().publishListOfFiles();
+    return true;
+  }
+  else {
+    LOG(ERROR)<<"Cannot add child("<<_fNode->getFullPath()<<") to "<<parent->fullPath;
+    return false;
+  }
 }
 
 FileNode* FileSystem::mkFile(const string &_path,bool _isRemote,bool _open) {
   //TIMED_FUNC(objname2);
   FileNode* parent = traversePathToParent(_path);
-  string name = getNameFromPath(_path);
+  string name = getFileNameFromPath(_path);
   //Now parent node is start
   FileNode* result = mkFile(parent, name, _isRemote,_open);
 
@@ -169,7 +187,7 @@ FileNode* FileSystem::mkFile(const string &_path,bool _isRemote,bool _open) {
 
 FileNode* FileSystem::mkDirectory(const std::string &_path,bool _isRemote) {
   FileNode* parent = traversePathToParent(_path);
-  string name = getNameFromPath(_path);
+  string name = getFileNameFromPath(_path);
   //Now parent node is start
   FileNode* result = mkDirectory(parent, name,_isRemote);
 
@@ -234,7 +252,7 @@ FileNode* FileSystem::findParent(const string &_path) {
 
 void FileSystem::destroy() {
   //Important, first kill download and upload thread
-  if(SettingManager::runtimeMode() != RUNTIME_MODE::STANDALONE) {
+  if(SettingManager::getBackendType() != BackendType::NONE) {
     DownloadQueue::getInstance().stopSynchronization();
     UploadQueue::getInstance().stopSynchronization();
   }
@@ -666,5 +684,4 @@ void FileSystem::removeFilesNotVisitedByZooUpdate() {
 }
 
 } // namespace
-
 

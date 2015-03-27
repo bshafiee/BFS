@@ -29,6 +29,7 @@ namespace FUSESwift {
 //const std::string SettingManager::KEY_MODE = "MODE";
 SettingManager::Dictionary SettingManager::config;
 RUNTIME_MODE SettingManager::runtimeMod = RUNTIME_MODE::DISTRIBUTED;
+BackendType SettingManager::backendType = BackendType::NONE;
 int SettingManager::port = -1;
 
 SettingManager::SettingManager() {}
@@ -105,19 +106,37 @@ void SettingManager::load(std::string path) {
 	string runtimeModeStr = get(CONFIG_KEY_MODE);
 	if(runtimeModeStr == "DISTRIBUTED")
 		runtimeMod = RUNTIME_MODE::DISTRIBUTED;
-	else if(runtimeModeStr == "STANDALONE_SWIFT")
-		runtimeMod = RUNTIME_MODE::STANDALONE_SWIFT;
 	else if(runtimeModeStr == "STANDALONE")
 		runtimeMod = RUNTIME_MODE::STANDALONE;
 	else{
 		LOG(FATAL)<<"Can't determine runtime mode, using default mode: Distributed";
 	}
 	LOG(INFO)<<"Runtime Mode:"<<runtimeModeStr;
+
+
+	//Backend
+	string backendStr = get(CONFIG_KEY_BACKEND);
+  if(backendStr == "GLUSTER")
+    backendType = BackendType::GLUSTER;
+  else if(backendStr == "SWIFT")
+    backendType = BackendType::SWIFT;
+  else if(backendStr == "NONE")//No backend
+    backendType = BackendType::NONE;
+  else{
+    LOG(ERROR)<<"Can't determine backend type, using default mode: NONE";
+    backendType = BackendType::NONE;
+  }
+  LOG(INFO)<<"Backend:"<<backendStr;
+
 	port = SettingManager::getInt(CONFIG_KEY_TCP_PORT);
 }
 
 RUNTIME_MODE SettingManager::runtimeMode() {
   return runtimeMod;
+}
+
+BackendType SettingManager::getBackendType() {
+  return backendType;
 }
 
 int SettingManager::getPort() {

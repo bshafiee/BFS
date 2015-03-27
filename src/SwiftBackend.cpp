@@ -268,15 +268,15 @@ std::string FUSESwift::SwiftBackend::convertFromSwiftName(
 		return FileSystem::delimiter+swiftPath;
 }
 
-std::vector<BackendItem>* FUSESwift::SwiftBackend::list() {
+bool FUSESwift::SwiftBackend::list(std::vector<BackendItem>& list) {
 	if(account == nullptr || defaultContainer == nullptr)
-		return nullptr;
+		return false;
 	SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
 	if(res->getError().code != SwiftError::SWIFT_OK) {
 	  LOG(ERROR)<<"Error in getting list of files in Swiftbackend:"<<res->getError().toString();
 		return nullptr;
 	}
-	vector<BackendItem>* listFiles = new vector<BackendItem>();
+	//vector<BackendItem>* listFiles = new vector<BackendItem>();
 	for(auto it = res->getPayload()->begin();it != res->getPayload()->end();it++) {
 	  //Check if this object already is downloaded
 	  FileNode* node =
@@ -289,15 +289,14 @@ std::vector<BackendItem>* FUSESwift::SwiftBackend::list() {
 	    continue;//existing node
 	  }
 	  else {
-	    BackendItem item(convertFromSwiftName(it->getName()),it->getLength(),it->getHash(),it->getLastModified());
-	    listFiles->push_back(item);
+	    list.emplace_back(BackendItem(convertFromSwiftName(it->getName()),it->getLength(),it->getHash(),it->getLastModified()));
 	  }
 	}
 
 	delete res;
 	res = nullptr;
 
-	return listFiles;
+	return true;
 }
 
 bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
@@ -332,19 +331,107 @@ bool SwiftBackend::remove(const SyncEvent* _removeEvent) {
   return result;
 }
 
-std::pair<std::istream*,intptr_t> SwiftBackend::get(const SyncEvent* _getEvent) {
+bool SwiftBackend::get(const SyncEvent* _getEvent) {
   if(_getEvent == nullptr || account == nullptr
       || defaultContainer == nullptr)
-    return make_pair(nullptr,0);
+    return false;
+  if(_getEvent->fullPathBuffer.length()==0)
+    return false;
+
   //Try to download object
   Object obj(defaultContainer,convertToSwiftName(_getEvent->fullPathBuffer));
   SwiftResult<std::istream*>* res = obj.swiftGetObjectContent();
   if(res->getError().code != SwiftError::SWIFT_OK) {
-    LOG(ERROR)<<"Swift Error: Downloading obj:"<<res->getError().toString();
-    return make_pair(nullptr,0);
+    LOG(ERROR)<<"Swift Error in Downloading obj:"<<res->getError().toString();
+    if(res)
+      delete res;
+    return false;
   }
-  else
-    return make_pair(res->getPayload(),(intptr_t)res);
+  if(res==nullptr || res->getPayload() == nullptr){
+    LOG(ERROR)<<"Error in downloading object conentent:"<<obj.getName();
+    if(res)
+      delete res;
+  }
+
+  FileNode* fileNode = FileSystem::getInstance().findAndOpenNode(_getEvent->fullPathBuffer);
+  //If File exist then we won't download it!
+  if(fileNode!=nullptr){
+    LOG(DEBUG)<<"File "<<fileNode->getFullPath()<<" already exist! no need to download.";
+    //Close it! so it can be removed if needed
+    uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)fileNode);
+    fileNode->close(inodeNum);
+    delete res;
+    return false;
+  }
+
+  //Now create a file in FS
+  //handle directories
+  //FileSystem::getInstance().createHierarchy(_getEvent->fullPathBuffer,false);
+  //FileNode *newFile = FileSystem::getInstance().mkFile(_getEvent->fullPathBuffer,false,true);//open
+  string name = FileSystem::getInstance().getFileNameFromPath(_getEvent->fullPathBuffer);
+  FileNode* newFile = new FileNode(name,_getEvent->fullPathBuffer, false,false);
+  if(newFile == nullptr){
+    LOG(ERROR)<<"Failed to create a newNode:"<<_getEvent->fullPathBuffer;
+    delete res;
+    return false;
+  }
+  //uint64_t inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)newFile);
+  //LOG(DEBUG)<<"DOWNLOADING: ptr:"<<newFile<<" fpath:"<<newFile->getFullPath();
+
+  istream *getStream = res->getPayload();
+  //and write the content
+  uint64_t bufSize = 64ll*1024ll*1024ll;
+  char *buff = new char[bufSize];//64MB buffer
+  size_t offset = 0;
+  while(!getStream->eof()) {
+    getStream->read(buff,bufSize);
+
+    //No need to download it anymore.
+    if(newFile->mustBeDeleted()){
+      delete newFile;
+      delete res;
+      return true;
+    }
+
+    FileNode* afterMove = nullptr;
+    long retCode = newFile->writeHandler(buff,offset,getStream->gcount(),afterMove,true);
+
+    while(retCode == -1)//-1 means moving
+      retCode = newFile->writeHandler(buff,offset,getStream->gcount(),afterMove,true);
+
+    if(afterMove){
+      newFile = afterMove;
+      FileSystem::getInstance().replaceAllInodesByNewNode((intptr_t)newFile,(intptr_t)afterMove);
+    }
+
+    //Check space availability
+    if(retCode < 0) {
+      LOG(ERROR)<<"Error in writing file:"<<newFile->getFullPath()<<", probably no diskspace, Code:"<<retCode;
+      delete newFile;
+      delete res;
+      delete []buff;
+      return false;
+    }
+
+    offset += getStream->gcount();
+  }
+
+  newFile->setNeedSync(false);//We have just created this file so it's upload flag false
+  delete res;
+  delete []buff;
+  //Add it to File system
+  if(FileSystem::getInstance().createHierarchy(_getEvent->fullPathBuffer,false)==nullptr){
+    LOG(ERROR)<<"Error in creating hierarchy for newly downloaded file:"<<newFile->getFullPath();
+    delete newFile;
+    return false;
+  }
+  if(!FileSystem::getInstance().addFile(newFile)){
+    LOG(ERROR)<<"Error in adding newly downloaded file:"<<newFile->getFullPath();
+    delete newFile;
+    return false;
+  }
+  //Gone well
+  return true;
 }
 
 vector<pair<string,string>>* SwiftBackend::get_metadata(const SyncEvent* _getMetaEvent) {
@@ -354,12 +441,6 @@ vector<pair<string,string>>* SwiftBackend::get_metadata(const SyncEvent* _getMet
   //Try to download object
   Object obj(defaultContainer,_getMetaEvent->fullPathBuffer);
   return obj.getExistingMetaData();
-}
-
-void SwiftBackend::releaseGetData(intptr_t &_ptr) {
-  if(_ptr)
-    delete (SwiftResult<std::istream*>*)_ptr;
-  _ptr = 0;
 }
 
 } /* namespace FUSESwift */

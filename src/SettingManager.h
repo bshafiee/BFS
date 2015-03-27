@@ -21,12 +21,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Global.h"
 #include <unordered_map>
 #include <string>
+#include "Backend.h"
 
 namespace FUSESwift {
 
-enum class RUNTIME_MODE {DISTRIBUTED,STANDALONE_SWIFT,STANDALONE};
+enum class RUNTIME_MODE {DISTRIBUTED,STANDALONE};
 
 static const std::string CONFIG_KEY_MODE = "mode";
+static const std::string CONFIG_KEY_BACKEND = "backend";
 static const std::string CONFIG_KEY_SWIFT_USERNAME = "username";
 static const std::string CONFIG_KEY_SWIFT_PASSWORD = "password";
 static const std::string CONFIG_KEY_SWIFT_URL = "auth_url";
@@ -38,11 +40,14 @@ static const std::string CONFIG_KEY_ZOO_SERVER_URL = "zoo_server_url";
 static const std::string CONFIG_KEY_ZOO_ELECTION_ZNODE = "zoo_election_znode";
 static const std::string CONFIG_KEY_ZOO_ASSIGNMENT_ZNODE = "zoo_assignment_znode";
 static const std::string CONFIG_KEY_DEBUG_SWIFT_CPP_SDK = "debug_swift_cpp_sdk";
+static const std::string CONFIG_KEY_GLUSTER_VOLUME = "gluster_volume";
+static const std::string CONFIG_KEY_GLUSTER_SERVERS = "gluster_servers";
 
 class SettingManager {
 typedef std::unordered_map<std::string,std::string> Dictionary;
 	static Dictionary config;
 	static RUNTIME_MODE runtimeMod;
+	static BackendType backendType;
 	static int port;
 	SettingManager();
 public:
@@ -56,6 +61,7 @@ public:
 	static void set(std::string key,std::string value);
 	static void load(std::string path);
 	static RUNTIME_MODE runtimeMode();
+	static BackendType getBackendType();
 	static int getPort();
 };
 
