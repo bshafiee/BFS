@@ -46,7 +46,7 @@ long Node::childRemove(const string& _key) {
 }
 
 Node* Node::childFind(const string& _key) {
-  lock_guard<mutex> lk(mutex);
+  lock_guard<mutex> lk(mapMutex);
   auto it = children.find(_key);
 
   if(it != children.end())

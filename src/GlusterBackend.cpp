@@ -340,8 +340,10 @@ bool GlusterBackend::put(const SyncEvent* _putEvent) {
   if(tokenizer.count()>=2){
     for(unsigned int i=0;i<tokenizer.count()-1;i++){
       string path = FileSystem::delimiter;
-      for(unsigned int j=0;j<=i;j++)
+      for(unsigned int j=0;j<=i;j++){
         path += tokenizer[j];
+        path += FileSystem::delimiter;
+      }
       if(!createDirectory(path.c_str())){
         LOG(ERROR)<<"Failed to create parent directory("<<tokenizer[i]<<") for:"<<_putEvent->fullPathBuffer;
         node->close(inodeNum);
