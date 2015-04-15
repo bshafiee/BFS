@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 LeaderOffer::LeaderOffer (long _id, std::string _nodePath,
 		std::string _hostName):id(_id),nodePath(_nodePath),hostName(_hostName) {

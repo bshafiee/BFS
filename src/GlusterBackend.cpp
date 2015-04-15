@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 
 /*static inline bool fileExists (const std::string& name) {
@@ -49,7 +49,8 @@ GlusterBackend::GlusterBackend():Backend(BackendType::GLUSTER) {
 }
 
 GlusterBackend::~GlusterBackend() {
-  glfs_fini((glfs_t*)fs);
+  if(fs!=nullptr)
+    glfs_fini((glfs_t*)fs);
 }
 
 bool GlusterBackend::initialize(std::string _volume,std::string _volumeServer) {
@@ -443,4 +444,4 @@ bool GlusterBackend::remove(const SyncEvent* _removeEvent) {
   return true;
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

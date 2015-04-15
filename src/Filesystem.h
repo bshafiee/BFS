@@ -24,16 +24,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <unordered_map>
 #include <mutex>
 #include <list>
-#include "Tree.h"
 
 
-namespace FUSESwift {
+namespace BFS {
 
 
 class FileNode;
 struct FileEntryNode;
 
-class FileSystem: public Tree {
+class FileSystem {
   FileNode *root;
   //Singleton instance
   static FileSystem *mInstance;
@@ -90,11 +89,11 @@ public:
    * nullptr on failure
    */
   FileNode* createHierarchy(const std::string &_path,bool _isRemote);
-  std::string printFileSystem();
+  //std::string printFileSystem();
   /**
    * list of pairs <filenam,isDir?>
    */
-  void listFileSystem(std::unordered_map<std::string,FileEntryNode> &output,bool _includeRemotes,bool _includeFolders);
+  //void listFileSystem(std::unordered_map<std::string,FileEntryNode> &output,bool _includeRemotes,bool _includeFolders);
   /**
    * checks if the input name is valid
    */
@@ -114,8 +113,7 @@ public:
 
   //Signal Delete Node
   bool signalDeleteNode(FileNode* _node,bool _informRemoteOwner);
-  void removeFilesNotVisitedByZooUpdate();
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* FILESYSTEM_H_ */

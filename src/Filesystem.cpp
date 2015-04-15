@@ -34,13 +34,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 using namespace Poco;
 
-namespace FUSESwift {
+namespace BFS {
 
 //initialize static variables
 const std::string FileSystem::delimiter = "/";
 
 FileSystem::FileSystem(FileNode* _root) :
-    Tree(_root), root(_root), inodeCounter(1) {
+    root(_root), inodeCounter(1) {
 }
 
 FileSystem::~FileSystem() {}
@@ -71,12 +71,15 @@ FileNode* FileSystem::mkFile(FileNode* _parent, const std::string &_name,bool _i
   auto res = _parent->childAdd(file);
   if (res.second) {
   	//Inform ZooHandler about new file if not remote
-  	if(!_isRemote)
-  		ZooHandler::getInstance().publishListOfFiles();
+  	if(!_isRemote){
+  	  ZooHandler::getInstance().informNewFile(file->fullPath,file->isDirectory());
+  		ZooHandler::getInstance().publishListOfFilesASYN();
+  	}
     return file;
   }
   else{
     LOG(ERROR)<<"Cannot add child("<<file->getFullPath()<<") to "<<_parent->fullPath;
+    delete file;
     return nullptr;
   }
 }
@@ -92,12 +95,15 @@ FileNode* FileSystem::mkDirectory(FileNode* _parent, const std::string &_name,bo
   auto res = _parent->childAdd(dir);
   if (res.second){
     //Inform ZooHandler about new file if not remote
-    if(!_isRemote)
-      ZooHandler::getInstance().publishListOfFiles();
+    if(!_isRemote){
+      ZooHandler::getInstance().informNewFile(dir->fullPath,dir->isDirectory());
+      ZooHandler::getInstance().publishListOfFilesASYN();
+    }
     return dir;
   }
   else{
     LOG(ERROR)<<"Cannot add child("<<dir->getFullPath()<<") to "<<_parent->fullPath;
+    delete dir;
     return nullptr;
   }
 }
@@ -165,8 +171,10 @@ bool FileSystem::addFile(FileNode* _fNode) {
   auto res = parent->childAdd(_fNode);
   if (res.second) {
     //Inform ZooHandler about new file if not remote
-    if(!_fNode->isRemote())
-      ZooHandler::getInstance().publishListOfFiles();
+    if(!_fNode->isRemote()){
+      ZooHandler::getInstance().informNewFile(_fNode->fullPath,_fNode->isDirectory());
+      ZooHandler::getInstance().publishListOfFilesASYN();
+    }
     return true;
   }
   else {
@@ -292,7 +300,7 @@ bool FileSystem::tryRename(const string &_from,const string &_to) {
   return result;
 }
 
-std::string FileSystem::printFileSystem() {
+/*std::string FileSystem::printFileSystem() {
   string output = "";
   //Recursive removing is dangerous, because we might run out of memory.
   vector<FileNode*> childrenQueue;
@@ -329,9 +337,9 @@ std::string FileSystem::printFileSystem() {
   }
   LOG(DEBUG)<<output<<endl;
   return output;
-}
+}*/
 
-void FileSystem::listFileSystem(std::unordered_map<std::string,FileEntryNode> &output,bool _includeRemotes,bool _includeFolders) {
+/*void FileSystem::listFileSystem(std::unordered_map<std::string,FileEntryNode> &output,bool _includeRemotes,bool _includeFolders) {
   //Get delete lock so or result will be valid
   lock_guard<recursive_mutex> lk(deleteQueueMutex);
 //  /vector<pair<string,bool>> output;
@@ -375,10 +383,11 @@ void FileSystem::listFileSystem(std::unordered_map<std::string,FileEntryNode> &o
       childrenQueue.erase(frontIt);
     }
   }
-}
+}*/
 
 bool FileSystem::nameValidator(const std::string& _name) {
-  return RegularExpression::match(_name,"^[a-zA-Z0-9äöüÄÖÜ\\.\\-_@!#\\$%\\^\\&\\*\\)\\(\\+\\|\\?<>\\[\\]\\{\\}:;'\",~ ]*$");
+  return true;
+  //return RegularExpression::match(_name,"^[a-zA-Z0-9äöüÄÖÜ\\.\\-_@!#\\$%\\^\\&\\*\\)\\(\\+\\|\\?<>\\[\\]\\{\\}:;'\",~ ]*$");
 	//return true;
 }
 
@@ -386,15 +395,18 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getMostFreeNode();
   if(mostFreeNode.freeSpace == 0)//GetMostFreeNode could not find a node
     return false;
-  LOG(INFO) <<"CREATING REMOTE FILE."<<_name<<" UTIL:"<<
+  LOG(DEBUG) <<"CREATING REMOTE FILE."<<_name<<" UTIL:"<<
     MemoryContorller::getInstance().getMemoryUtilization()<<" to:"<<
     mostFreeNode.hostName<<" with:"<<mostFreeNode.freeSpace/1024ll/1024ll<<
     "MB free space";
 #ifdef BFS_ZERO
   bool res = BFSNetwork::createRemoteFile(_name,mostFreeNode.MAC);
 #else
-  bool res = BFSTcpServer::createRemoteFile(_name,mostFreeNode.ip,mostFreeNode.port);
+  bool res = BFSTcpServer::createRemoteFile(_name,mostFreeNode.ip,mostFreeNode.port)==200;
 #endif
+  if(!res){
+    LOG(ERROR)<<"Failed to create remote file:"<<_name<<" at: "<<mostFreeNode.hostName<<" with freespace:"<<mostFreeNode.freeSpace;
+  }
   ZooHandler::getInstance().requestUpdateGlobalView();
   return res;
 }
@@ -402,14 +414,14 @@ bool FileSystem::createRemoteFile(const std::string& _name) {
 bool FileSystem::moveToRemoteNode(FileNode* _localFile) {
   ZooNode mostFreeNode = ZooHandler::getInstance().getFreeNodeFor(_localFile->getSize()*2);
   if((int64_t)mostFreeNode.freeSpace < _localFile->getSize()*2){ //Could not find a node with enough space :(
-    LOG(INFO)<<"The most freeNode Does not have enough space for this file:"<<
+    LOG(ERROR)<<"The most freeNode Does not have enough space for this file:"<<
         _localFile->getFullPath()<<" size:"<<_localFile->getSize()<<
         " mostFree:"<<mostFreeNode.toString();
     return false;
   }
 
   //First advertise the list of files you have to make sure the dst node will see this file
-  ZooHandler::getInstance().publishListOfFiles();
+  ZooHandler::getInstance().publishListOfFilesSYNC();
   LOG(INFO) <<"MOVING FILE:"<<_localFile->getName()<<" isRemote:"<<_localFile->isRemote()<<" curSize:"<<
       _localFile->getSize()<<" UTIL:"<<
       MemoryContorller::getInstance().getMemoryUtilization()<<" to:"<<
@@ -587,15 +599,18 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
 
   //3)) Tell Backend that this is gone!
   if(!_node->isRemote())
-    if(!_node->hasInformedDelete)//Only once
+    if(!_node->hasInformedDelete){//Only once
       if(!_node->isMoving())//Not moving nodes
         UploadQueue::getInstance().push(
             new SyncEvent(SyncEventType::DELETE,_node->getFullPath()));
+    }
 
   //4)) Inform rest of World that I'm gone
   if(!_node->isRemote())
-    if(!_node->hasInformedDelete)//Only once
-      ZooHandler::getInstance().publishListOfFiles();
+    if(!_node->hasInformedDelete){//Only once
+      ZooHandler::getInstance().informDelFile(_node->getFullPath());
+      ZooHandler::getInstance().publishListOfFilesASYN();
+    }
 
   bool resultRemote = true;
   if(_node->isRemote() && _informRemoteOwner)
@@ -641,46 +656,6 @@ bool FileSystem::signalDeleteNode(FileNode* _node,bool _informRemoteOwner) {
   delete _node;//this will recursively call signalDelete on all kids of this node
 
   return resultRemote;
-}
-
-/**
- * remove all the ***REMOTE*** files which do not have  'visitedByZooHandler'
- * flag true! and set it to false for nodes which have
- * it true so prepared for the next time this function is called!
- **/
-void FileSystem::removeFilesNotVisitedByZooUpdate() {
-  //Get delete lock so or result will be valid
-  /*lock_guard<recursive_mutex> lk(deleteQueueMutex);
-
-  //Recursive is dangerous, because we might run out of memory.
-  vector<FileNode*> childrenQueue;
-  FileNode* start = root;
-  while (start != nullptr) {
-    //add children to queue
-    auto childIterator = start->childrendBegin2();
-    for (; childIterator != start->childrenEnd2(); childIterator++){
-      childrenQueue.emplace_back((FileNode*) childIterator->second);
-    }
-
-    //Process node
-    if(start->isRemote() && start != root){
-      if(start->isVisitedByZooUpdate())//Visited by ZooUpdate so no delete
-        start->setVisitedByZooUpdate(false);
-      else { //We should remove it!
-        LOG(DEBUG)<<"SIGNAL DELETE ZOOOOHANDLER GOING TO REMOVE:"<<start->getFullPath();
-        signalDeleteNode(start,false);
-      }
-    }
-
-    if (childrenQueue.size() == 0)
-      start = nullptr;
-    else {
-      //Now assign start to a new node in queue
-      auto frontIt = childrenQueue.begin();
-      start = *frontIt;
-      childrenQueue.erase(frontIt);
-    }
-  }*/
 }
 
 } // namespace

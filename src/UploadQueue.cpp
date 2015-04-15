@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 UploadQueue::UploadQueue():SyncQueue() {
   // TODO Auto-generated constructor stub
@@ -150,4 +150,4 @@ bool UploadQueue::checkEventValidity(const SyncEvent& _event) {
   }
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <string>
 #include <atomic>
 
-namespace FUSESwift {
+namespace BFS {
 
 class MemoryContorller {
   double MAX_MEM_COEF = 0;
@@ -55,6 +55,6 @@ public:
   void informMemoryUsage();
 };
 
-} //end of namespace FUSESWIFT
+} //end of namespace BFS
 
 #endif /* MEMORYCONTROLLER_H_ */

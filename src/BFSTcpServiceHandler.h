@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <Poco/Net/SocketNotification.h>
 #include <Poco/AutoPtr.h>
 
-//namespace FUSESwift {
+//namespace BFS {
 
 #ifndef likely
 #define likely(x)       __builtin_expect((x),1)

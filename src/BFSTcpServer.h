@@ -57,7 +57,7 @@ class BFSTcpServer {
   static std::atomic<bool> initialized;
   static std::atomic<bool> initSuccess;
   //Transfer Stuff
-  static FUSESwift::Queue<TransferTask*> transferQueue;
+  static BFS::Queue<TransferTask*> transferQueue;
   static std::thread *transferThread;
   static std::atomic<bool> isRunning;
   //Utility

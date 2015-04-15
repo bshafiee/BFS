@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "SyncQueue.h"
 #include "Backend.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 class DownloadQueue: public SyncQueue{
   //Process Events
@@ -46,5 +46,5 @@ public:
   void checkBackendInStandalonMode();
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* DOWNLOADQUEUE_H_ */

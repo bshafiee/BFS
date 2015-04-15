@@ -29,7 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Node.h"
 
 
-namespace FUSESwift {
+namespace BFS {
 
 typedef std::map<std::string,std::string> metadataDictionary;
 
@@ -196,7 +196,13 @@ public:
   void makeRemote();
   void deallocate();
   bool isVisitedByZooUpdate() const;
+  /**
+   * Returns true if this is a directory and has at least one child which is
+   * either not remote or if remote the ownere is not the specified input
+   */
+  bool hasLocalChildOrNotThisRemote(const std::string& _ip);
+  int readDir(void* buf, void* filler);
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* FILENODE_H_ */

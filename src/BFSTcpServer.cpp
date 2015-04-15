@@ -43,7 +43,7 @@ string BFSTcpServer::iface;
 atomic<bool> BFSTcpServer::initialized(false);
 atomic<bool> BFSTcpServer::initSuccess(false);
 //Transfer stuff
-FUSESwift::Queue<TransferTask*> BFSTcpServer::transferQueue;
+BFS::Queue<TransferTask*> BFSTcpServer::transferQueue;
 std::thread *BFSTcpServer::transferThread = nullptr;
 atomic<bool> BFSTcpServer::isRunning(true);
 
@@ -95,16 +95,23 @@ void BFSTcpServer::stop() {
     transferThread->join();
     delete transferThread;
   }
-  transferThread = nullptr;
+
   //Stop reactor
   if(reactor)
     reactor->stop();
   if(thread)
     thread->join();
   usleep(100);
-  if(reactor)
+  if(reactor){
     delete reactor;
+  }
+  if(thread){
+    delete thread;
+  }
   reactor = nullptr;
+  thread = nullptr;
+  reactor = nullptr;
+  transferThread = nullptr;
 }
 
 int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
@@ -163,7 +170,7 @@ int64_t BFSTcpServer::readRemoteFile(void* _dstBuffer, uint64_t _size,
       uint64_t total = 0;
       uint64_t left = resPacket.readSize;
 
-      /*FUSESwift::Timer t;
+      /*BFS::Timer t;
       t.begin();*/
 
       do {
@@ -256,6 +263,8 @@ int64_t BFSTcpServer::writeRemoteFile(const void* _srcBuffer, uint64_t _size,
       socket.close();
     } catch(...){}
     LOG(ERROR)<<"Error in sending write data:"<<_remoteFile<<":"<<e.message();
+    //Might be because I am writing to the wrong node! so let's update global view
+    BFS::ZooHandler::getInstance().requestUpdateGlobalView();
     return -2;
   }
 
@@ -630,7 +639,7 @@ int64_t BFSTcpServer::moveFileToRemoteNode(const std::string& file,
   resPacket.statusCode = be64toh(resPacket.statusCode);
   if(resPacket.statusCode == 200) {//Success
     LOG(INFO)<<"Move to node:"<<_ip<<" successful: "<<file<< " Updating global view";
-    FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
+    BFS::ZooHandler::getInstance().requestUpdateGlobalView();
   }
   else
     LOG(ERROR)<<"Move to remote node failed: "<<file<<" Returned Code:"<<resPacket.statusCode;
@@ -665,11 +674,11 @@ std::uint32_t BFSTcpServer::getPort() {
 }
 
 bool BFSTcpServer::initialize() {
-  string devName = FUSESwift::SettingManager::get(FUSESwift::CONFIG_KEY_ZERO_NETWORK_DEV);
+  string devName = BFS::SettingManager::get(BFS::CONFIG_KEY_ZERO_NETWORK_DEV);
   if(devName.length() > 0){
     iface = devName;
     findIP();
-    string portStr = FUSESwift::SettingManager::get(FUSESwift::CONFIG_KEY_TCP_PORT);
+    string portStr = BFS::SettingManager::get(BFS::CONFIG_KEY_TCP_PORT);
     if(!portStr.length()){
       LOG(DEBUG) <<"No tcp_port in the config file! \n"
           "Initializing BFSTCPServer failed.\n";
@@ -706,14 +715,14 @@ void BFSTcpServer::transferLoop() {
 void BFSTcpServer::processTransfer(TransferTask* _task) {
   string fileName = string(_task->writeReq.fileName);
   //Find file and lock it!
-  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* fNode = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode == nullptr) {
     LOG(ERROR)<<"File Not found:"<<fileName;
     return;
   }
-  uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+  uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
   //Write data to file
-  FUSESwift::FileNode* afterMove = nullptr;//This will happen
+  BFS::FileNode* afterMove = nullptr;//This will happen
   long result = fNode->writeHandler((char*)_task->data,_task->writeReq.offset,_task->writeReq.size,afterMove,true);
 
   //Write happened LOCALLY! SOME free space come from somewhere :D
@@ -723,8 +732,9 @@ void BFSTcpServer::processTransfer(TransferTask* _task) {
     fNode->setTransfering(false);
     fNode->close(inodeNum);
   }else if (result == (int64_t)_task->writeReq.size && afterMove) {//Success
-    FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
-    LOG(INFO)<<"Transfer Successful:"<<fileName<<" from:"<<FUSESwift::ZooHandler::getInstance().getHostName()<<" to:"<<afterMove->getRemoteHostIP();
+    BFS::ZooHandler::getInstance().publishListOfFilesSYNC();
+    BFS::ZooHandler::getInstance().requestUpdateGlobalView();
+    LOG(INFO)<<"Transfer Successful:"<<fileName<<" from:"<<BFS::ZooHandler::getInstance().getHostName()<<" to:"<<afterMove->getRemoteHostIP();
     //We don't need to close file here because it's a newly created node;
     //however, move will make it open! so WE NEED TO CLOSE IT
     afterMove->close(0);
@@ -736,7 +746,7 @@ void BFSTcpServer::processTransfer(TransferTask* _task) {
     if(fNode)
       fNodeVal = to_string((intptr_t)fNode);
     LOG(ERROR)<<"Unsuccessful transfer:"<<fileName<<" MEMUTILIZATION:"<<
-        FUSESwift::MemoryContorller::getInstance().getMemoryUtilization()<<
+        BFS::MemoryContorller::getInstance().getMemoryUtilization()<<
         " size:"<<_task->writeReq.size<<" written:"<<result<<
         " afterMoveNode:"<<afterMoveVal<<" fNode:"<<fNodeVal;
     fNode->setTransfering(false);

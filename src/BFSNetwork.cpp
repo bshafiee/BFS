@@ -37,7 +37,7 @@ extern "C" {
 }
 
 
-namespace FUSESwift {
+namespace BFS {
 
 using namespace std;
 
@@ -347,7 +347,7 @@ void BFSNetwork::sendLoop() {
 	LOG(ERROR)<<"SEND LOOP DEAD!";
 }
 
-void FUSESwift::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
+void BFS::BFSNetwork::processReadSendTask(ReadSndTask& _task) {
   uint64_t origOffset = _task.offset;
   uint64_t origSize = _task.size;
 
@@ -676,7 +676,7 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
     //Deallocate
     file->deallocate();
     file->close(inodeNum);
-    FUSESwift::MemoryContorller::getInstance().informMemoryUsage();
+    BFS::MemoryContorller::getInstance().informMemoryUsage();
     return sendMoveResponse(_moveTask, res);
   }
 
@@ -684,9 +684,10 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
   //7) All is good so publish your files
   file->makeLocal();
   file->setShouldNotZooRemove(false);
-  ZooHandler::getInstance().publishListOfFiles();
+  BFS::ZooHandler::getInstance().informNewFile(file->getFullPath(),file->isDirectory());
+  ZooHandler::getInstance().publishListOfFilesSYNC();
   ZooHandler::getInstance().requestUpdateGlobalView();
-  FUSESwift::MemoryContorller::getInstance().informMemoryUsage();
+  BFS::MemoryContorller::getInstance().informMemoryUsage();
   //8)Close the file and make sure it's local now!
   file->close(inodeNum);
 
@@ -702,7 +703,7 @@ void BFSNetwork::processMoveTask(const MoveTask &_moveTask) {
       inodeNum = FileSystem::getInstance().assignINodeNum((intptr_t)file);
       file->deallocate();
       file->close(inodeNum);
-      ZooHandler::getInstance().publishListOfFiles();
+      ZooHandler::getInstance().publishListOfFilesSYNC();
     }
     return sendMoveResponse(_moveTask,res);
   }
@@ -921,7 +922,7 @@ void BFSNetwork::rcvLoop() {
  * |__________________|______________|______________|_____________________MTU-1|
  *
  **/
-void FUSESwift::BFSNetwork::onReadResPacket(const u_char* _packet) {
+void BFS::BFSNetwork::onReadResPacket(const u_char* _packet) {
   if(_packet == nullptr) { //a drop has happened!
     int counter = 0;
     readRcvTasks.lock();
@@ -993,7 +994,7 @@ void FUSESwift::BFSNetwork::onReadResPacket(const u_char* _packet) {
  * | Index: [18-21]   |              |              |                          |
  * |__________________|______________|______________|_____________________MTU-1|
  **/
-void FUSESwift::BFSNetwork::onReadReqPacket(const u_char* _packet) {
+void BFS::BFSNetwork::onReadReqPacket(const u_char* _packet) {
 	ReadReqPacket *reqPacket = (ReadReqPacket*)_packet;
 	//create a send packet
 	ReadSndTask *task = new ReadSndTask();
@@ -1065,7 +1066,7 @@ long BFSNetwork::writeRemoteFile(const void* _srcBuffer, size_t _size,
 }
 
 
-void FUSESwift::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
+void BFS::BFSNetwork::processWriteSendTask(WriteSndTask& _task) {
 	int64_t total = _task.size;
 	int64_t origOffset = _task.offset;
 
@@ -1205,7 +1206,7 @@ void BFSNetwork::fillWriteReqPacket(WriteReqPacket* _packet,
 * | Index: [18-21]   |              |              |                          |
 * |__________________|______________|______________|_____________________MTU-1|
 **/
-void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
+void BFS::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 	WriteDataPacket *dataPacket = (WriteDataPacket*)_packet;
 	//create a send packet
 	uint64_t offset = be64toh(dataPacket->offset);
@@ -1300,7 +1301,7 @@ void FUSESwift::BFSNetwork::onWriteDataPacket(const u_char* _packet) {
 	}
 }
 
-void FUSESwift::BFSNetwork::sendWriteACK(uint64_t size,uint64_t offset,
+void BFS::BFSNetwork::sendWriteACK(uint64_t size,uint64_t offset,
     uint32_t fileID,unsigned char requestorMac[]) {
   //Send ACK
   char buffer[MTU];
@@ -1323,7 +1324,7 @@ void FUSESwift::BFSNetwork::sendWriteACK(uint64_t size,uint64_t offset,
 }
 
 
-void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
+void BFS::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
 	WriteReqPacket *reqPacket = (WriteReqPacket*)_packet;
 
 	//Create a writeDataTask
@@ -1385,7 +1386,7 @@ void FUSESwift::BFSNetwork::onWriteReqPacket(const u_char* _packet) {
   sendWriteACK(0,0,writeTask.fileID,writeTask.requestorMac);
 }
 
-void FUSESwift::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
+void BFS::BFSNetwork::onWriteAckPacket(const u_char* _packet) {
 	WriteDataPacket *reqPacket = (WriteDataPacket*)_packet;
 	//Find write sendTask
 	uint32_t fileID = ntohl(reqPacket->fileID);
@@ -1600,8 +1601,9 @@ void BFSNetwork::onDeleteReqPacket(const u_char* _packet) {
     deleteAck->size = htobe64(0);
   }else{
     fNode->close(inodeNum);
-    if(FileSystem::getInstance().signalDeleteNode(fNode,true)){
+    if(FileSystem::getInstance().signalDeleteNode(fNode,true)){//SUCCESS
       deleteAck->size = htobe64(1);
+      BFS::ZooHandler::getInstance().publishListOfFilesSYNC();//Inform rest of world
     }
   }
   //Send the ack on the wires
@@ -1898,8 +1900,10 @@ void BFSNetwork::onCreateReqPacket(const u_char* _packet) {
     res = (FileSystem::getInstance().mkFile(fileName,false,false)!=nullptr)?true:false;
   }
 
-  if(res)//Success
+  if(res){//Success
     createAck->size = htobe64(1);
+    ZooHandler::getInstance().publishListOfFilesSYNC();
+  }
 
   //Send the ack on the wire
   if(!ZeroNetwork::send(buffer,MTU)) {
@@ -2159,5 +2163,5 @@ bool BFSNetwork::flushRemoteFile(const std::string& _remoteFile,
   return task.acked;
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 

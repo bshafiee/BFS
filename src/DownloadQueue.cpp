@@ -30,7 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 DownloadQueue::DownloadQueue():SyncQueue() {
 	// TODO Auto-generated constructor stub
@@ -179,4 +179,4 @@ void DownloadQueue::checkBackendInStandalonMode() {
     addZooTask(task);
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

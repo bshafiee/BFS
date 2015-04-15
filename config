@@ -1,7 +1,8 @@
 #Mode determines whether to operate in DISTRIBUTED or STANDALONE mode
-mode =STANDALONE
+mode = DISTRIBUTED
+#mode = STANDALONE
 #Backend: what backend to use: GLUSTER, SWIFT, or NONE for no backend
-backend=GLUSTER
+backend=NONE
 #Swift Authentication info
 username = demo
 password = behrooz
@@ -9,9 +10,9 @@ password = behrooz
 auth_url = tokens
 tenant_name = demo
 #what percentage of system memory to use? (0,1]
-max_mem_coef = 0.7
+max_mem_coef = 0.6
 #zero networking device
-network_dev=eth2
+network_dev=eth1
 #tcp port
 tcp_port=5555
 #Zookeeper configuration
@@ -22,7 +23,7 @@ zoo_assignment_znode=/BFSTasks
 #Debug SWIFT_CPP_SDK
 debug_swift_cpp_sdk = false
 #GlusterFS Connection Info
-gluster_volume=bfsvolume
+gluster_volume=testvol
 #a comma seperated list of gluster volume servers. eg: server1:port:transport(tcp,rdma),server2:port:transport,...
 gluster_servers=129.97.170.232:24007:tcp
 #gluster_servers=10.30.0.100:24007:tcp,10.30.0.1:24007:tcp,10.30.0.2:24007:tcp,10.30.0.15:24007:tcp

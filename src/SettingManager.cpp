@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 //const std::string SettingManager::KEY_MODE = "MODE";
 SettingManager::Dictionary SettingManager::config;
@@ -143,6 +143,6 @@ int SettingManager::getPort() {
   return port;
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 
 

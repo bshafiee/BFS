@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "LoggerInclude.h"
 #include "ZooHandler.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 MemoryContorller& MemoryContorller::getInstance() {
   //Static members
@@ -161,6 +161,6 @@ void MemoryContorller::informMemoryUsage() {
   }
 }
 
-} //end of namespace FUSESWIFT
+} //end of namespace BFS
 
 

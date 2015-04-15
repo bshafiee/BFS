@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include "SyncEvent.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 enum class BackendType {SWIFT, AMAZON_S3, HARDDISK, NULLDISK, SSH, GLUSTER,NONE};
 
@@ -90,5 +90,5 @@ public:
   static std::string backendTypeToStr(BackendType _type);
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* BACKEND_H_ */

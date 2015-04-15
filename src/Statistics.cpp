@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "MemoryController.h"
 
 using namespace std;
-using namespace FUSESwift;
+using namespace BFS;
 
 StatInfo Statistics::readAvg;
 StatInfo Statistics::writeAvg;

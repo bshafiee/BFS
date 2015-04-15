@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Global.h"
 #include "SyncQueue.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 class UploadQueue: public SyncQueue{
   //Process Events
@@ -43,5 +43,5 @@ public:
   bool checkEventValidity(const SyncEvent& _event);
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* UPLOADQUEUE_H_ */

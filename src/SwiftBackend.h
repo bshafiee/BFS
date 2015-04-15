@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <Swift/Account.h>
 #include <tuple>
 
-namespace FUSESwift {
+namespace BFS {
 
 class SwiftBackend: public Backend {
   const std::string DEFAULT_CONTAINER_NAME = "KOS";
@@ -48,5 +48,5 @@ public:
   bool remove(const SyncEvent *_removeEvent);
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* SWIFTBACKEND_H_ */

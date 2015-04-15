@@ -29,7 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "ZeroNetwork.h"
 
 
-namespace FUSESwift {
+namespace BFS {
 
 /**
  * BFS Network Packet on wire 1500 Bytes
@@ -441,6 +441,6 @@ public:
 
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 
 #endif /* BFSNETWORK_H_ */

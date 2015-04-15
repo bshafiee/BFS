@@ -26,7 +26,7 @@
 #ifndef SRC_TIMER_H_
 #define SRC_TIMER_H_
 
-namespace FUSESwift {
+namespace BFS {
 
 struct cancelled_error {};
 class Later {
@@ -114,6 +114,6 @@ public:
   }
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 
 #endif /* SRC_TIMER_H_ */

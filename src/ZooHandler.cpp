@@ -36,12 +36,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <string.h>
 #include "Filesystem.h"
 #include "Timer.h"
+#include "StringView.h"
 
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
+uint totalCalls = 0;
+uint asyncCalls = 0;
+uint syncCalls = 0;
 
 static vector<string> split(const string &s, char delim) {
 	vector<string> elems;
@@ -54,8 +58,9 @@ static vector<string> split(const string &s, char delim) {
 }
 
 ZooHandler::ZooHandler() :
-		zh(nullptr), sessionState(ZOO_EXPIRED_SESSION_STATE), electionState(
-		    ElectionState::FAILED),globalView(1000){
+		isRunning(true),zh(nullptr), sessionState(ZOO_EXPIRED_SESSION_STATE), electionState(
+		    ElectionState::FAILED),globalView(1000),myFilesChanged(true),
+		    publisherThread(nullptr){
   srand(unsigned(time(NULL)));
 	string str = SettingManager::get(CONFIG_KEY_ZOO_ELECTION_ZNODE);
 	if(str.length()>0)
@@ -70,11 +75,15 @@ ZooHandler::ZooHandler() :
 	//Set Debug info
 	zoo_set_log_stream(stderr);
 	zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
+	//Reserve space for myFiles
+	myFiles.reserve(1000);
+	initializePublishBuffer();
 }
 
 ZooHandler::~ZooHandler() {
 	if (this->zh)
 	  free(this->zh);
+	delete []publishBuffer;
 }
 
 string ZooHandler::sessiontState2String(int state) {
@@ -219,6 +228,9 @@ std::string ZooHandler::getHostName() {
 }
 
 void ZooHandler::startElection() {
+  //Start Publisher THread
+  publisherThread = new thread(publishLoop);
+
 	//First Change state to start
 	electionState = ElectionState::START;
 
@@ -374,7 +386,7 @@ void ZooHandler::becomeLeader() {
 	LOG(DEBUG)<<"Becoming leader, hostname:"<<leaderOffer.toString();
 	MasterHandler::startLeadership();
 	//Commit a publish command!(no matter leader or ready!)
-	publishListOfFiles();
+	publishListOfFilesASYN();
 }
 
 void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {
@@ -403,7 +415,7 @@ void ZooHandler::becomeReady(LeaderOffer neighborLeaderOffer) {
 	//Finally if everything went ok we become ready
 	electionState = ElectionState::READY;
 	//Commit a publish command!(no matter leader or ready!)
-	publishListOfFiles();
+	publishListOfFilesASYN();
 }
 
 void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
@@ -418,73 +430,6 @@ void ZooHandler::neighbourWatcher(zhandle_t* zzh, int type, int state,
 				getInstance().electionState = ElectionState::FAILED;
 		}
 	}
-}
-
-void ZooHandler::publishListOfFiles() {
-  //TIMED_FUNC(objname3);
-	if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
-		return;
-	if (sessionState != ZOO_CONNECTED_STATE
-	    || (electionState != ElectionState::LEADER
-	        && electionState != ElectionState::READY)) {
-		LOG(ERROR)<<"publishListOfFiles(): invalid sessionstate or electionstate";
-		return;
-	}
-
-	lock_guard<mutex> lk(lockPublish);
-	std::unordered_map<std::string,FileEntryNode> listOfFiles;
-	FileSystem::getInstance().listFileSystem(listOfFiles,false,true);
-
-
-	bool change = false;
-	if(listOfFiles.size() != cacheFileList.size())
-	  change = true;
-	else{
-    for(std::unordered_map<std::string,FileEntryNode>::iterator
-        itListFiles = listOfFiles.begin();
-        itListFiles != listOfFiles.end();
-        itListFiles++){
-
-      std::unordered_map<std::string,FileEntryNode>::const_iterator got =
-      cacheFileList.find(itListFiles->first);
-
-      //check if that name exist
-      if(got == cacheFileList.end()){
-        change = true;
-        break;
-      }
-      //Check if is directory is also same
-      if(got->second.isDirectory != itListFiles->second.isDirectory){
-        change = true;
-        break;
-      }
-    }
-	}
-
-	if(!change){
-	  LOG(DEBUG)<<"No new change, in the list of file. Returning...";
-	  return;
-	}
-	cacheFileList.swap(listOfFiles);
-	//DANGER! FROM THIS POINT LIST OF FILE IS INVALID
-
-	//Create a ZooNode
-  ZooNode zooNode(getHostName(),0 , &cacheFileList,BFSNetwork::getMAC(),BFSTcpServer::getIP(),BFSTcpServer::getPort());
-
-	//Send data
-  {
-  //TIMED_SCOPE(timerBlkObj, "SET PUBLISH for:"+to_string(cacheFileList.size())+" took:");
-	string str = zooNode.toString();
-	int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), str.c_str(),
-	    str.length(), -1);
-
-	if (callRes != ZOK) {
-	  LOG(ERROR)<<"publishListOfFiles(): zoo_set failed:"<< zerror(callRes);
-		return;
-	}
-
-	LOG(DEBUG)<<"publishListOfFiles successfully:"<<str;
-  }
 }
 
 void ZooHandler::getGlobalView(std::vector<ZooNode> &_globaView) {
@@ -512,7 +457,7 @@ std::vector<ZooNode> ZooHandler::getGlobalFreeView() {
 void ZooHandler::updateGlobalView() {
   if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
     return;
-  lock_guard<mutex> lk(lockGlobalView);
+  //lock_guard<mutex> lk(lockGlobalView);
 
 	if (sessionState != ZOO_CONNECTED_STATE
 	    || (electionState != ElectionState::LEADER
@@ -550,7 +495,7 @@ void ZooHandler::updateGlobalView() {
 			buffer[len] = '\0';
 
 		//Process Node data
-		processNodeView(buffer,tmp.c_str());
+		processNodeChange(buffer,len);
 	}
 	delete[] buffer;
   buffer = nullptr;
@@ -577,7 +522,34 @@ bool ZooHandler::isME(const ZooNode &zNode){
 
 bool ZooHandler::createRemoteNodeInLocalFS(const ZooNode &node,std::string& _fullpath,bool _isDir) {
   //Now create a file in FS
-  FileSystem::getInstance().createHierarchy(_fullpath,true);
+  if(_fullpath.empty()){
+    LOG(ERROR)<<"Empty fullpath!";
+    return false;
+  }
+
+  //if it's a directory it might be the case it has been created before! so we won't try again!
+  // /dir1/f1
+  // /dir1/f2
+  // /dir1
+  // ....
+  //if(_isDir){
+  //TODO XXX CHANGE THIS TO DIREXIST METHOD
+  FileNode *existing = FileSystem::getInstance().findAndOpenNode(_fullpath);
+  if(existing!=nullptr){
+    existing->setRemoteHostMAC(node.MAC);
+    existing->setRemoteIP(node.ip);
+    existing->setRemotePort(node.port);
+    existing->close(0);
+    return true;
+  }
+  //}
+
+  FileNode* parent = FileSystem::getInstance().createHierarchy(_fullpath,true);
+  if(parent == nullptr){
+    LOG(ERROR)<<"Error in creating hierarchy for:"<<_fullpath<<" at znode:"<<node.hostName;
+    return false;
+  }
+
   FileNode *newFile = nullptr;
   if(_isDir){//dir
     newFile = FileSystem::getInstance().mkDirectory(_fullpath,true);
@@ -608,22 +580,23 @@ bool ZooHandler::createRemoteNodeInLocalFS(const ZooNode &node,std::string& _ful
       node.MAC[0],node.MAC[1],
       node.MAC[2],node.MAC[3],
       node.MAC[4],node.MAC[5]);
-  LOG(DEBUG)<<(updated?"Updated ":"Created ")<<(_isDir?"Directory:":"File:")<<_fullpath<<" hostName:"<<
-      node.hostName<<" "<<string(macCharBuff);
+  LOG(DEBUG)<<(updated?"Updated ":"Created ")<<(_isDir?"Directory:":"File:")<<
+      _fullpath<<" hostName:"<<node.hostName<<" "<<string(macCharBuff);
   return true;
 }
 
 void ZooHandler::nodeWatcher(zhandle_t* zzh, int type, int state,
-    const char* path, void* context) {
+    const char* path,void* context) {
+
 	if (type == ZOO_CHANGED_EVENT) {
 		LOG(DEBUG)<<"Node "<<path<<" changed! updating globalview...";
-		//string ipFromPath(path+(strlen(getInstance().electionZNode.c_str())+1)*sizeof(char),strchr(path,'_'));
-		getInstance().updateViewPerNode(path);
+		getInstance().onNodeChange(path);
+	} else if(type == ZOO_DELETED_EVENT) {
+	  getInstance().processNodeDelete(path);
 	}
 }
 
-void ZooHandler::updateViewPerNode(const char* path){
-  lock_guard<mutex> lk(lockGlobalView);
+void ZooHandler::onNodeChange(const char* path){
   if (sessionState != ZOO_CONNECTED_STATE
       || (electionState != ElectionState::LEADER
           && electionState != ElectionState::READY)) {
@@ -631,11 +604,12 @@ void ZooHandler::updateViewPerNode(const char* path){
     return;
   }
 
-  //Find node
-  //Allocate 1MB data
-  const int length = 1024 * 1024;
-  char *buffer = new char[length];
+//  zoo_awget(zh,path,nodeWatcher,nullptr,nodeAsyncGet,path);
 
+  //Find node
+  //Allocate 50MB data
+  const int length = 1024l * 1024l * 100l;
+  char *buffer = new char[length];
   int len = length;
   int callResult = zoo_wget(zh, path,nodeWatcher, nullptr, buffer, &len, nullptr);
   if (callResult != ZOK) {
@@ -646,42 +620,59 @@ void ZooHandler::updateViewPerNode(const char* path){
   }
   if(len >= 0 && len <= length-1){
     buffer[len] = '\0';
-    processNodeView(buffer,path);
+    processNodeChange(buffer,len);
   }
   else
-    LOG(ERROR)<<"ERROR in reading data from:"<<path<<" read:"<<len<<" bytes.";
+    LOG(ERROR)<<"ERROR in reading data from:"<<path<<" read:"<<len<<" bytes. length:"<<length;
 
   delete []buffer;
   buffer = nullptr;
 }
-void ZooHandler::processNodeView(const char* buffer,const char* path){
-  Poco::StringTokenizer tokenizer(buffer,"\n",
-  Poco::StringTokenizer::TOK_TRIM |
-  Poco::StringTokenizer::TOK_IGNORE_EMPTY);
 
-  uint numTokens = tokenizer.count();
+void ZooHandler::nodeAsyncGet(int rc, const char *value, int value_len,
+        const struct Stat *stat, const void *path){
+  if(rc != 0){
+    LOG(ERROR)<<"Error in nodeAsynGet:"<<rc<<" path:"<<path;
+    return;
+  }
+
+  //Process this data
+  getInstance().processNodeChange(value,value_len);
+}
+
+void ZooHandler::processNodeChange(const char* buffer,int len){
+  lock_guard<mutex> lk(lockGlobalView);
+
+  /*Poco::StringTokenizer tokenizer(buffer,"\n",
+  Poco::StringTokenizer::TOK_TRIM |
+  Poco::StringTokenizer::TOK_IGNORE_EMPTY);*/
+  StringView sView(buffer,len);
+  vector<StringView> tokens;
+  sView.split(tokens,'\n');
+
+  uint numTokens = tokens.size();
 
   if(numTokens < 5) {
-    LOG(ERROR)<<"Malformed data at:"<<path<<" Buffer:"<<buffer;
+    LOG(ERROR)<<"Malformed data! Buffer:"<<buffer;
     delete []buffer;
     return;
   }
 
   //3)parse node content to a znode
   //3.1 Hostname
-  string &hostName = tokenizer[0];
+  string hostName(tokens[0].ptr,tokens[0].size);
 
   //3.2 MAC String
   unsigned char mac[6];
-  sscanf(tokenizer[1].c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2],
+  sscanf(tokens[1].ptr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2],
       &mac[3], &mac[4], &mac[5]);
 
   //3.3 ip
   //we already know IP
-  string &ip = tokenizer[2];
+  string ip(tokens[2].ptr,tokens[2].size);
 
   //3.4 port
-  uint32_t port = stoul(tokenizer[3]);
+  uint32_t port = stoul(string(tokens[3].ptr,tokens[3].size));
 
   //3.1 freespace
   unsigned long freeSpace = 0;
@@ -710,8 +701,8 @@ void ZooHandler::processNodeView(const char* buffer,const char* path){
   //remember for newly inserted nodes we have to insert them all and create them all!
   if(newZNode){
     for(uint i=5;i<numTokens;i++) {
-      const char &firstChar = tokenizer[i][0];
-      string fileName = tokenizer[i].substr(1);
+      const char &firstChar = tokens[i].ptr[0];
+      string fileName(tokens[i].ptr+1,tokens[i].size-1);
       if(!got->second.containedFiles->emplace(fileName,FileEntryNode(firstChar=='D',false)).second){
         LOG(ERROR)<<"Failed to insert file:"<<fileName<<" to files of "<<got->second.hostName;
         continue;
@@ -731,8 +722,8 @@ void ZooHandler::processNodeView(const char* buffer,const char* path){
      * them for delete
      */
     for(uint i=5;i<numTokens;i++) {
-      const char &firstChar = tokenizer[i][0];
-      string fileName = tokenizer[i].substr(1);
+      const char &firstChar = tokens[i].ptr[0];
+      string fileName(tokens[i].ptr+1,tokens[i].size-1);
 
       //check if it exist in this node or not!
       auto res = got->second.containedFiles->find(fileName);
@@ -745,8 +736,17 @@ void ZooHandler::processNodeView(const char* buffer,const char* path){
 
         if(!isME(got->second)){//Don't create local files again
           //Create it in the filesystem
-          if(!createRemoteNodeInLocalFS(got->second,fileName,firstChar=='D'))
-            LOG(ERROR)<<"Error in creating new remotefile in local FS:"<<fileName<<" at:"<<got->second.hostName;
+          if(!createRemoteNodeInLocalFS(got->second,fileName,firstChar=='D')){
+            LOG(ERROR)<<"Error in creating new remotefile in local FS:"<<fileName<<" at:"<<got->second.ip<<" Does it exist?";
+            FileNode* ifExist = FileSystem::getInstance().findAndOpenNode(fileName);
+            if(ifExist){
+              LOG(ERROR)<<"Shit it exist:"<<ifExist->getFullPath()<<" isremote:"<<ifExist->isRemote()<<" remotIP:"<<ifExist->getRemoteHostIP();
+              ifExist->close(0);
+            }else{
+              LOG(ERROR)<<"WTF?? Does not exist and insert failed for:"<<fileName<<" filenameLength:"<<fileName.length()<<" strViewLen:"<<tokens[i].size-1;
+            }
+
+          }
         }
       } else {//Just mark it as seen by update
         res->second.isVisitedByZooUpdate = true;
@@ -778,10 +778,13 @@ void ZooHandler::processNodeView(const char* buffer,const char* path){
            * and we are the real owner of it not that mother fucker remote node!
            * Jez! what a creepy bug this was!
            */
+          toBeRemovedFile->close(0);
           if(toBeRemovedFile->isRemote() && !toBeRemovedFile->shouldNotZooRemove() && toBeRemovedFile->getRemoteHostIP() == ip){
+
             LOG(DEBUG)<<"SIGNAL DELTE FROM ZOOHANDLER FOR:"<<itRemove->first<<" host:"<<got->second.hostName;
             FileSystem::getInstance().signalDeleteNode(toBeRemovedFile,false);
           }
+
           /*
            * However, no matter it is remote or local now we will remove it from
            * the list of files for that mother fucker node.
@@ -792,6 +795,48 @@ void ZooHandler::processNodeView(const char* buffer,const char* path){
       }
     }
   }
+}
+
+void ZooHandler::processNodeDelete(const char* path){
+  lock_guard<mutex> lk(lockGlobalView);
+  string ipFromPath(path+(strlen(getInstance().electionZNode.c_str())+1)*sizeof(char),strchr(path,'_'));
+  //Now let's find this node in our globalView if not exist create one!
+  std::size_t hash = hash_fn_gv(ipFromPath);
+  auto got = globalView.find(hash);
+  if(got == globalView.end()){
+    LOG(ERROR)<<"Can't find node in globalView for:"<<ipFromPath;
+    return;
+  }
+
+  if(isME(got->second))////Not possible but anyway....
+    return;
+  for(auto itRemove=got->second.containedFiles->begin();
+      itRemove != got->second.containedFiles->end();itRemove++){
+    FileNode* toBeRemovedFile = FileSystem::getInstance().findAndOpenNode(itRemove->first);
+    if(toBeRemovedFile == nullptr){
+      LOG(DEBUG)<<"ToBeRemoved node is null!:"<<itRemove->first;
+      continue;
+    }
+    /*
+     * VERY IMPORTANT! we should check if this file is remote!
+     * If it's not remote it means that it could have been moved to here!
+     * and we are the real owner of it not that mother fucker remote node!
+     * Jez! what a creepy bug this was!
+     */
+    if(toBeRemovedFile->isRemote() && !toBeRemovedFile->shouldNotZooRemove() && toBeRemovedFile->getRemoteHostIP() == ipFromPath){
+      //Check if it's a directory! we should not remove it if it has any kids which I am not owner!
+      if(toBeRemovedFile->isDirectory()){
+        if(toBeRemovedFile->hasLocalChildOrNotThisRemote(ipFromPath)){
+          //toBeRemovedFile->makeLocal();
+          continue;
+        }
+      }
+      LOG(DEBUG)<<"SIGNAL DELTE FROM ZOOHANDLER FOR:"<<itRemove->first<<" host:"<<got->second.hostName;
+      FileSystem::getInstance().signalDeleteNode(toBeRemovedFile,false);
+    }
+  }
+  //Now we can remote got from hashmap!
+  globalView.erase(got);
 }
 
 void ZooHandler::electionFolderWatcher(zhandle_t* zzh, int type, int state,
@@ -997,6 +1042,18 @@ void ZooHandler::publishFreeSpace() {
 }
 
 void ZooHandler::stopZooHandler() {
+  LOG(ERROR)<<"MADE:"<<totalCalls<<" sets to zookeeper. asyncCalls:"<<asyncCalls<<" syncCalls:"<<syncCalls;
+  //Stop Publisher thread
+  if(isRunning){
+    isRunning.store(false);
+    condVarPublishLoop.notify_all();
+    if(publisherThread != nullptr){
+      publisherThread->join();
+      delete publisherThread;
+      publisherThread = nullptr;
+    }
+  }
+  //invalidify session state
   sessionState = ZOO_EXPIRED_SESSION_STATE;
   zookeeper_close(zh);
   zh = nullptr;
@@ -1101,6 +1158,120 @@ void ZooHandler::printGlobalView() {
     output += "),";
   }
   LOG(INFO)<<"\nGlobalView:"<<output<<"\n";*/
+}
+
+void ZooHandler::informNewFile(const std::string& _fullPath,bool isDir) {
+  lock_guard<mutex> lk(lockMyFiles);
+  //pair<iterator,bool>
+  auto res = myFiles.emplace(make_pair(_fullPath,isDir));
+  if(unlikely(!res.second))
+    LOG(ERROR)<<"Failed to insert "<<((isDir)?"directory":"file") <<" \""<<_fullPath<<"\" to list of myFiles zookeeper.";
+  myFilesChanged = true;
+}
+
+void ZooHandler::publishListOfFilesSYNC() {
+  lock_guard<mutex> lk(lockPublish);
+  ++syncCalls;
+  internalPublishListOfFiles();
+}
+
+void ZooHandler::publishListOfFilesASYN() {
+  asyncCalls++;
+  std::unique_lock<std::mutex> mlock(mutexPublishLoop);
+  condVarPublishLoop.notify_all();
+}
+
+void ZooHandler::initializePublishBuffer() {
+  long len = 1024l*1024l*100l;
+  publishBuffer = new char[len];//10MB
+  memset(publishBuffer,0,len*sizeof(char));
+//  std::stringstream output;
+  string hostName = getHostName();
+  string ip = BFSTcpServer::getIP();
+  int port = BFSTcpServer::getPort();
+  const unsigned char * MAC = BFSNetwork::getMAC();
+  publishBufferCommonLen = sprintf(publishBuffer,"%s\n%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n%s\n%d\n0",hostName.c_str(),MAC[0],MAC[1],MAC[2],MAC[3],MAC[4],MAC[5],ip.c_str(),port);
+}
+
+void ZooHandler::informDelFile(const std::string& _fullPath) {
+  lock_guard<mutex> lk(lockMyFiles);
+  size_t res = myFiles.erase(_fullPath);
+  if(unlikely(!res))
+    LOG(ERROR)<<"Filed to delete \""<<_fullPath<<"\" from list of myFiles zookeeper.";
+  myFilesChanged = true;
+}
+
+void ZooHandler::publishLoop() {
+  while(getInstance().isRunning){
+    unique_lock<mutex> mLock(getInstance().mutexPublishLoop);
+    while(!getInstance().myFilesChanged){
+      //LOG(INFO)<<"SLEEPING";
+      getInstance().condVarPublishLoop.wait(mLock);
+      if(unlikely(!getInstance().isRunning))
+        return;
+    }
+    mLock.unlock();
+    getInstance().myFilesChanged.store(false);
+    getInstance().internalPublishListOfFiles();
+  }
+}
+
+void ZooHandler::internalPublishListOfFiles() {
+  //TIMED_FUNC(objname3);
+  if(SettingManager::runtimeMode()!=RUNTIME_MODE::DISTRIBUTED)
+    return;
+  if (sessionState != ZOO_CONNECTED_STATE
+      || (electionState != ElectionState::LEADER
+          && electionState != ElectionState::READY)) {
+    LOG(ERROR)<<"publishListOfFiles(): invalid sessionstate or electionstate";
+    return;
+  }
+
+  //Grab locks
+  lockMyFiles.lock();
+  int total = publishBufferCommonLen;
+  uint len = myFiles.size();
+  if(len > 0){
+    publishBuffer[total]='\n';
+    total++;
+  }
+  uint counter = 0;
+  for(unordered_map<string,bool>::iterator it =myFiles.begin();it!=myFiles.end();it++) {
+    if(counter == len-1){
+      publishBuffer[total] = (it->second?'D':'F');
+      total++;
+      int size = it->first.size();
+      memcpy(publishBuffer+total,it->first.c_str(),size);
+      total += size;
+      //total += sprintf(publishBuffer+total+1,"%c%s",(it->second?'D':'F'),it->first.c_str())+1;
+      //output << (it->second?"D":"F")<< it->first;
+    }
+    else{
+      publishBuffer[total] = (it->second?'D':'F');
+      total++;
+      int size = it->first.size();
+      memcpy(publishBuffer+total,it->first.c_str(),size);
+      total += size;
+      publishBuffer[total]='\n';
+      total++;
+      //total += sprintf(publishBuffer+total+1,"%c%s\n",(it->second?'D':'F'),it->first.c_str())+1;
+    }
+      //output << (it->second?"D":"F")<< it->first<< "\n";
+    counter++;
+  }
+  lockMyFiles.unlock();
+
+  publishBuffer[total] = '\0';
+  //total++;
+  //Send data
+  int callRes = zoo_set(zh, leaderOffer.getNodePath().c_str(), publishBuffer,total, -1);
+  totalCalls++;
+  if (callRes != ZOK) {
+    LOG(ERROR)<<"publishListOfFiles(): zoo_set failed:"<< zerror(callRes);
+    return;
+  }
+
+  LOG(DEBUG)<<"publishListOfFiles successfully:"<<publishBuffer;
 }
 
 }	//Namespace

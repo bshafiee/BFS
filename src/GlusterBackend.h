@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <tuple>
 #include <string>
 
-namespace FUSESwift {
+namespace BFS {
 
 struct VolumeServer {
   VolumeServer(std::string _serverIP,int _port,std::string _transport):
@@ -59,5 +59,5 @@ public:
   bool remove(const SyncEvent *_removeEvent);
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* SWIFTBACKEND_H_ */

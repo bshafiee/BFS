@@ -16,8 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **********************************************************************/
 
-#ifndef FUSESWIFT_H_
-#define FUSESWIFT_H_
+#ifndef FUSEBFS_H_
+#define FUSEBFS_H_
 #include "Global.h"
 #include <fuse.h>
 #include <string.h>
@@ -38,14 +38,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
            S_IFIFO    0010000   FIFO
  *
  */
-namespace FUSESwift {
+namespace BFS {
   /** Get file attributes.
 	 *
 	 * Similar to stat().  The 'st_dev' and 'st_blksize' fields are
 	 * ignored.	 The 'st_ino' field is ignored except if the 'use_ino'
 	 * mount option is given.
 	 */
-	int swift_getattr (const char *path, struct stat *stbuff);
+	int bfs_getattr (const char *path, struct stat *stbuff);
 
 	/** Read the target of a symbolic link
 	 *
@@ -55,10 +55,10 @@ namespace FUSESwift {
 	 * buffer, it should be truncated.	The return value should be 0
 	 * for success.
 	 */
-	int swift_readlink (const char *path, char *buf, size_t size);
+	int bfs_readlink (const char *path, char *buf, size_t size);
 
 	//Deprecated, use readdir() instead
-	//int swift_getdir (const char *path, fuse_dirh_t arg2, fuse_dirfil_t arg3);
+	//int bfs_getdir (const char *path, fuse_dirh_t arg2, fuse_dirfil_t arg3);
 
 	/** Create a file node
 	 *
@@ -66,7 +66,7 @@ namespace FUSESwift {
 	 * nodes.  If the filesystem defines a create() method, then for
 	 * regular files that will be called instead.
 	 */
-	int swift_mknod (const char *path, mode_t mode, dev_t rdev);
+	int bfs_mknod (const char *path, mode_t mode, dev_t rdev);
 
 	/** Create a directory
 	 *
@@ -74,37 +74,37 @@ namespace FUSESwift {
 	 * bits set, i.e. S_ISDIR(mode) can be false.  To obtain the
 	 * correct directory type bits use  mode|S_IFDIR
 	 * */
-	int swift_mkdir (const char *path, mode_t mode);
+	int bfs_mkdir (const char *path, mode_t mode);
 
 	/** Remove a file */
-	int swift_unlink (const char *path);
+	int bfs_unlink (const char *path);
 
 	/** Remove a directory */
-	int swift_rmdir (const char *path);
+	int bfs_rmdir (const char *path);
 
 	/** Create a symbolic link */
-	int swift_symlink (const char *from, const char *to);
+	int bfs_symlink (const char *from, const char *to);
 
 	/** Rename a file */
-	int swift_rename (const char *from, const char *to);
+	int bfs_rename (const char *from, const char *to);
 
 	/** Create a hard link to a file */
-	int swift_link (const char *from, const char *to);
+	int bfs_link (const char *from, const char *to);
 
 	/** Change the permission bits of a file */
-	int swift_chmod (const char *path, mode_t mode);
+	int bfs_chmod (const char *path, mode_t mode);
 
 	/** Change the owner and group of a file */
-	int swift_chown (const char *path, uid_t uid, gid_t gid);
+	int bfs_chown (const char *path, uid_t uid, gid_t gid);
 
 	/** Change the size of a file */
-	int swift_truncate (const char *path, off_t size);
+	int bfs_truncate (const char *path, off_t size);
 
 	/** Change the access and/or modification times of a file
 	 *
 	 * Deprecated, use utimens() instead.
 	 */
-	int swift_utime (const char *path, struct utimbuf *ubuf);
+	int bfs_utime (const char *path, struct utimbuf *ubuf);
 
 	/** File open operation
 	 *
@@ -123,7 +123,7 @@ namespace FUSESwift {
 	 *
 	 * Changed in version 2.2
 	 */
-	int swift_open (const char *path, struct fuse_file_info *fi);
+	int bfs_open (const char *path, struct fuse_file_info *fi);
 
 	/** Read data from an open file
 	 *
@@ -136,12 +136,12 @@ namespace FUSESwift {
 	 *
 	 * Changed in version 2.2
 	 */
-	int swift_read (const char *path, char *buf, size_t size, off_t offset,
+	int bfs_read (const char *path, char *buf, size_t size, off_t offset,
 		     struct fuse_file_info *fi);
 	/**
    * An error tolerant version of read which retries on errors 3 times
    */
-	int swift_read_error_tolerant(const char* path, char* buf, size_t size, off_t offset,
+	int bfs_read_error_tolerant(const char* path, char* buf, size_t size, off_t offset,
 	    struct fuse_file_info* fi);
 
 	/** Write data to an open file
@@ -152,13 +152,13 @@ namespace FUSESwift {
 	 *
 	 * Changed in version 2.2
 	 */
-	int swift_write (const char *path, const char *buf, size_t size, off_t offset,
+	int bfs_write (const char *path, const char *buf, size_t size, off_t offset,
 		      struct fuse_file_info * fi);
 
 	/**
 	 * An error tolerant version of write which retries on errors 3 times
 	 */
-	int swift_write_error_tolerant(const char* path, const char* buf, size_t size,
+	int bfs_write_error_tolerant(const char* path, const char* buf, size_t size,
 	    off_t offset, struct fuse_file_info* fi);
 
 	/** Get file system statistics
@@ -168,7 +168,7 @@ namespace FUSESwift {
 	 * Replaced 'struct statfs' parameter with 'struct statvfs' in
 	 * version 2.5
 	 */
-	int swift_statfs (const char *path, struct statvfs *stbuf);
+	int bfs_statfs (const char *path, struct statvfs *stbuf);
 
 	/** Possibly flush cached data
 	 *
@@ -193,7 +193,7 @@ namespace FUSESwift {
 	 *
 	 * Changed in version 2.2
 	 */
-	int swift_flush (const char *path, struct fuse_file_info *fi);
+	int bfs_flush (const char *path, struct fuse_file_info *fi);
 
 	/** Release an open file
 	 *
@@ -209,7 +209,7 @@ namespace FUSESwift {
 	 *
 	 * Changed in version 2.2
 	 */
-	int swift_release (const char *path, struct fuse_file_info *fi);
+	int bfs_release (const char *path, struct fuse_file_info *fi);
 
 	/** Synchronize file contents
 	 *
@@ -218,19 +218,19 @@ namespace FUSESwift {
 	 *
 	 * Changed in version 2.2
 	 */
-	int swift_fsync (const char *path, int isdatasynch, struct fuse_file_info *fi);
+	int bfs_fsync (const char *path, int isdatasynch, struct fuse_file_info *fi);
 
 	/** Set extended attributes */
-	int swift_setxattr (const char *path, const char *name, const char *value, size_t size, int flags);
+	int bfs_setxattr (const char *path, const char *name, const char *value, size_t size, int flags);
 
 	/** Get extended attributes */
-	int swift_getxattr (const char *path, const char *name, char *value, size_t size);
+	int bfs_getxattr (const char *path, const char *name, char *value, size_t size);
 
 	/** List extended attributes */
-	int swift_listxattr (const char *path, char *list, size_t size);
+	int bfs_listxattr (const char *path, char *list, size_t size);
 
 	/** Remove extended attributes */
-	int swift_removexattr (const char *path, const char *name);
+	int bfs_removexattr (const char *path, const char *name);
 
 	/** Open directory
 	 *
@@ -242,7 +242,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.3
 	 */
-	int swift_opendir (const char *path, struct fuse_file_info *fi);
+	int bfs_opendir (const char *path, struct fuse_file_info *fi);
 
 	/** Read directory
 	 *
@@ -265,14 +265,14 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.3
 	 */
-	int swift_readdir (const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
+	int bfs_readdir (const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
 			struct fuse_file_info *fi);
 
 	/** Release directory
 	 *
 	 * Introduced in version 2.3
 	 */
-	int swift_releasedir (const char *path, struct fuse_file_info *fi);
+	int bfs_releasedir (const char *path, struct fuse_file_info *fi);
 
 	/** Synchronize directory contents
 	 *
@@ -281,7 +281,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.3
 	 */
-	int swift_fsyncdir (const char *path, int datasync, struct fuse_file_info *fi);
+	int bfs_fsyncdir (const char *path, int datasync, struct fuse_file_info *fi);
 
 	/**
 	 * Initialize filesystem
@@ -293,7 +293,7 @@ namespace FUSESwift {
 	 * Introduced in version 2.3
 	 * Changed in version 2.6
 	 */
-	extern void *swift_init (struct fuse_conn_info *conn);
+	extern void *bfs_init (struct fuse_conn_info *conn);
 
 	/**
 	 * Clean up filesystem
@@ -302,7 +302,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.3
 	 */
-	void swift_destroy (void *userdata);
+	void bfs_destroy (void *userdata);
 
 	/**
 	 * Check file access permissions
@@ -315,7 +315,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.5
 	 */
-	int swift_access (const char *path, int mask);
+	int bfs_access (const char *path, int mask);
 
 	/**
 	 * Create and open a file
@@ -329,7 +329,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.5
 	 */
-	int swift_create (const char *path, mode_t mode, struct fuse_file_info *fi);
+	int bfs_create (const char *path, mode_t mode, struct fuse_file_info *fi);
 
 	/**
 	 * Change the size of an open file
@@ -343,7 +343,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.5
 	 */
-	int swift_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi);
+	int bfs_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi);
 
 	/**
 	 * Get attributes from an open file
@@ -357,7 +357,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.5
 	 */
-	int swift_fgetattr (const char *path, struct stat *statbuf, struct fuse_file_info *fi);
+	int bfs_fgetattr (const char *path, struct stat *statbuf, struct fuse_file_info *fi);
 
 	/**
 	 * Perform POSIX file locking operation
@@ -391,7 +391,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.6
 	 */
-	int swift_lock (const char *arg1, struct fuse_file_info *arg2, int cmd,
+	int bfs_lock (const char *arg1, struct fuse_file_info *arg2, int cmd,
 		     struct flock *arg4);
 
 	/**
@@ -405,7 +405,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.6
 	 */
-	int swift_utimens (const char *path, const struct timespec tv[2]);
+	int bfs_utimens (const char *path, const struct timespec tv[2]);
 
 	/**
 	 * Map block index within file to block index within device
@@ -415,7 +415,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.6
 	 */
-	int swift_bmap (const char *arg1, size_t blocksize, uint64_t *idx);
+	int bfs_bmap (const char *arg1, size_t blocksize, uint64_t *idx);
 
 	/**
 	 * Flag indicating that the filesystem can accept a NULL path
@@ -466,7 +466,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.8
 	 */
-	int swift_ioctl (const char *arg1, int cmd, void *arg3,
+	int bfs_ioctl (const char *arg1, int cmd, void *arg3,
 		      struct fuse_file_info *arg4, unsigned int flags, void *data);
 
 	/**
@@ -486,7 +486,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.8
 	 */
-	int swift_poll (const char *arg1, struct fuse_file_info *arg2,
+	int bfs_poll (const char *arg1, struct fuse_file_info *arg2,
 		     struct fuse_pollhandle *ph, unsigned *reventsp);
 
 	/** Write contents of buffer to an open file
@@ -497,7 +497,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.9
 	 */
-	int swift_write_buf (const char *arg1, struct fuse_bufvec *buf, off_t off,
+	int bfs_write_buf (const char *arg1, struct fuse_bufvec *buf, off_t off,
 			  struct fuse_file_info *arg4);
 
 	/** Store data from an open file in a buffer
@@ -516,7 +516,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.9
 	 */
-	int swift_read_buf (const char *arg1, struct fuse_bufvec **bufp,
+	int bfs_read_buf (const char *arg1, struct fuse_bufvec **bufp,
 			 size_t size, off_t off, struct fuse_file_info *arg5);
 	/**
 	 * Perform BSD file locking operation
@@ -538,7 +538,7 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.9
 	 */
-	int swift_flock (const char *arg1, struct fuse_file_info *arg2, int op);
+	int bfs_flock (const char *arg1, struct fuse_file_info *arg2, int op);
 
 	/**
 	 * Allocates space for an open file
@@ -550,8 +550,8 @@ namespace FUSESwift {
 	 *
 	 * Introduced in version 2.9.1
 	 */
-	int swift_fallocate (const char *path, int mode, off_t offset, off_t length,
+	int bfs_fallocate (const char *path, int mode, off_t offset, off_t length,
 			  struct fuse_file_info *fi);
 
-} /* namespace Swift */
-#endif /* FUSESWIFT_H_ */
+} /* namespace BFS */
+#endif /* BFS_H_ */

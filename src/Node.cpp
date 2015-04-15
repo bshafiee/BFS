@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 Node::Node(string _key,string _fullPath):key(_key),fullPath(_fullPath) {
 }
@@ -71,27 +71,31 @@ size_t Node::childrenMaxSize() {
 }
 
 childDictionary::iterator Node::childrendBegin2() {
+  lock_guard<mutex> lk(mapMutex);
   return children.begin();
 }
 
 childDictionary::iterator Node::childrenEnd2() {
+  lock_guard<mutex> lk(mapMutex);
   return children.end();
 }
 
-void FUSESwift::Node::childrenLock() {
+void BFS::Node::childrenLock() {
   mapMutex.lock();
 }
 
-void FUSESwift::Node::childrenUnlock() {
+void BFS::Node::childrenUnlock() {
   mapMutex.unlock();
 }
 
-}
-
-void FUSESwift::Node::setFullPath(std::string _fullPath) {
+void BFS::Node::setFullPath(std::string _fullPath) {
   fullPath = _fullPath;
 }
 
-std::string FUSESwift::Node::getFullPath() {
+std::string BFS::Node::getFullPath() {
   return fullPath;
 }
+
+}// End of Namespace
+
+

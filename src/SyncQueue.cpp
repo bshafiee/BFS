@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "BackendManager.h"
 #include "SettingManager.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 SyncQueue::SyncQueue():syncThread(nullptr) {}
 
@@ -77,4 +77,4 @@ long SyncQueue::size() {
   return list.size();
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

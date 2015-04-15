@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <cstdint>
 
-namespace FUSESwift {
+namespace BFS {
 
 struct StatInfo {
 	int64_t total = 0;

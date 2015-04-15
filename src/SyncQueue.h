@@ -28,7 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 class SyncQueue{
 protected:
@@ -54,6 +54,6 @@ public:
   virtual bool containsEvent(const SyncEvent* _event);
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 
 #endif /* SYNCQUEUE_H_ */

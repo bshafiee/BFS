@@ -32,7 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 using namespace Swift;
 
-namespace FUSESwift {
+namespace BFS {
 
 SwiftBackend::SwiftBackend():Backend(BackendType::SWIFT),account(nullptr),defaultContainer(nullptr) {}
 
@@ -252,7 +252,7 @@ bool SwiftBackend::move(const SyncEvent* _moveEvent) {
   return false;
 }
 
-std::string FUSESwift::SwiftBackend::convertToSwiftName(
+std::string BFS::SwiftBackend::convertToSwiftName(
     const std::string& fullPath) {
   if(fullPath.length() == 0)
     return "";
@@ -260,7 +260,7 @@ std::string FUSESwift::SwiftBackend::convertToSwiftName(
     return fullPath.substr(1,fullPath.length()-1);
 }
 
-std::string FUSESwift::SwiftBackend::convertFromSwiftName(
+std::string BFS::SwiftBackend::convertFromSwiftName(
 		const std::string& swiftPath) {
 	if(swiftPath.length() == 0)
 		return "";
@@ -268,7 +268,7 @@ std::string FUSESwift::SwiftBackend::convertFromSwiftName(
 		return FileSystem::delimiter+swiftPath;
 }
 
-bool FUSESwift::SwiftBackend::list(std::vector<BackendItem>& list) {
+bool BFS::SwiftBackend::list(std::vector<BackendItem>& list) {
 	if(account == nullptr || defaultContainer == nullptr)
 		return false;
 	SwiftResult<vector<Object>*>* res = defaultContainer->swiftGetObjects();
@@ -443,4 +443,4 @@ vector<pair<string,string>>* SwiftBackend::get_metadata(const SyncEvent* _getMet
   return obj.getExistingMetaData();
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

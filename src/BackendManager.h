@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include "Backend.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 class BackendManager {
   static std::vector<Backend*> list;
@@ -36,5 +36,5 @@ public:
   static Backend* getActiveBackend();
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* BACKENDMANAGER_H_ */

@@ -38,7 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using namespace Poco;
 using namespace Poco::Net;
 using namespace std;
-//using namespace FUSESwift;
+//using namespace BFS;
 
 
 
@@ -221,11 +221,11 @@ void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
   resPacket.readSize = htobe64(0);
 
   //Find node
-  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* fNode = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   long read = 0;
   char *buffer = nullptr;
   if(fNode!=nullptr) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     //First check how much we can read!
     buffer = new char[reqPacket->size];
     read = fNode->read(buffer,reqPacket->offset,reqPacket->size);
@@ -246,7 +246,7 @@ void BFSTcpServiceHandler::onReadRequest(u_char *_packet) {
       uint64_t left = read;
       uint64_t total = read;
 
-      /*FUSESwift::Timer t;
+      /*BFS::Timer t;
       t.begin();*/
       do {
         int sent = socket.sendBytes(buffer+(total-left),left);
@@ -285,9 +285,9 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
   writeResPacket.statusCode = htobe64(-1);
 
   //Find node
-  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* fNode = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr && !fNode->isRemote()) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     //check transferring
     char* buff = new char[reqPacket->size];
     try {
@@ -303,14 +303,14 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
       if(total == reqPacket->size) {//Success
         if(fNode->isTransfering()){
           writeResPacket.statusCode = htobe64(-20);//is Transferring
-          LOG(INFO)<<"Write Req for a transferring node!";
+          LOG(DEBUG)<<"Write Req for a transferring node!";
         } else {
-          FUSESwift::FileNode* afterMove = nullptr;//Should not happen
+          BFS::FileNode* afterMove = nullptr;//Should not happen
           long result = fNode->writeHandler(buff,reqPacket->offset,reqPacket->size,afterMove,false);
           //Check for Transfer
           if(result == -2){//No free space left!
             //First check if there is any empty node to transfer to:
-            FUSESwift::ZooNode node = FUSESwift::ZooHandler::getInstance().getFreeNodeFor(fNode->getSize() * 2);
+            BFS::ZooNode node = BFS::ZooHandler::getInstance().getFreeNodeFor(fNode->getSize() * 2);
             if((int64_t)node.freeSpace >= fNode->getSize() * 2){
               fNode->setTransfering(true);
               result = -20;//is transferring
@@ -341,6 +341,7 @@ void BFSTcpServiceHandler::onWriteRequest(u_char *_packet) {
   if(fNode!=nullptr&&fNode->isRemote()){
     LOG(ERROR)<<"Write Req for a node I am not responsible:"<<fNode->getFullPath()<<" which is at:"<<fNode->getRemoteHostIP();
     writeResPacket.statusCode = htobe64(-40);
+    BFS::ZooHandler::getInstance().publishListOfFilesSYNC();
   }
 
   //Send response packet
@@ -363,9 +364,9 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
   struct packed_stat_info data;
 
   //Find node
-  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* fNode = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     //Offset is irrelevant here and we use it for indicating success for failure
     resPacket.statusCode = htobe64(200);
     resPacket.attribSize = htobe64(sizeof(struct packed_stat_info));
@@ -374,6 +375,7 @@ void BFSTcpServiceHandler::onAttribRequest(u_char *_packet) {
     fNode->close(inodeNum);
   }else{
     LOG(ERROR)<<"Cannot find the requested file for attrib:"<<fileName;
+    BFS::ZooHandler::getInstance().publishListOfFilesSYNC();
     resPacket.statusCode = htobe64(-2);
     resPacket.attribSize = 0;
   }
@@ -415,16 +417,18 @@ void BFSTcpServiceHandler::onDeleteRequest(u_char *_packet) {
   resPacket.statusCode = htobe64(-1);
 
   //Find node
-  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* fNode = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr && !fNode->isRemote()) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     LOG(DEBUG)<<"SIGNAL DELETE FROM DELETE TCP REQUEST:"<<fNode->getFullPath();
-    bool res = FUSESwift::FileSystem::getInstance().signalDeleteNode(fNode,false);
+    bool res = BFS::FileSystem::getInstance().signalDeleteNode(fNode,false);
     fNode->close(inodeNum);
-    if(res)
+    if(res){
       resPacket.statusCode = htobe64(200);
+      BFS::ZooHandler::getInstance().publishListOfFilesSYNC();//Inform rest of world
+    }
   } else if(fNode!=nullptr && fNode->isRemote()) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     fNode->close(inodeNum);
     LOG(ERROR)<<"Error! got a delete request for a node which "
         "I'm not responsible for:"<<fileName;
@@ -452,9 +456,9 @@ void BFSTcpServiceHandler::onTruncateRequest(u_char *_packet) {
   resPacket.statusCode = htobe64(-1);
 
   //Find node
-  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* fNode = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr && !fNode->isRemote()) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     bool res = fNode->truncate(newSize);
     fNode->close(inodeNum);
     if(res)
@@ -462,10 +466,11 @@ void BFSTcpServiceHandler::onTruncateRequest(u_char *_packet) {
     else
       resPacket.statusCode = htobe64(-2);
   } else if(fNode!=nullptr && fNode->isRemote()) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     fNode->close(inodeNum);
     LOG(ERROR)<<"Error! got a delete request for a node which "
         "I'm not responsible for:"<<fileName;
+    BFS::ZooHandler::getInstance().publishListOfFilesSYNC();
   } else {
     LOG(ERROR)<<"Error! got a truncate request for a non existent node"
         <<fileName;
@@ -487,17 +492,19 @@ void BFSTcpServiceHandler::onCreateRequest(u_char *_packet) {
   resPacket.statusCode = htobe64(-1);
 
   //First update your view of work then decide!
-  FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
+  BFS::ZooHandler::getInstance().requestUpdateGlobalView();
 
   //Find node
-  FUSESwift::FileNode* existing = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* existing = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(existing) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)existing);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)existing);
     if(existing->isRemote()) {
       //Close it!
       existing->close(inodeNum);
-      LOG(ERROR)<<"Error! got a delete request for a node which "
-          "I'm not responsible for:"<<fileName;
+      LOG(ERROR)<<"Error! got a create request for an existing remote node which "
+          "I'm not responsible for:"<<fileName<<" I believe it's at:"<<existing->getRemoteHostIP();
+      //Isuse a publish so they will see I don't have it!
+      BFS::ZooHandler::getInstance().publishListOfFilesSYNC();
     } else { //overwrite file=>truncate to 0
       bool res = existing->truncate(0);
       existing->close(inodeNum);
@@ -507,9 +514,11 @@ void BFSTcpServiceHandler::onCreateRequest(u_char *_packet) {
         resPacket.statusCode = htobe64(-2);
     }
   } else {
-    bool res = (FUSESwift::FileSystem::getInstance().mkFile(fileName,false,false)!=nullptr)?true:false;
-    if(res)
+    bool res = (BFS::FileSystem::getInstance().mkFile(fileName,false,false)!=nullptr)?true:false;
+    if(res){
       resPacket.statusCode = htobe64(200);
+      BFS::ZooHandler::getInstance().publishListOfFilesSYNC();
+    }
     else
       resPacket.statusCode = htobe64(-3);
   }
@@ -530,16 +539,16 @@ void BFSTcpServiceHandler::onMoveRequest(u_char *_packet) {
   resPacket.statusCode = htobe64(-1);
 
   //First update your view of work then decide!
-  FUSESwift::ZooHandler::getInstance().requestUpdateGlobalView();
+  BFS::ZooHandler::getInstance().requestUpdateGlobalView();
 
   //Manipulate file
-  FUSESwift::FileNode* existing = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* existing = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(existing) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)existing);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)existing);
     if(existing->isRemote()) {//I'm not responsible! I should not have seen this.
       //Close it!
       existing->close(inodeNum);
-      LOG(INFO)<<"Going to move file:"<<fileName<<" to here!";
+      LOG(DEBUG)<<"Going to move file:"<<fileName<<" to here!";
 
       //Handle Move file to here!
       resPacket.statusCode = htobe64(processMoveRequest(fileName));
@@ -564,16 +573,16 @@ void BFSTcpServiceHandler::onMoveRequest(u_char *_packet) {
 
 int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
   //1) find file
-  FUSESwift::FileNode* file = FUSESwift::FileSystem::getInstance().findAndOpenNode(_fileName);
+  BFS::FileNode* file = BFS::FileSystem::getInstance().findAndOpenNode(_fileName);
   if(file != nullptr) { //2) Open file
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)file);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)file);
     //3)check size
     struct stat st;
     if(file->getStat(&st)) {
       //If we have enough space (2 times of current space
-      if(FUSESwift::MemoryContorller::getInstance().claimMemory(st.st_size*2ll)) {
+      if(BFS::MemoryContorller::getInstance().claimMemory(st.st_size*2ll)) {
         //inform claimed memory
-        FUSESwift::ZooHandler::getInstance().publishFreeSpace();
+        BFS::ZooHandler::getInstance().publishFreeSpace();
         //4) we have space to start to read the file
         uint64_t bufferLen = 1024ll*1024ll*100ll;//100MB
         char *buffer = new char[bufferLen];
@@ -583,7 +592,7 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
           long read = file->readRemote(buffer,offset,bufferLen);
           if(read <= 0 )
             break;
-          FUSESwift::FileNode* afterMove;//This won't happen(should not)
+          BFS::FileNode* afterMove;//This won't happen(should not)
           if(read != file->writeHandler(buffer,offset,read,afterMove,false))//error in writing
             break;
           left -= read;
@@ -592,7 +601,7 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
         delete []buffer;//Release memory
 
         //Release claimed memory back
-        FUSESwift::MemoryContorller::getInstance().releaseClaimedMemory(st.st_size*2ll);
+        BFS::MemoryContorller::getInstance().releaseClaimedMemory(st.st_size*2ll);
 
         if(left == 0) {//Successful read
           //set Shuldnotzooremove to true so zookeeper won't delete this node
@@ -603,8 +612,8 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
             file->makeLocal();
             file->setShouldNotZooRemove(false);
             //Everything went well
-            FUSESwift::ZooHandler::getInstance().publishListOfFiles();//Inform rest of world
-            FUSESwift::ZooHandler::getInstance().publishFreeSpace();
+            BFS::ZooHandler::getInstance().publishListOfFilesSYNC();//Inform rest of world
+            BFS::ZooHandler::getInstance().publishFreeSpace();
             LOG(INFO)<<"Moved "<<file->getFullPath()<<" to here successfully.";
             file->close(inodeNum);
             return 200;
@@ -615,7 +624,8 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
             //file->makeRemote();
             file->deallocate();//Release memory allocated to the file
             file->close(inodeNum);
-            FUSESwift::ZooHandler::getInstance().publishFreeSpace();
+            BFS::ZooHandler::getInstance().publishFreeSpace();
+            BFS::ZooHandler::getInstance().publishListOfFilesSYNC();//Inform rest of world
             return -2;
           }
         } else {
@@ -627,7 +637,7 @@ int64_t BFSTcpServiceHandler::processMoveRequest(std::string _fileName) {
       }
       else {
         LOG(ERROR) <<"Not enough space to move: "<<_fileName<<" here";
-        FUSESwift::ZooHandler::getInstance().publishFreeSpace();
+        BFS::ZooHandler::getInstance().publishFreeSpace();
         file->close(inodeNum);
         return -4;
       }
@@ -654,19 +664,20 @@ void BFSTcpServiceHandler::onFlushRequest(u_char* _packet) {
   resPacket.statusCode = htobe64(-1);
 
   //Find node
-  FUSESwift::FileNode* fNode = FUSESwift::FileSystem::getInstance().findAndOpenNode(fileName);
+  BFS::FileNode* fNode = BFS::FileSystem::getInstance().findAndOpenNode(fileName);
   if(fNode!=nullptr && !fNode->isRemote()) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     LOG(DEBUG)<<"FLUSH FROM TCP REQUEST:"<<fNode->getFullPath();
     bool res = fNode->flush();
     fNode->close(inodeNum);
     if(res)
       resPacket.statusCode = htobe64(200);
   } else if(fNode!=nullptr && fNode->isRemote()) {
-    uint64_t inodeNum = FUSESwift::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
+    uint64_t inodeNum = BFS::FileSystem::getInstance().assignINodeNum((intptr_t)fNode);
     fNode->close(inodeNum);
     LOG(ERROR)<<"Error! got a flush request for a node which "
         "I'm not responsible for:"<<fileName;
+    BFS::ZooHandler::getInstance().publishListOfFilesSYNC();
   } else {
     LOG(ERROR)<<"Error! got a flush request for a non existent node"
         <<fileName;

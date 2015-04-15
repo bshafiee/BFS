@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Global.h"
 #include <string>
 
-namespace FUSESwift {
+namespace BFS {
 
 class LeaderOffer {
 private:

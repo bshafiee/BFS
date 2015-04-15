@@ -32,6 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
 #endif
+#include "BFSTcpServer.h"
 #include "Backend.h"
 #include "GlusterBackend.h"
 #include <Swift/Account.h>
@@ -39,7 +40,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <Swift/Object.h>
 #include <iostream>
 #include <istream>
-#include "FUSESwift.h"
+#include "FuseBFS.h"
 #include "Filesystem.h"
 #include "Filenode.h"
 #include "SyncQueue.h"
@@ -49,12 +50,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "MemoryController.h"
 #include "SettingManager.h"
 #include "BFSNetwork.h"
-#include "BFSTcpServer.h"
+//#include "BFSTcpServer.h"
 #include "MasterHandler.h"
 #include "ZooHandler.h"
 #include <thread>
 #include "Statistics.h"
 #include "Timer.h"
+#include "StringView.h"
 
 #if PROFILE
   #include <gperftools/profiler.h>
@@ -66,48 +68,48 @@ _INITIALIZE_EASYLOGGINGPP
 
 
 using namespace Swift;
-using namespace FUSESwift;
+using namespace BFS;
 using namespace std;
 using namespace Poco;
 
 void shutdown(void* userdata);
 
 static struct fuse_operations fuse_oper = {
-  .getattr = FUSESwift::swift_getattr ,
-  .readlink = FUSESwift::swift_readlink ,
+  .getattr = BFS::bfs_getattr ,
+  .readlink = BFS::bfs_readlink ,
   .getdir = NULL ,
-  .mknod = FUSESwift::swift_mknod ,
-  .mkdir = FUSESwift::swift_mkdir ,
-  .unlink = FUSESwift::swift_unlink ,
-  .rmdir = FUSESwift::swift_rmdir ,
+  .mknod = BFS::bfs_mknod ,
+  .mkdir = BFS::bfs_mkdir ,
+  .unlink = BFS::bfs_unlink ,
+  .rmdir = BFS::bfs_rmdir ,
   .symlink = NULL ,
   .rename = NULL ,
   .link = NULL ,
-  .chmod = FUSESwift::swift_chmod,
-  .chown = FUSESwift::swift_chown,
-  .truncate = FUSESwift::swift_truncate ,
+  .chmod = BFS::bfs_chmod,
+  .chown = BFS::bfs_chown,
+  .truncate = BFS::bfs_truncate ,
   .utime = NULL ,
-  .open = FUSESwift::swift_open ,
-  .read = FUSESwift::swift_read_error_tolerant ,
-  .write = FUSESwift::swift_write_error_tolerant ,
+  .open = BFS::bfs_open ,
+  .read = BFS::bfs_read_error_tolerant ,
+  .write = BFS::bfs_write_error_tolerant ,
   .statfs = NULL ,
-  .flush = FUSESwift::swift_flush ,
-  .release = FUSESwift::swift_release ,
+  .flush = BFS::bfs_flush ,
+  .release = BFS::bfs_release ,
   .fsync = NULL ,
   .setxattr = NULL ,
   .getxattr = NULL ,
   .listxattr = NULL ,
   .removexattr = NULL ,
-  .opendir = FUSESwift::swift_opendir ,
-  .readdir = FUSESwift::swift_readdir ,
-  .releasedir = FUSESwift::swift_releasedir ,
+  .opendir = BFS::bfs_opendir ,
+  .readdir = BFS::bfs_readdir ,
+  .releasedir = BFS::bfs_releasedir ,
   .fsyncdir = NULL ,
-  .init = FUSESwift::swift_init ,
+  .init = BFS::bfs_init ,
   .destroy = shutdown ,
-  .access = FUSESwift::swift_access ,
-  //.create = FUSESwift::swift_create,
+  .access = BFS::bfs_access ,
+  //.create = BFS::bfs_create,
   .create = NULL,
-  .ftruncate = FUSESwift::swift_ftruncate ,
+  .ftruncate = BFS::bfs_ftruncate ,
   .fgetattr = NULL ,
   .lock = NULL ,
   .utimens = NULL ,
@@ -121,10 +123,14 @@ static struct fuse_operations fuse_oper = {
   .write_buf = NULL ,
   .read_buf = NULL ,
   .flock = NULL ,
-  .fallocate = FUSESwift::swift_fallocate
+  .fallocate = BFS::bfs_fallocate
 };
 
 void shutdown(void* context) {
+  static bool hasBeenShutdown = false;
+  if(hasBeenShutdown)
+    return;
+  hasBeenShutdown = true;
   LOG(INFO) <<"Leaving...";
 #if PROFILE
   ProfilerFlush();
@@ -135,7 +141,7 @@ void shutdown(void* context) {
 #ifdef BFS_ZERO
     BFSNetwork::stopNetwork();
 #else
-    BFSTcpServer::stop();
+    //BFSTcpServer::stop();
 #endif
     MasterHandler::stopLeadership();
   }
@@ -182,6 +188,7 @@ void initLogger(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+
 #if PROFILE
   ProfilerStart("/tmp/bfsprofile.cpu");
 #endif
@@ -247,10 +254,6 @@ int main(int argc, char *argv[]) {
 	}
 #endif
   }
-
-/*  for(int i=0;i<6;i++)
-    new thread(readRemoteFile);*/
-
 
   // turn over control to fuse
   LOG(INFO) <<"calling fuse_main";

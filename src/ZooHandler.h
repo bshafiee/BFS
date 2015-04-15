@@ -30,6 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "BFSNetwork.h"
 #include <algorithm>
 #include <random>
+#include <unordered_set>
 
 extern "C" {
   #include <zookeeper/zookeeper.h>
@@ -37,7 +38,7 @@ extern "C" {
 }
 
 
-namespace FUSESwift {
+namespace BFS {
 /**
  * The internal state of the election support service.
  */
@@ -48,6 +49,7 @@ enum class ElectionState {
 class ZooHandler {
   friend MasterHandler;
 private:
+  std::atomic<bool> isRunning;
 	zhandle_t *zh;
 	const clientid_t *myid;
 	int sessionState;
@@ -75,6 +77,10 @@ private:
 	//Publish list of files
 	std::mutex lockPublish;
 	std::unordered_map<std::string,FileEntryNode> cacheFileList;
+	//A list holding the file I have! so I won't need to call listFiles from Filesystem
+	std::atomic<bool> myFilesChanged;
+	std::unordered_map<std::string,bool> myFiles;//<name,isDir>
+	std::mutex lockMyFiles;
 	//Private Constructor
 	ZooHandler();
 	/** Election private helpers **/
@@ -90,18 +96,22 @@ private:
   /** Updates Global View of files at each node **/
   void updateGlobalView();
   /** unlike updateGlobaView, this function only updates view for a specif node **/
-  void updateViewPerNode(const char* path);
-  void processNodeView(const char* buffer,const char* path);
+  void onNodeChange(const char* path);
+  void processNodeChange(const char* buffer,int len);
+  void processNodeDelete(const char* path);
+  /** Callback for node async get **/
+  static void nodeAsyncGet(int rc, const char *value, int value_len,
+      const struct Stat *stat, const void *data);
   /** Keeps an eye on the nodes, to see if there is a change in their file list **/
-  static void nodeWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
+  static void nodeWatcher(zhandle_t *zzh, int type, int state, const char *path,void* context);
   /** Keeps an eye on the BFSElection znode to see if a new client joins. **/
   static void electionFolderWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
   /** Fetch assignments **/
 	void fetchAssignmets();
 	/** Keeps an eye on the assignment node **/
 	static void assignmentWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
-	/** This will be called to update list of remote files in our file system **/
-	void updateRemoteFilesInFS();
+	/** This will be called to update list of remote files in our file system *
+	void updateRemoteFilesInFS();*/
 	/** update nodes free space **/
 	static void infoNodeWatcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 	/** keep an eye on infoFolder as well **/
@@ -117,6 +127,17 @@ private:
 	 * Returns true if this zNode is This host
 	 */
 	bool isME(const ZooNode &zNode);
+	/**
+	 * Zoo Publisher function
+	 */
+	static void publishLoop();
+	void internalPublishListOfFiles();
+	void initializePublishBuffer();
+	std::mutex mutexPublishLoop;
+  std::condition_variable condVarPublishLoop;
+  std::thread *publisherThread;
+  char *publishBuffer;
+  int publishBufferCommonLen;
 public:
 	static ZooHandler& getInstance();
 	virtual ~ZooHandler();
@@ -127,7 +148,8 @@ public:
 	/** Zoo Operations **/
 	int getSessionState();
 	ElectionState getElectionState();
-	void publishListOfFiles();
+	void publishListOfFilesSYNC();
+	void publishListOfFilesASYN();
 	void getGlobalView(std::vector<ZooNode>&);
 	std::vector<ZooNode> getGlobalFreeView();
 	void startElection();
@@ -138,6 +160,9 @@ public:
 	void publishFreeSpace();
 	void updateNodesInfoView();
 	void printGlobalView();
+	//To inform new file or deleting file
+	void informNewFile(const std::string& _fullPath,bool _isDir);
+	void informDelFile(const std::string& _fullPath);
 };
 
 }//Namespace

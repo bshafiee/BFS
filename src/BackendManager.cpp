@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 //Static members
 vector<Backend*> BackendManager::list;
@@ -64,4 +64,4 @@ Backend* BackendManager::getActiveBackend() {
     return nullptr;
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

@@ -25,7 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "BackendManager.h"
 #include "ZooNode.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 #define UPDATE_INTERVAL 1000//MICROSECONDS
 
@@ -46,6 +46,6 @@ public:
   static void stopLeadership();
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 
 #endif /* MASTERHANDLER_H_ */

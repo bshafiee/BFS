@@ -28,11 +28,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Filenode.h"
 #include "Filesystem.h"
 #include "Timer.h"
+#include <fuse.h>
+
 
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 FileNode::FileNode(string _name,string _fullPath,bool _isDir, bool _isRemote):
     Node(_name,_fullPath),isDir(_isDir),size(0),refCount(0),blockIndex(0),
@@ -51,6 +53,8 @@ FileNode::~FileNode() {
     block = nullptr;
   }
   dataList.clear();
+
+  lock_guard<mutex> lk(mapMutex);
   //Clean up children
   //(auto it = children.begin();it != children.end();it++) {//We cann't use a for loop because the iterators might get deleted
   long childrenSize = children.size();
@@ -240,7 +244,7 @@ long FileNode::write(const char* _data, int64_t _offset, int64_t _size) {
   return retValue;
 }
 
-long FUSESwift::FileNode::allocate(int64_t _offset, int64_t _size){
+long BFS::FileNode::allocate(int64_t _offset, int64_t _size){
   //Acquire lock
   lock_guard <recursive_mutex> lock(ioMutex);
 
@@ -321,7 +325,7 @@ long FUSESwift::FileNode::allocate(int64_t _offset, int64_t _size){
   return retValue;
 }
 
-bool FUSESwift::FileNode::truncate(int64_t _size) {
+bool BFS::FileNode::truncate(int64_t _size) {
   int64_t truncateDiff = _size - getSize();
 
   if(truncateDiff == 0)
@@ -375,81 +379,71 @@ bool FUSESwift::FileNode::truncate(int64_t _size) {
 
 unsigned long FileNode::getUID() {
   string uidStr = metadataGet(uidKey);
-  istringstream ss(uidStr);
-  unsigned long output = 0;
-  ss >> output;
-  return output;
+  if(uidStr!="")
+    return stoul(uidStr);
+  else
+    return 0;
 }
 
 unsigned long FileNode::getGID() {
   string gidStr = metadataGet(gidKey);
-  istringstream ss(gidStr);
-  unsigned long output = 0;
-  ss >> output;
-  return output;
+  if(gidStr != "")
+    return stoul(gidStr);
+  else
+    return 0;
 }
 
 void FileNode::setUID(unsigned long _uid) {
-  stringstream ss;
-  ss << _uid;
-  metadataAdd(uidKey,ss.str());
+  metadataAdd(uidKey,to_string(_uid));
 }
 
 void FileNode::setGID(unsigned long _gid) {
-  stringstream ss;
-  ss << _gid;
-  metadataAdd(gidKey,ss.str());
+  metadataAdd(gidKey,to_string(_gid));
 }
 
 unsigned long FileNode::getMTime() {
-  string gidStr = metadataGet(mtimeKey);
-  istringstream ss(gidStr);
-  unsigned long output = 0;
-  ss >> output;
-  return output;
+  string mTimeStr = metadataGet(mtimeKey);
+  if(mTimeStr!="")
+    return stoul(mTimeStr);
+  else
+    return 0;
 }
 
 unsigned long FileNode::getCTime() {
-  string gidStr = metadataGet(ctimeKey);
-  istringstream ss(gidStr);
-  unsigned long output = 0;
-  ss >> output;
-  return output;
+  string cTimeStr = metadataGet(ctimeKey);
+  if(cTimeStr!="")
+    return stoul(cTimeStr);
+  else
+    return 0;
 }
 
 void FileNode::setMTime(unsigned long _mtime) {
-  stringstream ss;
-  ss << _mtime;
   /**
    * Somehow enabling this line causes segfault in Fuse
    * multithread mode!
    */
-  //metadataAdd(mtimeKey,ss.str());
+  metadataAdd(mtimeKey,to_string(_mtime));
 }
 
 void FileNode::setCTime(unsigned long _ctime) {
-  stringstream ss;
-  ss << _ctime;
-  metadataAdd(ctimeKey,ss.str());
+  metadataAdd(ctimeKey,to_string(_ctime));
 }
 
 mode_t FileNode::getMode() {
   string modeStr = metadataGet(modeKey);
-  istringstream ss(modeStr);
-  mode_t output = 0;
-  ss >> output;
-  return output;
+  if(modeStr!="")
+    return stoul(modeStr);
+  else
+    return 0;
 }
 
 void FileNode::setMode(mode_t _mode) {
-  stringstream ss;
-  ss << _mode;
-  metadataAdd(modeKey,ss.str());
+  metadataAdd(modeKey,to_string(_mode));
 }
 
 bool FileNode::renameChild(FileNode* _child,const string &_newName) {
   //Not such a node
-  auto it = children.find(_child->getName());
+  /*auto it = children.find(_child->getName());
   if(it == children.end())
     return false;
   //First remove node
@@ -464,7 +458,8 @@ bool FileNode::renameChild(FileNode* _child,const string &_newName) {
 
   //Now insert it again with the updated name
   _child->setName(_newName);
-  return childAdd(_child).second;
+  return childAdd(_child).second;*/
+  return false;
 }
 
 bool FileNode::isDirectory() {
@@ -499,6 +494,7 @@ void FileNode::close(uint64_t _inodeNum) {
   	  LOG(DEBUG)<<"SIGNAL FROM CLOSE KEY:"<<getFullPath()<<" isOpen?"<<refCount<<" isRemote():"<<isRemote()<<" ptr:"<<this;
   	  FileSystem::getInstance().signalDeleteNode(this,mustInformRemoteOwner);//It's close now! so will be removed
   	  /// NOTE AFTER THIS LINE ALL OF DATA IN THIS FILE ARE INVALID ///
+  	  //WHY? XXX
   	  ZooHandler::getInstance().requestUpdateGlobalView();
   	} else{//Should not be deleted
       if(needSync && !isRemote()){
@@ -521,11 +517,11 @@ void FileNode::close(uint64_t _inodeNum) {
   FileSystem::getInstance().removeINodeEntry(_inodeNum);
 }
 
-bool FUSESwift::FileNode::getNeedSync() {
+bool BFS::FileNode::getNeedSync() {
   return needSync;
 }
 
-void FUSESwift::FileNode::setNeedSync(bool _need) {
+void BFS::FileNode::setNeedSync(bool _need) {
   needSync = _need;
   if(needSync)
     isFlushed = false;
@@ -630,8 +626,10 @@ bool FileNode::getStat(struct stat *stbuff) {
 #endif
 		fillStatWithPacket(*stbuff,packedSt);
 
-		if(!res)
+		if(!res){
 			LOG(ERROR)<<"GetRemoteAttrib failed for:"<<this->getFullPath();
+			ZooHandler::getInstance().requestUpdateGlobalView();
+		}
 		else {//update local info!
 			//get io mutex to update size
 			/*ioMutex.lock();//We should not do this, it will fuck move operations
@@ -748,11 +746,16 @@ bool FileNode::rmRemote() {
 }
 
 bool FileNode::truncateRemote(int64_t size) {
+  bool res = false;
 #ifdef BFS_ZERO
-  return BFSNetwork::truncateRemoteFile(getFullPath(),size, remoteHostMAC);
+  res = BFSNetwork::truncateRemoteFile(getFullPath(),size, remoteHostMAC);
 #else
-  return BFSTcpServer::truncateRemoteFile(getFullPath(),size, remoteIP,remotePort) == 200;
+  res = BFSTcpServer::truncateRemoteFile(getFullPath(),size, remoteIP,remotePort) == 200;
 #endif
+  if(!res){
+    BFS::ZooHandler::getInstance().requestUpdateGlobalView();
+  }
+  return res;
 }
 
 void FileNode::makeLocal() {
@@ -760,10 +763,12 @@ void FileNode::makeLocal() {
   setRemoteHostMAC(nullptr);
   setRemoteIP("");
   setRemotePort(0);
+  ZooHandler::getInstance().informNewFile(getFullPath(),isDir);
 }
 
 void FileNode::makeRemote() {
   isRem.store(true);
+  ZooHandler::getInstance().informDelFile(getFullPath());
 }
 
 void FileNode::deallocate() {
@@ -775,6 +780,7 @@ void FileNode::deallocate() {
     block = nullptr;
   }
   dataList.clear();
+  lock_guard<mutex> lk(mapMutex);
   //Clean up children
   for(auto it = children.begin();it != children.end();it++) {
     FileNode* child = (FileNode*)it->second;
@@ -851,6 +857,7 @@ long FileNode::writeHandler(const char* _data, int64_t _offset, int64_t _size, F
       } else {
         // all good ;)
         _afterMoveNewNode = newNode;
+        ZooHandler::getInstance().publishListOfFilesSYNC();
         //newNode->open();//Already opened by findAndOpen
         return newNode->writeRemote(_data, _offset, _size);
       }
@@ -916,10 +923,28 @@ bool FileNode::flush() {
 }
 
 bool FileNode::flushRemote() {
+  int tries = 3;
+retryFlushRemote:
 #ifdef BFS_ZERO
-  return BFSNetwork::flushRemoteFile(getFullPath(), remoteHostMAC);
+  if(BFSNetwork::flushRemoteFile(getFullPath(), remoteHostMAC))
+    return true;
+  else{
+    ZooHandler::getInstance().requestUpdateGlobalView();
+    tries--;
+    if(tries>0)
+      goto retryFlushRemote;
+    return false;
+  }
 #else
-  return BFSTcpServer::flushRemoteFile(getFullPath(), remoteIP,remotePort) == 200;
+  if(BFSTcpServer::flushRemoteFile(getFullPath(), remoteIP,remotePort) == 200)
+    return true;
+  else{
+    ZooHandler::getInstance().requestUpdateGlobalView();
+    tries--;
+    if(tries>0)
+      goto retryFlushRemote;
+    return false;
+  }
 #endif
 }
 
@@ -943,6 +968,52 @@ void FileNode::setShouldNotZooRemove(bool _value){
   shouldNotRemoveZooHandler.store(_value);
 }
 
-}  //namespace
 
+bool FileNode::hasLocalChildOrNotThisRemote(const std::string& _ip) {
+  lock_guard<mutex> lk(mapMutex);
+  if(!children.size())
+    return false;
+    for(auto it=children.begin();it!=children.end();it++){
+      if(!((FileNode*)it->second)->isRemote()){
+        return true;
+      }
+      //it is remote
+      if(((FileNode*)it->second)->remoteIP != _ip){
+        return true;
+      }
+    }
+  return false;
+}
+
+int FileNode::readDir(void* buf, void* _filler) {
+  lock_guard<mutex> lk(mapMutex);
+  fuse_fill_dir_t filler = (fuse_fill_dir_t) _filler;
+  filler(buf, ".", NULL, 0);
+  filler(buf, "..", NULL, 0);
+
+  for (auto it=children.begin(); it != children.end(); it++) {
+    FileNode* entry = (FileNode*) it->second;
+    struct stat st;
+    /**
+     * void *buf, const char *name,
+     const struct stat *stbuf, off_t off
+     */
+    if(!entry->open()) {//protect against delete
+      continue;
+    }
+    uint64_t inodeNumEntry = FileSystem::getInstance().assignINodeNum((intptr_t)entry);
+
+    entry->getStat(&st);
+    if (filler(buf, entry->getName().c_str(), &st, 0)) {
+      LOG(ERROR)<<"Filler error.";
+      entry->close(inodeNumEntry);//protect against delete
+      return -EIO;
+    }
+    entry->close(inodeNumEntry);//protect against delete
+  }
+
+  return 0;
+}
+
+}  //namespace
 

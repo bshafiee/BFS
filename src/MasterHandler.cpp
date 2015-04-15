@@ -25,7 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 atomic<bool> MasterHandler::isRunning;
 vector<ZooNode> MasterHandler::existingNodes;
@@ -386,4 +386,4 @@ bool MasterHandler::cleanAssignmentFolder() {
   return true;
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

@@ -10,7 +10,7 @@ OBJS =	$(CXXSOURCES:%.cpp=%.o)
 DEFINES=
 
 #Includes
-LFLAGS=-Ilib/logger 
+LFLAGS=-Ilib/logger
 CXXFLAGS+= $(LFLAGS)
 
 #Libraries
@@ -26,7 +26,7 @@ TARGET =	BFS
 #CXX=clang++
 $(TARGET):	$(OBJS)
 	$(CXX) $(DEFINES) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
-	gksudo setcap cap_net_admin+eip $(TARGET)
+	#gksudo setcap cap_net_admin+eip $(TARGET)
 
 $(OBJS):
 	$(CXX) -MMD $(CXXFLAGS) -c -o $@ $(@:.o=.cpp) $(LIBS)

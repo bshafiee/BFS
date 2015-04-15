@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <string>
 #include <mutex>
 
-namespace FUSESwift {
+namespace BFS {
 
 class Node;
 //Types
@@ -96,5 +96,5 @@ public:
   void childrenUnlock();
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* NODE_H_ */

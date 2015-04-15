@@ -26,7 +26,7 @@ extern "C"{
 
 using namespace std;
 
-namespace FUSESwift {
+namespace BFS {
 
 bool ZeroNetwork::initialized = false;
 void* ZeroNetwork::pd = nullptr;
@@ -120,4 +120,4 @@ void ZeroNetwork::getMacAndMTU(string _iface,unsigned char MAC[6],int &_MTU) {
 	printf("SourceMAC:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",MAC[0],MAC[1],MAC[2],MAC[3],MAC[4],MAC[5]);
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

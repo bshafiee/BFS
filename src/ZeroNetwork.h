@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Global.h"
 #include <string>
 
-namespace FUSESwift {
+namespace BFS {
 
 class ZeroNetwork {
 protected:
@@ -60,6 +60,6 @@ public:
 	static void getMacAndMTU(std::string _iface,unsigned char MAC[6],int &_MTU);
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 
 #endif /* ZERONETWORK_H_ */

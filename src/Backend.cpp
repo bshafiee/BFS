@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "Backend.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 Backend::Backend(BackendType _type):type(_type) {}
 
@@ -51,4 +51,4 @@ std::string Backend::backendTypeToStr(BackendType _type) {
   }
 }
 
-} /* namespace FUSESwift */
+} /* namespace BFS */

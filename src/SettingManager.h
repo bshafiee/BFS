@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <string>
 #include "Backend.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 enum class RUNTIME_MODE {DISTRIBUTED,STANDALONE};
 
@@ -65,6 +65,6 @@ public:
 	static int getPort();
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 
 #endif /* SETTINGMANAGER_H_ */

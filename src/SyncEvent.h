@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "cstring"
 #include "Filenode.h"
 
-namespace FUSESwift {
+namespace BFS {
 
 enum class SyncEventType {RENAME,DELETE,UPDATE_CONTENT,UPDATE_METADATA,DOWNLOAD_CONTENT,DOWNLOAD_METADATA};
 
@@ -71,5 +71,5 @@ struct SyncEvent {
   }
 };
 
-} /* namespace FUSESwift */
+} /* namespace BFS */
 #endif /* SYNCEVENT_H_ */
