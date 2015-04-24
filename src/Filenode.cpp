@@ -986,14 +986,17 @@ bool FileNode::hasLocalChildOrNotThisRemote(const std::string& _ip) {
 }
 
 int FileNode::readDir(void* buf, void* _filler) {
-  lock_guard<mutex> lk(mapMutex);
   fuse_fill_dir_t filler = (fuse_fill_dir_t) _filler;
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
 
+  //We can't hold lock mapMutex for long! so we just copy the children of this
+  //node to a list, open them and then release lock and do getStat on each of
+  //them seperatly
+  vector<pair<FileNode*,uint64_t>> listKids;
+  mapMutex.lock();
   for (auto it=children.begin(); it != children.end(); it++) {
     FileNode* entry = (FileNode*) it->second;
-    struct stat st;
     /**
      * void *buf, const char *name,
      const struct stat *stbuf, off_t off
@@ -1003,16 +1006,25 @@ int FileNode::readDir(void* buf, void* _filler) {
     }
     uint64_t inodeNumEntry = FileSystem::getInstance().assignINodeNum((intptr_t)entry);
 
-    entry->getStat(&st);
-    if (filler(buf, entry->getName().c_str(), &st, 0)) {
+    listKids.emplace_back(make_pair(entry,inodeNumEntry));
+  }
+  mapMutex.unlock();
+
+  int ret = 0;
+  for(auto &entry:listKids){
+    struct stat st;
+    entry.first->getStat(&st);
+    if (filler(buf, entry.first->getName().c_str(), &st, 0)) {
       LOG(ERROR)<<"Filler error.";
-      entry->close(inodeNumEntry);//protect against delete
-      return -EIO;
+      entry.first->close(entry.second);//protect against delete
+      ret = -EIO;
+      continue;
     }
-    entry->close(inodeNumEntry);//protect against delete
+
+    entry.first->close(entry.second);//protect against delete
   }
 
-  return 0;
+  return ret;
 }
 
 }  //namespace

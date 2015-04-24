@@ -617,8 +617,8 @@ int bfs_release(const char* path, struct fuse_file_info* fi) {
 int bfs_fsync(const char* path, int isdatasynch, struct fuse_file_info* fi) {
   //Get associated FileNode*
   //FileNode* node = (FileNode*)fi->fh;
-  LOG(ERROR)<<"FSYNC not implemeted: path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi<<" isdatasynch:"<<isdatasynch;
-  return 0;
+  //LOG(ERROR)<<"FSYNC not implemeted: path=\""<<(path==nullptr?"null":path)<<"\", fi="<<fi<<" isdatasynch:"<<isdatasynch;
+  return bfs_flush(path,fi);
 }
 
 int bfs_setxattr(const char* path, const char* name, const char* value,

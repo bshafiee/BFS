@@ -80,14 +80,6 @@ childDictionary::iterator Node::childrenEnd2() {
   return children.end();
 }
 
-void BFS::Node::childrenLock() {
-  mapMutex.lock();
-}
-
-void BFS::Node::childrenUnlock() {
-  mapMutex.unlock();
-}
-
 void BFS::Node::setFullPath(std::string _fullPath) {
   fullPath = _fullPath;
 }
