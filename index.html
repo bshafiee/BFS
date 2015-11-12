@@ -31,7 +31,7 @@
           <h3>
 <a id="welcome-to-bfs" class="anchor" href="#welcome-to-bfs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to BFS</h3>
 
-<p>Behrooz File System (BFS) is an in-memory distributed file system. BFS is a simple design which combines the best of in- memory and remote file systems. BFS stores data in the main memory of commodity servers and provides a shared unified file system view over them. BFS utilizes backend storage to provide persistency and availability. Unlike most existing distributed in-memory storage systems, BFS supports a general purpose POSIX-like file interface. BFS is built by grouping multiple servers’ memory together; therefore, if applications and BFS servers are co-located, BFS is a highly efficient design because this architecture minimizes inter-node communication. BFS nodes can communicate thorough a TCP connection or a faster ZERO_Networking solution. In ZERO_Networking mode the regular operating system network stack is bypassed and raw packets are shared between userspace and kernel.</p>
+<p>Behrooz File System (BFS) is an in-memory distributed file system. BFS is a simple design which combines the best of in-memory and remote file systems. BFS stores data in the main memory of commodity servers and provides a shared unified file system view over them. BFS utilizes backend storage to provide persistency and availability. Unlike most existing distributed in-memory storage systems, BFS supports a general purpose POSIX-like file interface. BFS is built by grouping multiple servers’ memory together; therefore, if applications and BFS servers are co-located, BFS is a highly efficient design because this architecture minimizes inter-node communication. BFS nodes can communicate thorough a TCP connection or a faster ZERO_Networking solution. In ZERO_Networking mode the regular operating system network stack is bypassed and raw packets are shared between userspace and kernel.</p>
 
 <p>BFS has been developed as part of Behrooz Shafiee Sarjaz master thesis under supervision of professor <a href="https://cs.uwaterloo.ca/%7Emkarsten/">Martin Karsten</a> at <a href="https://cs.uwaterloo.ca/">Cheriton School of Computer Science</a>, <a href="https://uwaterloo.ca/">University of Waterloo</a>.</p>
 
@@ -74,13 +74,15 @@
 <li>All nodes run Debian GNU/Linux 8.0 (jessie) with Linux kernel 3.16.0-4-amd64</li>
 </ul>
 
-<p><strong>Scalability</strong>
-An important aspect of a file system is how it behaves under different workloads with an increasing number of clients. The SPEC SFS 2014 benchmark is used to study the average latency of BFS file operations under different workloads with a varying number of clients. SPEC SFS uses Business Metric as a unit of workload. </p>
+<h3>
+<a id="scalability" class="anchor" href="#scalability" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Scalability</strong>
+</h3>
+
+<p>An important aspect of a file system is how it behaves under different workloads with an increasing number of clients. The SPEC SFS 2014 benchmark is used to study the average latency of BFS file operations under different workloads with a varying number of clients. SPEC SFS uses Business Metric as a unit of workload. </p>
+
+<p><strong>SPEC Workloads</strong></p>
 
 <p>Before presenting results of the SPEC benchmark, it is important to discuss different scenarios in which BFS might be deployed. There are two main scenarios in which an application might use BFS, balanced versus unbalanced. In order to understand these scenarios, consider a group of BFS servers and an application running on these servers. In the first scenario, the application is balanced across these servers (balanced scenario) and most requests are served from local BFS servers (served from memory). In the second scenario, unbalanced scenario, one of the instances of applications is doing very data intensive operations while others are not, and this leads to a more remote (served from other BFS servers through networking) access pattern.</p>
-
-<h3>
-<a id="spec-workloads" class="anchor" href="#spec-workloads" aria-hidden="true"><span class="octicon octicon-link"></span></a>SPEC Workloads</h3>
 
 <p>The following figures presents the results of two different SPEC workloads, Virtual Desktop Infrastructure (VDI) workload, which emulates in- teractions of a hypervisor and a storage system when the virtual machines are running on ESXi, Hyper-V, KVM and Xen environments; and, Software Builds Systems (SWBUILD) workload, which tries to mimic the behaviour of large software build systems.</p>
 
@@ -90,14 +92,20 @@ In VDI workload, as soon as the workload passes a single server’s memory capac
 <p><img src="http://i.imgur.com/iDN1omc.jpg" alt="SWBUILD workload">
 SWBUILD workload is different form other workloads in the sense that it creates and modifies a large number of files. This workload is derived from traces of software builds on hundreds of thousands of files. Usually in build systems, file attributes are first checked and then if necessary the file is read, compiled and written back as an object file. This workload has only one build component and launches five processes per business metric. Each business metric in this workload creates about 600,000 files with a Gaussian distribution file sizes centered at 16 KB. It can be seen that BFS in unbalanced mode can only succeed the first business metric, and the balanced scenario completes only two business metrics with a significantly large latency. After two business metrics, the latency passes the success ratio of the workload, and the benchmark fails. The main reason is that the enormous number of files significantly increases the size of each BFS server’s metadata directory at Zookeeper and crashes the ZooKeeper service (BFS uses ZooKeeper to create its shared namespace). Therefore, this is one of the areas in which BFS needs to improve upon. GlusterFS, as well as many other distributed file systems (Openstack Swift, Cassandra, or Dynamo), use consistent hashing to keep track of which files (objects in case of object storage) are kept at which servers.</p>
 
-<p><strong><em>fsync</em> Latency Test</strong>
-In BFS, fsync or synchronized writes flush the in-memory data to a persistent backend storage and this is what differentiates BFS from an in-memory file system. In fact, the fsync latency represents the vulnerability window of system since the write are not durable before they are flushed to the backend storage. It is expected that BFS and GlusterFS clients have roughly the same fsync latency because they all write to the same backend. The fsync-tester  benchmark is used to measure the latency of fsync system calls in BFS and GlusterFS clients.</p>
+<h3>
+<a id="fsync-latency-test" class="anchor" href="#fsync-latency-test" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong><em>fsync</em> Latency Test</strong>
+</h3>
+
+<p>In BFS, fsync or synchronized writes flush the in-memory data to a persistent backend storage and this is what differentiates BFS from an in-memory file system. In fact, the fsync latency represents the vulnerability window of system since the write are not durable before they are flushed to the backend storage. It is expected that BFS and GlusterFS clients have roughly the same fsync latency because they all write to the same backend. The fsync-tester  benchmark is used to measure the latency of fsync system calls in BFS and GlusterFS clients.</p>
 
 <p><img src="http://i.imgur.com/RX8ArMG.jpg" alt="fsync Latency Test">
 An important observation from this figure is the high latency of GlusterFS clients compared to BFS. Normally, it is expected for BFS and GlusterFS clients to have the same latency because they all write to the same GlusterFS backend server; especially BFS and GlusterFS FUSE clients both use the FUSE library. In contrast, the BFS latency is approximately three times less than that of GlusterFS clients. An investigation revealed that the GlusterFS FUSE clients use a fixed 4 KB block size to flush the write-behind buffer (1 MB by default in GlusterFS) that results in a significantly high latency. In contrast, BFS uses a big block size of 16 MB. Similar to the GlusterFS FUSE client, the GlusterFS NFS client also uses a small block size (a varying block size between 4 KB and 32 KB), but unlike the FUSE client, the NFS client does not use a write-behind buffer, and it forwards all writes to the backend storage. As a result, the fsync system call should have a very small latency in the GlusterFS NFS client because all writes are already transferred to the backend, and there is no buffer to be flushed.</p>
 
-<p><strong>BFS ZERO</strong>
-In this section two different modes of data transfer among nodes, BFS ZERO and BFS TCP are evaluated. In order to compare the latency of BFS ZERO and BFS TCP, the <em>ioping</em> tool is used. ioping measures the I/O latency in a similar manner that ping measures the network latency.
+<h3>
+<a id="bfs-zero" class="anchor" href="#bfs-zero" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>BFS ZERO</strong>
+</h3>
+
+<p>In this section two different modes of data transfer among nodes, BFS ZERO and BFS TCP are evaluated. In order to compare the latency of BFS ZERO and BFS TCP, the <em>ioping</em> tool is used. ioping measures the I/O latency in a similar manner that ping measures the network latency.
 <img src="http://i.imgur.com/OtNFUsZ.jpg" alt="Latency">
 This figure shows the violin plot of requests’ latency for BFS ZERO, BFS TCP and network ping with the packet size of 4 KB. A violin plot is similar to a boxplot with an additional overlaid curve that represents the probability density of data, which is useful to understand how scattered the data is. As expected, BFS ZERO has a significantly lower latency than BFS TCP and is very similar to ping. Moreover, it is interesting to see how scattered the latency is in case of BFS TCP, while BFS ZERO and ping have a latency that is highly centered around the mean of data, meaning a negligible jitter.</p>
 
