@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
 
     <!--[if lt IE 9]>
@@ -20,7 +20,7 @@
     <header>
       <div class="inner">
         <h1>Behrooz File System (BFS)</h1>
-        <h2>An in-memory distributed POSIX-compatible file system</h2>
+        <h2>An in-memory distributed POSIX-like file system</h2>
         <a href="https://github.com/bshafiee/BFS" class="button"><small>View project on</small> GitHub</a>
       </div>
     </header>
@@ -31,7 +31,7 @@
           <h3>
 <a id="welcome-to-bfs" class="anchor" href="#welcome-to-bfs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to BFS</h3>
 
-<p>BFS is an open-source distributed, scalable, replicated in-memory filesystem. BFS provides a POSIX compatible interface and can be mounted under any directory and be used same as a traditional filesystem such as Ext4 or NTFS as a userspace application without any kernel modification. BFS utilizes memory to store data which means a blazingly fast read/write speed. BFS is backed by Openstack Swift object storage (backend storage can be a disk, Amazon S3, or any other persistent storage as well). BFS nodes can communicate thorough a TCP connection or a faster ZERO_Networking solution. In ZERO_Networking mode the regular operating system network stack is bypassed and raw packets are shared between userspace and kernel.</p>
+<p>Behrooz File System (BFS) is presented, which provides an in-memory distributed file system. BFS is a simple design which combines the best of in- memory and remote file systems. BFS stores data in the main memory of commodity servers and provides a shared unified file system view over them. BFS utilizes backend storage to provide persistency and availability. Unlike most existing distributed in-memory storage systems, BFS supports a general purpose POSIX-like file interface. BFS is built by grouping multiple servers’ memory together; therefore, if applications and BFS servers are co-located, BFS is a highly efficient design because this architecture minimizes inter-node communication. BFS nodes can communicate thorough a TCP connection or a faster ZERO_Networking solution. In ZERO_Networking mode the regular operating system network stack is bypassed and raw packets are shared between userspace and kernel.</p>
 
 <p>BFS has been developed as part of Behrooz Shafiee Sarjaz master thesis under supervision of professor <a href="https://cs.uwaterloo.ca/%7Emkarsten/">Martin Karsten</a> at <a href="https://cs.uwaterloo.ca/">Cheriton School of Computer Science</a>, <a href="https://uwaterloo.ca/">University of Waterloo</a>.</p>
 
@@ -47,13 +47,26 @@
 
 <p><strong>Evaluation Environment</strong></p>
 
-<p>Evaluation environment includes a cluster of 7 machines each with the following specification:  </p>
+<p>All the evaluations of BFS are run in a cluster of 16 machines at the University of Waterloo. The cluster contains one head node and 15 compute nodes.</p>
+
+<p><strong>1x Head node: Supermicro SSG-6047R-E1R36L</strong></p>
 
 <ul>
-<li>2GB 266MHz DDR Memory </li>
-<li>Intel(R) Xeon(TM) CPU 3.06GHz Quad core 32 bit processor </li>
-<li>Intel 66MHz Gigabit Ethernet Controller </li>
-<li>operated by Debian i686(32 bit) GNU/Linux 8.0 (Kernel 3.16.7)</li>
+<li>2x Intel E5-2630v2 CPU</li>
+<li>256 GB RAM</li>
+<li>14x 2TB 7200RPM SAS2 hard drives (LSI HBA-connected) ◦ 1x Intel S3700 400 GB SATA3 SSD</li>
+<li>4x Intel i350 gigabit Ethernet ports</li>
+<li>1x Mellanox 40 GbE QSFP port</li>
+</ul>
+
+<p><strong>15x Computer nodes: Supermicro SYS-6017R-TDF</strong></p>
+
+<ul>
+<li>2x Intel E5-2620v2 CPU</li>
+<li>64 GB RAM</li>
+<li>3x 1TB SATA3 hard drives</li>
+<li>1x Intel S3700 200 GB SATA3 SSD ◦ 2x Intel i350 gigabit Ethernet ports ◦ 1x Mellanox 10 GbE SFP port</li>
+<li>All nodes run Debian GNU/Linux 8.0 (jessie) with Linux kernel 3.16.0-4-amd64</li>
 </ul>
 
 <p><strong>Standalone mode</strong></p>
